@@ -38,7 +38,7 @@ async def get_chunk(
 
     r = await client.invoke(
         raw.functions.messages.GetForumTopics(
-            channel=peer,
+            peer=peer,
             offset_date=offset_date,
             offset_id=offset_id,
             offset_topic=offset_topic,
