@@ -252,6 +252,7 @@ def pyrogram_api():
             get_poll_vote_statistics
             send_text_message_draft
             stop_pending_message
+            send_message_view_metrics
         """,
         chats="""
         Chats

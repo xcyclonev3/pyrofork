@@ -514,3 +514,30 @@ def test_message_draft_stopped_parsing():
         random_id=1, text=raw.types.TextWithEntities(text="x", entities=[])
     )))
     assert types.MessageDraftStopped._parse(None, draft, {}) is None
+
+
+# send_message_view_metrics
+
+def test_send_message_view_metrics():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.send_message_view_metrics(-100123, 42, 2500, 2000, 1500, 1000)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.ReportReadMetrics)
+    assert request.peer.write() == CHANNEL.write()
+    [metric] = request.metrics
+    assert isinstance(metric, raw.types.InputMessageReadMetric)
+    assert (metric.msg_id, metric.time_in_view_ms, metric.active_time_in_view_ms) == (42, 2500, 2000)
+    assert (metric.height_to_viewport_ratio_permille, metric.seen_range_ratio_permille) == (1500, 1000)
+    assert metric.view_id != 0
+
+    call(lambda: client.send_message_view_metrics(-100123, 42, 2500, 2000, 1500, 1000))
+    assert client.sent[-1].metrics[0].view_id != metric.view_id
+
+
+@pytest.mark.parametrize("metrics", [(-1, 0, 0, 0), (0, -1, 0, 0), (0, 0, -1, 0), (0, 0, 0, 1001), (0, 0, 0, -1)])
+def test_send_message_view_metrics_rejects_invalid_metrics(metrics):
+    client = offline_client(PEERS, lambda q: True)
+    with pytest.raises(ValueError):
+        call(lambda: client.send_message_view_metrics(-100123, 42, *metrics))
+    assert client.sent == []
