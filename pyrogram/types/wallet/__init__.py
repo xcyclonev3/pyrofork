@@ -16,6 +16,11 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from .ton_connect_challenge import TonConnectChallenge
+from .ton_connect_manifest import TonConnectManifest
+from .ton_connect_request import TonConnectRequest
+from .ton_connect_requests import TonConnectRequests
+from .ton_connect_session import TonConnectSession
 from .ton_nft import TonNft
 from .ton_nft_attribute import TonNftAttribute
 from .ton_wallet_backup_holder_dc import TonWalletBackupHolderDc
@@ -44,5 +49,10 @@ __all__ = [
     "TonWalletOwnershipProof",
     "TonWalletOwnershipProofChallenge",
     "TonWalletBackupHolderDc",
-    "TonWalletSecretPhraseParts"
+    "TonWalletSecretPhraseParts",
+    "TonConnectManifest",
+    "TonConnectSession",
+    "TonConnectRequest",
+    "TonConnectRequests",
+    "TonConnectChallenge"
 ]

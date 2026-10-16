@@ -553,6 +553,16 @@ def pyrogram_api():
             replace_ton_wallet
             export_ton_wallet_secret_phrase
             get_ton_wallet_encrypted_secret_phrase_part
+            get_ton_connect_sessions
+            create_ton_connect_session
+            set_ton_connect_session_wallet_client_id
+            send_ton_connect_session_connect_result
+            get_ton_connect_session_pending_requests
+            get_ton_connect_dapp_pending_requests
+            claim_ton_connect_request
+            answer_ton_connect_request
+            get_ton_connect_session_next_event_id
+            disconnect_ton_connect_session
         """
     )
 
@@ -904,6 +914,11 @@ def pyrogram_api():
             TonWalletOwnershipProofChallenge
             TonWalletBackupHolderDc
             TonWalletSecretPhraseParts
+            TonConnectManifest
+            TonConnectSession
+            TonConnectRequest
+            TonConnectRequests
+            TonConnectChallenge
         """
     )
 

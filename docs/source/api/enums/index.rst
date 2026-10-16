@@ -43,6 +43,7 @@ to apply only a valid value among the expected ones.
     GiftAttributeRarityType
     CraftGiftResultType
     TonWalletTransactionType
+    TonConnectSessionState
 
 .. toctree::
     :hidden:
@@ -77,3 +78,4 @@ to apply only a valid value among the expected ones.
     GiftAttributeRarityType
     CraftGiftResultType
     TonWalletTransactionType
+    TonConnectSessionState

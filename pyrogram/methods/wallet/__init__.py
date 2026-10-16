@@ -16,14 +16,22 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from .answer_ton_connect_request import AnswerTonConnectRequest
 from .check_wallet_bot_balance import CheckWalletBotBalance
+from .claim_ton_connect_request import ClaimTonConnectRequest
+from .create_ton_connect_session import CreateTonConnectSession
 from .create_user_ton_wallet import CreateUserTonWallet
 from .delete_ton_wallet import DeleteTonWallet
 from .disable_ton_wallet_backup import DisableTonWalletBackup
 from .disable_ton_wallet_backup_with_proof import DisableTonWalletBackupWithProof
+from .disconnect_ton_connect_session import DisconnectTonConnectSession
 from .enable_ton_wallet_backup import EnableTonWalletBackup
 from .export_ton_wallet_secret_phrase import ExportTonWalletSecretPhrase
 from .get_address_ton_wallet import GetAddressTonWallet
+from .get_ton_connect_dapp_pending_requests import GetTonConnectDappPendingRequests
+from .get_ton_connect_session_next_event_id import GetTonConnectSessionNextEventId
+from .get_ton_connect_session_pending_requests import GetTonConnectSessionPendingRequests
+from .get_ton_connect_sessions import GetTonConnectSessions
 from .get_ton_wallet_backup_holder_dcs import GetTonWalletBackupHolderDcs
 from .get_ton_wallet_encrypted_secret_phrase_part import GetTonWalletEncryptedSecretPhrasePart
 from .get_ton_wallet_gasless_transfers_info import GetTonWalletGaslessTransfersInfo
@@ -35,7 +43,9 @@ from .get_ton_wallet_transaction_by_msg_hash import GetTonWalletTransactionByMsg
 from .get_ton_wallet_transactions import GetTonWalletTransactions
 from .get_user_ton_wallet_addresses import GetUserTonWalletAddresses
 from .replace_ton_wallet import ReplaceTonWallet
+from .send_ton_connect_session_connect_result import SendTonConnectSessionConnectResult
 from .send_ton_wallet_transfer import SendTonWalletTransfer
+from .set_ton_connect_session_wallet_client_id import SetTonConnectSessionWalletClientId
 
 
 class Wallet(
@@ -59,5 +69,15 @@ class Wallet(
     ReplaceTonWallet,
     ExportTonWalletSecretPhrase,
     GetTonWalletEncryptedSecretPhrasePart,
+    GetTonConnectSessions,
+    CreateTonConnectSession,
+    SetTonConnectSessionWalletClientId,
+    SendTonConnectSessionConnectResult,
+    GetTonConnectSessionPendingRequests,
+    GetTonConnectDappPendingRequests,
+    ClaimTonConnectRequest,
+    AnswerTonConnectRequest,
+    GetTonConnectSessionNextEventId,
+    DisconnectTonConnectSession,
 ):
     pass

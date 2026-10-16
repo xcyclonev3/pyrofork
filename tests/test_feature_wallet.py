@@ -594,3 +594,183 @@ def test_get_ton_wallet_encrypted_secret_phrase_part_is_sent_to_the_holder_dc(mo
     assert isinstance(request, raw.functions.wallet.FetchEncryptedSecretPhrasePart)
     assert (request.token, request.public_key) == ("token", b"\x02" * 32)
     assert data == b"\x01" * 288
+
+
+# TON Connect
+
+TCS = enums.TonConnectSessionState
+DAPP = "ab" * 32
+
+
+def ton_connect_session(id=11, **kwargs):
+    return raw.types.TonConnectSession(id=id, dapp_client_id=DAPP, nonce=b"\x06" * 24, date=1_700_000_000, **kwargs)
+
+
+def ton_connect_request(msg_id=21, **kwargs):
+    return raw.types.TonConnectRequest(session_id=11, msg_id=msg_id, body=b"body", expires=1_700_000_600, **kwargs)
+
+
+def test_ton_connect_manifest():
+    manifest = types.TonConnectManifest._parse(None, roundtrip(raw.types.TonConnectManifest(
+        url="https://dapp.example", name="DApp", icon=web_document("https://dapp.example/icon.png"))))
+    assert (manifest.url, manifest.name, manifest.icon.url) == ("https://dapp.example", "DApp", "https://dapp.example/icon.png")
+
+    no_icon = types.TonConnectManifest._parse(None, roundtrip(raw.types.TonConnectManifest(url="u", name="n")))
+    assert no_icon.icon is None
+    assert types.TonConnectManifest._parse(None, None) is None
+
+
+@pytest.mark.parametrize("flags, state", [
+    ({}, TCS.READY),
+    ({"pending": True}, TCS.PENDING),
+    ({"closing": True}, TCS.CLOSING),
+    ({"closed": True}, TCS.CLOSED),
+    ({"pending": True, "closed": True}, TCS.PENDING),
+])
+def test_ton_connect_session_state(flags, state):
+    assert types.TonConnectSession._parse(None, roundtrip(ton_connect_session(**flags))).state == state
+
+
+def test_ton_connect_session_fields():
+    session = types.TonConnectSession._parse(None, roundtrip(ton_connect_session(
+        client_id="cd" * 32, manifest=raw.types.TonConnectManifest(url="https://dapp.example", name="DApp"))))
+    assert (session.id, session.dapp_client_id, session.wallet_client_id) == (11, DAPP, "cd" * 32)
+    assert session.creation_date == datetime.fromtimestamp(1_700_000_000) and session.nonce == b"\x06" * 24
+    assert session.manifest.name == "DApp" and session.manifest_error is None
+
+    failed = types.TonConnectSession._parse(None, roundtrip(ton_connect_session(manifest_error=3)))
+    assert failed.manifest is None and failed.manifest_error == 3 and failed.wallet_client_id is None
+
+
+def test_ton_connect_request_from_pending_requests():
+    request = types.TonConnectRequest._parse(None, roundtrip(ton_connect_request(topic="sendTransaction", trace_id="t1")))
+    assert (request.session_id, request.message_id, request.body) == (11, 21, b"body")
+    assert request.expiration_date == datetime.fromtimestamp(1_700_000_600)
+    assert (request.topic, request.trace_id) == ("sendTransaction", "t1")
+    assert request.dapp_name is request.is_accepted is request.is_rejected is None
+
+    never = types.TonConnectRequest._parse(None, roundtrip(raw.types.TonConnectRequest(
+        session_id=11, msg_id=22, body=b"", expires=0)))
+    assert never.expiration_date is None and never.topic is None and never.trace_id is None
+
+
+@pytest.mark.parametrize("flags, accepted, rejected", [
+    ({}, False, False),
+    ({"accepted": True}, True, False),
+    ({"declined": True}, False, True),
+])
+def test_ton_connect_request_from_service_message(flags, accepted, rejected):
+    action = roundtrip(raw.types.MessageActionWalletTonConnectRequest(
+        session_id=11, expires=1_700_000_600, topic="signData", trace_id="t2", dapp_name="DApp", **flags))
+    request = types.TonConnectRequest._parse_action(None, action, 21)
+
+    assert (request.session_id, request.message_id, request.body) == (11, 21, None)
+    assert request.expiration_date == datetime.fromtimestamp(1_700_000_600)
+    assert (request.topic, request.trace_id, request.dapp_name) == ("signData", "t2", "DApp")
+    assert (request.is_accepted, request.is_rejected) == (accepted, rejected)
+
+
+def test_ton_connect_requests_and_pending_request_methods():
+    pending = raw.types.wallet.TonConnectPending(
+        session=ton_connect_session(), requests=[ton_connect_request(21), ton_connect_request(22)])
+    client = offline_client(PEERS, lambda q: pending)
+
+    by_session = call(lambda: client.get_ton_connect_session_pending_requests(11))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.TonConnectGetPending)
+    assert (request.session_id, request.dapp_client_id) == (11, None)
+    assert isinstance(by_session, types.TonConnectRequests) and by_session.session.id == 11
+    assert [r.message_id for r in by_session.requests] == [21, 22]
+
+    by_dapp = call(lambda: client.get_ton_connect_dapp_pending_requests(DAPP))
+    request = client.sent[-1]
+    assert (request.session_id, request.dapp_client_id) == (None, DAPP)
+    assert isinstance(by_dapp.requests[0], types.TonConnectRequest)
+
+
+def test_get_ton_connect_sessions():
+    client = offline_client(PEERS, lambda q: raw.types.wallet.TonConnectSessions(
+        sessions=[ton_connect_session(1), ton_connect_session(2, closing=True)]))
+    sessions = call(lambda: client.get_ton_connect_sessions())
+
+    assert isinstance(client.sent[-1], raw.functions.wallet.TonConnectGetSessions)
+    assert [(s.id, s.state) for s in sessions] == [(1, TCS.READY), (2, TCS.CLOSING)]
+
+
+def test_create_ton_connect_session():
+    client = offline_client(PEERS, lambda q: ton_connect_session(pending=True))
+    session = call(lambda: client.create_ton_connect_session(DAPP, "https://dapp.example/manifest.json"))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.TonConnectCreateSession)
+    assert (request.dapp_client_id, request.manifest_url) == (DAPP, "https://dapp.example/manifest.json")
+    assert isinstance(session, types.TonConnectSession) and session.state == TCS.PENDING
+
+
+def test_set_ton_connect_session_wallet_client_id():
+    client = offline_client(PEERS, lambda q: raw.types.wallet.TonConnectChallenge(challenge=b"\x0c" * 104, event_id=5))
+    challenge = call(lambda: client.set_ton_connect_session_wallet_client_id(11, "cd" * 32))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.TonConnectRegisterKey)
+    assert (request.session_id, request.client_id) == (11, "cd" * 32)
+    assert isinstance(challenge, types.TonConnectChallenge)
+    assert (challenge.challenge, challenge.event_id) == (b"\x0c" * 104, 5)
+
+
+def test_send_ton_connect_session_connect_result():
+    client = offline_client(PEERS, lambda q: True)
+
+    assert call(lambda: client.send_ton_connect_session_connect_result(11, b"answer", b"body", True, "t1")) is True
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.TonConnectSubmitConnectResult)
+    assert (request.session_id, request.challenge_answer, request.body) == (11, b"answer", b"body")
+    assert request.error and request.trace_id == "t1"
+
+    call(lambda: client.send_ton_connect_session_connect_result(11, b"answer", b"body"))
+    assert not client.sent[-1].error and client.sent[-1].trace_id is None
+
+
+def test_claim_ton_connect_request():
+    client = offline_client(PEERS, lambda q: True)
+
+    assert call(lambda: client.claim_ton_connect_request(11, 21, "req-1")) is True
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.TonConnectClaimRequest)
+    assert (request.session_id, request.msg_id, request.app_request_id) == (11, 21, "req-1")
+    assert not request.declined and request.challenge_answer is None
+
+    call(lambda: client.claim_ton_connect_request(11, 21, "req-1", is_rejected=True, challenge_answer=b"a"))
+    assert client.sent[-1].declined and client.sent[-1].challenge_answer == b"a"
+
+
+def test_answer_ton_connect_request():
+    client = offline_client(PEERS, lambda q: True)
+
+    assert call(lambda: client.answer_ton_connect_request(11, 21, b"response", "t1")) is True
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.TonConnectSubmitResponse)
+    assert (request.session_id, request.msg_id, request.body, request.trace_id) == (11, 21, b"response", "t1")
+
+    call(lambda: client.answer_ton_connect_request(11, 21, b"response"))
+    assert client.sent[-1].trace_id is None
+
+
+def test_get_ton_connect_session_next_event_id():
+    client = offline_client(PEERS, lambda q: raw.types.TonConnectNextEventId(event_id=42))
+
+    assert call(lambda: client.get_ton_connect_session_next_event_id(11)) == 42
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.TonConnectNextEventId) and request.session_id == 11
+
+
+def test_disconnect_ton_connect_session():
+    client = offline_client(PEERS, lambda q: True)
+
+    assert call(lambda: client.disconnect_ton_connect_session(11, b"event")) is True
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.TonConnectCloseSession)
+    assert (request.session_id, request.body) == (11, b"event")
+
+    call(lambda: client.disconnect_ton_connect_session(11))
+    assert client.sent[-1].body is None

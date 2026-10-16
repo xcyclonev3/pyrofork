@@ -47,6 +47,7 @@ from .reply_color import ReplyColor
 from .sent_code_type import SentCodeType
 from .stories_privacy_rules import StoriesPrivacyRules
 from .story_privacy import StoryPrivacy
+from .ton_connect_session_state import TonConnectSessionState
 from .ton_wallet_transaction_type import TonWalletTransactionType
 from .user_status import UserStatus
 
@@ -82,5 +83,6 @@ __all__ = [
     'ChatJoinResultType',
     'GiftAttributeRarityType',
     'CraftGiftResultType',
-    'TonWalletTransactionType'
+    'TonWalletTransactionType',
+    'TonConnectSessionState'
 ]
