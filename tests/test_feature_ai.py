@@ -253,3 +253,89 @@ def test_add_and_remove_text_composition_style(method, unsave):
     assert len(client.sent) == 1
     assert isinstance(request, raw.functions.aicompose.SaveTone) and request.unsave is unsave
     assert isinstance(request.tone, raw.types.InputAiComposeToneSlug) and request.tone.slug == "SharedStyle1"
+
+
+# AI compose
+
+def composed(result, diff=None):
+    return raw.types.messages.ComposedMessageWithAI(result_text=result, diff_text=diff)
+
+
+# "Its a a test" fixed: the diff keeps the deleted text and marks the replaced, deleted and inserted parts
+FIXED = composed(
+    text("It's a test."),
+    text("It's a a test.", [
+        raw.types.MessageEntityDiffReplace(offset=0, length=4, old_text="Its"),
+        raw.types.MessageEntityDiffDelete(offset=5, length=2),
+        raw.types.MessageEntityDiffInsert(offset=13, length=1),
+    ])
+)
+
+
+def test_fixed_text_parse():
+    fixed = types.FixedText._parse(None, roundtrip(FIXED))
+
+    assert fixed.text.text == "It's a test." and fixed.text.entities is None
+    assert fixed.diff_text.text == "It's a a test."
+    assert [(e.type, e.offset, e.length, e.old_text) for e in fixed.diff_text.entities] == [
+        (enums.MessageEntityType.DIFF_REPLACE, 0, 4, "Its"),
+        (enums.MessageEntityType.DIFF_DELETE, 5, 2, None),
+        (enums.MessageEntityType.DIFF_INSERT, 13, 1, None),
+    ]
+
+    without_diff = types.FixedText._parse(None, roundtrip(composed(text("Fine."))))
+    assert without_diff.text.text == "Fine." and without_diff.diff_text is None
+
+
+def test_compose_text_with_ai():
+    client = tone_client(lambda q: composed(text("Hola, ¿seguimos?", [raw.types.MessageEntityBold(offset=0, length=4)])))
+    result = call(lambda: client.compose_text_with_ai(
+        "**hey**, are we on?", translate_to_language_code="es", style="formal", add_emojis=True
+    ))
+
+    get_tones, request = client.sent
+    assert isinstance(get_tones, raw.functions.aicompose.GetTones)
+    assert isinstance(request, raw.functions.messages.ComposeMessageWithAI)
+    assert request.text.text == "hey, are we on?"
+    assert [type(e) for e in request.text.entities] == [raw.types.MessageEntityBold]
+    assert request.translate_to_lang == "es" and request.emojify is True and request.proofread is False
+    assert isinstance(request.tone, raw.types.InputAiComposeToneDefault) and request.tone.tone == "formal"
+    assert isinstance(result, types.FormattedText)
+    assert result.text == "Hola, ¿seguimos?" and result.entities[0].type == enums.MessageEntityType.BOLD
+
+
+def test_compose_text_with_ai_without_style():
+    client = offline_client(PEERS, lambda q: composed(text("I love pizza 🍕")))
+    style = types.TextCompositionStyle(name="PirateTone1", title="Pirate", is_custom=True)
+    result = call(lambda: client.compose_text_with_ai("I love *pizza*", style=style, parse_mode=enums.ParseMode.DISABLED))
+
+    request, = client.sent  # A style object needs no request to find it
+    assert request.text.text == "I love *pizza*" and request.text.entities == []
+    assert isinstance(request.tone, raw.types.InputAiComposeToneSlug) and request.tone.slug == "PirateTone1"
+    assert request.translate_to_lang is None and request.emojify is False
+    assert result.text == "I love pizza 🍕"
+
+    client = offline_client(PEERS, lambda q: composed(text("I love pizza 🍕")))
+    call(lambda: client.compose_text_with_ai("I love pizza", add_emojis=True))
+
+    request, = client.sent
+    assert request.tone is None and request.emojify is True
+
+
+def test_fix_text_with_ai():
+    client = offline_client(PEERS, lambda q: FIXED)
+    fixed = call(lambda: client.fix_text_with_ai(
+        "Its a a test", entities=[types.MessageEntity(type=enums.MessageEntityType.ITALIC, offset=0, length=3)]
+    ))
+
+    request, = client.sent
+    assert isinstance(request, raw.functions.messages.ComposeMessageWithAI)
+    assert request.proofread is True and request.emojify is False
+    assert request.tone is None and request.translate_to_lang is None
+    assert request.text.text == "Its a a test"
+    assert [(type(e), e.offset, e.length) for e in request.text.entities] == [(raw.types.MessageEntityItalic, 0, 3)]
+    assert isinstance(fixed, types.FixedText)
+    assert fixed.text.text == "It's a test."
+    assert [e.type for e in fixed.diff_text.entities] == [
+        enums.MessageEntityType.DIFF_REPLACE, enums.MessageEntityType.DIFF_DELETE, enums.MessageEntityType.DIFF_INSERT
+    ]

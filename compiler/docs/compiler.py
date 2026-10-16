@@ -242,6 +242,8 @@ def pyrogram_api():
             get_text_composition_style_example
             add_text_composition_style
             remove_text_composition_style
+            compose_text_with_ai
+            fix_text_with_ai
         """,
         chats="""
         Chats
@@ -645,6 +647,7 @@ def pyrogram_api():
             FormattedText
             TextCompositionStyle
             TextCompositionStyleExample
+            FixedText
         """,
         stories="""
         Stories

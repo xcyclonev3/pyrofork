@@ -28,6 +28,7 @@ from .contact_registered import ContactRegistered
 from .dice import Dice
 from .document import Document
 from .external_reply_info import ExternalReplyInfo
+from .fixed_text import FixedText
 from .formatted_text import FormattedText
 from .game import Game
 from .giveaway import Giveaway
@@ -160,5 +161,6 @@ __all__ = [
     "StakeDiceState",
     "FormattedText",
     "TextCompositionStyle",
-    "TextCompositionStyleExample"
+    "TextCompositionStyleExample",
+    "FixedText"
 ]

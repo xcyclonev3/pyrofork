@@ -20,6 +20,7 @@
 from .add_poll_option import AddPollOption
 from .add_task_to_todo import AddTaskToTodo
 from .add_text_composition_style import AddTextCompositionStyle
+from .compose_text_with_ai import ComposeTextWithAi
 from .copy_media_group import CopyMediaGroup
 from .copy_message import CopyMessage
 from .create_text_composition_style import CreateTextCompositionStyle
@@ -38,6 +39,7 @@ from .edit_message_media import EditMessageMedia
 from .edit_message_reply_markup import EditMessageReplyMarkup
 from .edit_message_text import EditMessageText
 from .edit_text_composition_style import EditTextCompositionStyle
+from .fix_text_with_ai import FixTextWithAi
 from .forward_media_group import ForwardMediaGroup
 from .forward_messages import ForwardMessages
 from .get_available_effects import GetAvailableEffects
@@ -172,6 +174,8 @@ class Messages(
     SearchTextCompositionStyle,
     GetTextCompositionStyleExample,
     AddTextCompositionStyle,
-    RemoveTextCompositionStyle
+    RemoveTextCompositionStyle,
+    ComposeTextWithAi,
+    FixTextWithAi
 ):
     pass
