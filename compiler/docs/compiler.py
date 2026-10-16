@@ -262,6 +262,7 @@ def pyrogram_api():
             compose_rich_message_with_ai
             create_rich_message_with_ai
             fix_rich_message_with_ai
+            send_rich_message_draft
         """,
         chats="""
         Chats

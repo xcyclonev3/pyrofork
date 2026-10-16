@@ -883,3 +883,27 @@ def test_fix_rich_message_with_ai():
     assert request.proofread and not request.emojify and request.tone is None and request.translate_to_lang is None
     assert request.text.html == "<p>teh fox</p>"
     assert rich.blocks[0].text.text == "composed"
+
+
+# Drafts
+
+def test_send_rich_message_draft():
+    client = rich_client(lambda q: True)
+    assert call(lambda: client.send_rich_message_draft(
+        -100123, 77, types.InputRichMessage(types.RichMessageSourceBlocks([types.InputPageBlockThinking("Thinking")])),
+        message_thread_id=4, can_stop=True)) is True
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.SetTyping) and request.top_msg_id == 4
+    assert isinstance(request.peer, raw.types.InputPeerChannel)
+    action = request.action
+    assert isinstance(action, raw.types.InputSendMessageRichMessageDraftAction)
+    assert action.random_id == 77 and action.can_stop and not action.keep_on_stop
+    assert same(action.rich_message.blocks, [raw.types.PageBlockThinking(text=plain("Thinking"))])
+
+    # Users receive the pending message as sendMessageRichMessageDraftAction
+    received = roundtrip(raw.types.SendMessageRichMessageDraftAction(
+        random_id=77, keep_on_stop=True, rich_message=raw.types.RichMessage(
+            blocks=[raw.types.PageBlockThinking(text=plain("Thinking"))], photos=[], documents=[])))
+    [thinking] = types.RichMessage._parse(None, received.rich_message).blocks
+    assert isinstance(thinking, types.PageBlockThinking) and thinking.text.text == "Thinking"
