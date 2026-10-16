@@ -45,6 +45,7 @@ def photo_file_id(media_id, access_hash=66, file_reference=b"pref"):
 
 AUDIO_ID = document_file_id(FileType.AUDIO, 1001)
 VOICE_ID = document_file_id(FileType.VOICE, 1002)
+LIVE_VIDEO_ID = document_file_id(FileType.VIDEO, 3001)
 
 RAW_USER = raw.types.User(id=7, access_hash=2, first_name="A")
 
@@ -68,6 +69,10 @@ RAW_SONG = raw_document(1001, "audio/mpeg", [
     raw.types.DocumentAttributeFilename(file_name="song.mp3"),
 ])
 
+RAW_LIVE_VIDEO = raw_document(3001, "video/mp4", [
+    raw.types.DocumentAttributeVideo(duration=2.5, w=1080, h=1920),
+])
+
 
 def decoded(file_id):
     d = FileId.decode(file_id)
@@ -80,6 +85,11 @@ def assert_input_document(input_document, media_id, access_hash=55, file_referen
         media_id, access_hash, file_reference)
 
 
+def sent(client, request_type):
+    [request] = [q for q in client.sent if isinstance(q, request_type)]
+    return request
+
+
 # listen_to_audio -> messages.reportMusicListen (TDLib listenToAudio)
 
 def test_listen_to_audio_reports_music_listen():
@@ -89,8 +99,7 @@ def test_listen_to_audio_reports_music_listen():
     [request] = client.sent
     assert isinstance(request, raw.functions.messages.ReportMusicListen)
     assert request.listened_duration == 42
-    assert isinstance(request.id, raw.types.InputDocument)
-    assert (request.id.id, request.id.access_hash, request.id.file_reference) == (1001, 55, b"ref")
+    assert_input_document(request.id, 1001)
 
 
 @pytest.mark.parametrize("duration", [0, 2])
@@ -127,11 +136,6 @@ def story_client(item):
 
 def parse_story(client, item):
     return asyncio.run(types.Story._parse(client, roundtrip(item), raw.types.PeerUser(user_id=7)))
-
-
-def sent(client, request_type):
-    [request] = [q for q in client.sent if isinstance(q, request_type)]
-    return request
 
 
 def assert_song(audio):
@@ -204,53 +208,9 @@ def test_story_music_must_be_an_audio(method, kwargs):
 
 # Received live photos: messageMediaPhoto.live_photo/video (TDLib messagePhoto.video, paidMediaPhoto.video)
 
-RAW_LIVE_VIDEO = raw_document(3001, "video/mp4", [
-    raw.types.DocumentAttributeVideo(duration=2.5, w=1080, h=1920),
-])
-
-
-LIVE_VIDEO_ID = document_file_id(FileType.VIDEO, 3001)
-
-
 def live_photo_media(**kwargs):
     # live_photo and video share flags.4: the server sends both or neither
     return raw.types.MessageMediaPhoto(photo=raw_photo(), live_photo=True, video=RAW_LIVE_VIDEO, **kwargs)
-
-
-def assert_live_photo_media(media, media_type):
-    assert isinstance(media, media_type)
-    assert media.live_photo is True
-    assert_input_document(media.video, 3001)
-
-
-def sent_message(media):
-    # send_photo keeps sending until the answer contains the new message
-    return empty_updates(updates=[raw.types.UpdateNewMessage(
-        message=raw.types.Message(
-            id=1, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7), date=1, message="",
-            media=media
-        ),
-        pts=1, pts_count=1
-    )], users=[RAW_USER])
-
-
-def upload_respond(query):
-    if isinstance(query, raw.functions.messages.UploadMedia):
-        if isinstance(query.media, (raw.types.InputMediaUploadedDocument, raw.types.InputMediaDocumentExternal)):
-            return raw.types.MessageMediaDocument(document=RAW_LIVE_VIDEO, video=True)
-        return raw.types.MessageMediaPhoto(photo=raw_photo())
-    return sent_message(live_photo_media())
-
-
-def fake_uploads(client):
-    saved = []
-
-    async def save_file(path, *args, **kwargs):
-        saved.append(path)
-        return raw.types.InputFile(id=len(saved), parts=1, name=os.path.basename(path), md5_checksum="")
-
-    client.save_file = save_file
-    return saved
 
 
 def assert_live_video(video, ttl_seconds=None):
@@ -327,6 +287,57 @@ def test_bought_live_photo():
     assert_live_video(photo.live_video)
 
 
+@pytest.mark.xfail(strict=True, reason="Message.photo gets the live video once message.py passes "
+                                       "live_video=media.video to Photo._parse (main session)")
+def test_message_with_live_photo():
+    from tests.test_layer_roundtrip import parse_message
+
+    message = parse_message(raw.types.Message(
+        id=1, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7),
+        date=1, message="", media=live_photo_media()
+    ), users=[RAW_USER])
+    assert message.photo is not None
+    assert_live_video(message.photo.live_video)
+
+
+# Sending live photos: inputMediaPhoto/inputMediaUploadedPhoto.live_photo/video (TDLib inputPhoto.video)
+
+def assert_live_photo_media(media, media_type):
+    assert isinstance(media, media_type)
+    assert media.live_photo is True
+    assert_input_document(media.video, 3001)
+
+
+def sent_message(media):
+    # send_photo keeps sending until the answer contains the new message
+    return empty_updates(updates=[raw.types.UpdateNewMessage(
+        message=raw.types.Message(
+            id=1, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7), date=1, message="",
+            media=media
+        ),
+        pts=1, pts_count=1
+    )], users=[RAW_USER])
+
+
+def upload_respond(query):
+    if isinstance(query, raw.functions.messages.UploadMedia):
+        if isinstance(query.media, (raw.types.InputMediaUploadedDocument, raw.types.InputMediaDocumentExternal)):
+            return raw.types.MessageMediaDocument(document=RAW_LIVE_VIDEO, video=True)
+        return raw.types.MessageMediaPhoto(photo=raw_photo())
+    return sent_message(live_photo_media())
+
+
+def fake_uploads(client):
+    saved = []
+
+    async def save_file(path, *args, **kwargs):
+        saved.append(path)
+        return raw.types.InputFile(id=len(saved), parts=1, name=os.path.basename(path), md5_checksum="")
+
+    client.save_file = save_file
+    return saved
+
+
 def test_send_photo_with_live_video_file_ids():
     client = offline_client(PEERS, upload_respond)
     message = call(lambda: client.send_photo(7, photo_file_id(2001), has_spoiler=True, live_video=LIVE_VIDEO_ID))
@@ -394,6 +405,21 @@ def test_live_video_must_be_a_video():
     assert client.sent == []
 
 
+def test_story_reply_photo_passes_live_video():
+    def respond(query):
+        if isinstance(query, raw.functions.users.GetUsers):
+            return [roundtrip(RAW_USER)]
+        return sent_message(live_photo_media())
+
+    client = offline_client(PEERS, respond)
+    story = parse_story(client, story_item())
+    call(lambda: story.reply_photo(photo_file_id(2001), live_video=LIVE_VIDEO_ID))
+
+    request = sent(client, raw.functions.messages.SendMedia)
+    assert_live_photo_media(request.media, raw.types.InputMediaPhoto)
+    assert isinstance(request.reply_to, raw.types.InputReplyToStory) and request.reply_to.story_id == 5
+
+
 def test_send_media_group_with_live_photo():
     client = offline_client(PEERS, lambda q: empty_updates())
     call(lambda: client.send_media_group(7, [
@@ -407,6 +433,18 @@ def test_send_media_group_with_live_photo():
     assert_live_photo_media(live, raw.types.InputMediaPhoto)
     assert live.id.id == 2001
     assert static.id.id == 2002 and not static.live_photo and static.video is None
+
+
+def test_send_paid_media_with_live_photo():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    call(lambda: client.send_paid_media(-100123, 5, [
+        types.InputMediaPhoto(photo_file_id(2001), live_video=LIVE_VIDEO_ID),
+    ]))
+
+    [request] = client.sent
+    assert isinstance(request.media, raw.types.InputMediaPaidMedia) and request.media.stars_amount == 5
+    [media] = request.media.extended_media
+    assert_live_photo_media(media, raw.types.InputMediaPhoto)
 
 
 def test_edit_message_media_with_live_photo():
@@ -481,21 +519,6 @@ def test_edit_inline_media_uploads_static_photo(tmp_path):
     assert not request.media.live_photo and request.media.video is None
 
 
-def test_story_reply_photo_passes_live_video():
-    def respond(query):
-        if isinstance(query, raw.functions.users.GetUsers):
-            return [roundtrip(RAW_USER)]
-        return sent_message(live_photo_media())
-
-    client = offline_client(PEERS, respond)
-    story = parse_story(client, story_item())
-    call(lambda: story.reply_photo(photo_file_id(2001), live_video=LIVE_VIDEO_ID))
-
-    request = sent(client, raw.functions.messages.SendMedia)
-    assert_live_photo_media(request.media, raw.types.InputMediaPhoto)
-    assert isinstance(request.reply_to, raw.types.InputReplyToStory) and request.reply_to.story_id == 5
-
-
 def test_send_cached_media_with_live_video():
     client = offline_client(PEERS, upload_respond)
     message = call(lambda: client.send_cached_media(7, photo_file_id(2001), live_video=LIVE_VIDEO_ID))
@@ -533,28 +556,3 @@ def test_copy_media_group_keeps_live_photos():
     assert_live_photo_media(live, raw.types.InputMediaPhoto)
     assert live.id.id == 2001
     assert static.id.id == 2002 and not static.live_photo and static.video is None
-
-
-def test_send_paid_media_with_live_photo():
-    client = offline_client(PEERS, lambda q: empty_updates())
-    call(lambda: client.send_paid_media(-100123, 5, [
-        types.InputMediaPhoto(photo_file_id(2001), live_video=LIVE_VIDEO_ID),
-    ]))
-
-    [request] = client.sent
-    assert isinstance(request.media, raw.types.InputMediaPaidMedia) and request.media.stars_amount == 5
-    [media] = request.media.extended_media
-    assert_live_photo_media(media, raw.types.InputMediaPhoto)
-
-
-@pytest.mark.xfail(strict=True, reason="Message.photo gets the live video once message.py passes "
-                                       "live_video=media.video to Photo._parse (main session)")
-def test_message_with_live_photo():
-    from tests.test_layer_roundtrip import parse_message
-
-    message = parse_message(raw.types.Message(
-        id=1, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7),
-        date=1, message="", media=live_photo_media()
-    ), users=[RAW_USER])
-    assert message.photo is not None
-    assert_live_video(message.photo.live_video)
