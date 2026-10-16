@@ -50,7 +50,7 @@ class DeleteForumTopic:
         try:
             await self.invoke(
                 raw.functions.messages.DeleteTopicHistory(
-                    channel=await self.resolve_peer(chat_id),
+                    peer=await self.resolve_peer(chat_id),
                     top_msg_id=topic_id
                 )
             )

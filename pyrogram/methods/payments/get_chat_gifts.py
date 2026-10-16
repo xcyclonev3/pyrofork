@@ -93,7 +93,9 @@ class GetChatGifts:
                     exclude_unsaved=exclude_unsaved,
                     exclude_saved=exclude_saved,
                     exclude_unlimited=exclude_unlimited,
-                    exclude_limited=exclude_limited,
+                    # Limited gifts are now split into upgradable and non-upgradable ones (see TDLib's getReceivedGifts)
+                    exclude_upgradable=exclude_limited,
+                    exclude_unupgradable=exclude_limited,
                     exclude_unique=exclude_upgraded,
                     sort_by_value=sort_by_value
                 ),

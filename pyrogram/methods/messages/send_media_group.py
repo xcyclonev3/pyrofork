@@ -554,6 +554,7 @@ class SendMediaGroup:
                                              raw.types.UpdateBotNewBusinessMessage)),
                     r.updates
                 )],
+                topics=[],
                 users=r.users,
                 chats=r.chats,
             ),

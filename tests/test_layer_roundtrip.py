@@ -215,7 +215,8 @@ def offline_client(peers, respond):
 
     async def invoke(query, *args, **kwargs):
         client.sent.append(roundtrip(query))
-        return roundtrip(respond(query))
+        result = respond(query)
+        return roundtrip(result) if isinstance(result, TLObject) else result  # Bool results are plain bools
 
     client.resolve_peer = resolve_peer
     client.invoke = invoke
@@ -236,7 +237,7 @@ def empty_updates(updates=(), users=(), chats=()):
 CHANNEL = raw.types.InputPeerChannel(channel_id=123, access_hash=1)
 BASIC_GROUP = raw.types.InputPeerChat(chat_id=45)
 USER = raw.types.InputPeerUser(user_id=7, access_hash=2)
-PEERS = {-100123: CHANNEL, -45: BASIC_GROUP, 7: USER}
+PEERS = {-100123: CHANNEL, -45: BASIC_GROUP, 7: USER, "me": raw.types.InputPeerSelf()}
 
 
 @pytest.mark.parametrize("chat_id, peer", [(-100123, CHANNEL), (-45, BASIC_GROUP)])
@@ -382,3 +383,60 @@ def test_bot_verification_description_with_entities():
     assert parsed.custom_emoji_id == 12345 and parsed.bot.id == 99
     [entity] = parsed.description_entities
     assert entity.type == pyrogram.enums.MessageEntityType.BOLD and (entity.offset, entity.length) == (12, 5)
+
+
+
+@pytest.mark.parametrize("method, args, request_type", [
+    ("close_forum_topic", (-100123, 5), raw.functions.messages.EditForumTopic),
+    ("edit_general_topic", (-100123, "General"), raw.functions.messages.EditForumTopic),
+    ("unhide_general_topic", (-100123,), raw.functions.messages.EditForumTopic),
+    ("delete_forum_topic", (-100123, 5), raw.functions.messages.DeleteTopicHistory),
+])
+def test_forum_topic_methods_use_peer(method, args, request_type):
+    client = offline_client(PEERS, lambda q: raw.types.messages.AffectedHistory(pts=1, pts_count=1, offset=0)
+                            if isinstance(q, raw.functions.messages.DeleteTopicHistory) else empty_updates())
+    assert call(lambda: getattr(client, method)(*args)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, request_type) and request.peer.write() == CHANNEL.write()
+
+
+def test_update_color_sends_peer_color():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.update_color("me", pyrogram.enums.ReplyColor.RED, background_emoji_id=10)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.account.UpdateColor)
+    assert request.color.color == pyrogram.enums.ReplyColor.RED.value and request.color.background_emoji_id == 10
+
+
+def test_gift_listing_maps_exclude_limited():
+    client = offline_client(PEERS, lambda q: raw.types.payments.SavedStarGifts(count=5, gifts=[], chats=[], users=[]))
+    assert call(lambda: client.get_chat_gifts_count(-100123, exclude_limited=True)) == 5
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.payments.GetSavedStarGifts)
+    assert request.exclude_upgradable and request.exclude_unupgradable and not request.exclude_unlimited
+
+
+def test_set_gift_resale_price_sends_stars_amount():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    assert call(lambda: client.set_gift_resale_price("123", 100)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.payments.UpdateStarGiftPrice)
+    assert request.stargift.msg_id == 123
+    assert isinstance(request.resell_amount, raw.types.StarsAmount)
+    assert (request.resell_amount.amount, request.resell_amount.nanos) == (100, 0)
+
+
+@pytest.mark.parametrize("message_ids, expected", [([5, 6], [5, 6]), (5, 5)])
+def test_delete_scheduled_messages(message_ids, expected):
+    ids = message_ids if isinstance(message_ids, list) else [message_ids]
+    client = offline_client(PEERS, lambda q: empty_updates(updates=[
+        raw.types.UpdateDeleteScheduledMessages(peer=raw.types.PeerChannel(channel_id=123), messages=ids)
+    ]))
+    assert call(lambda: client.delete_scheduled_messages(-100123, message_ids)) == expected
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.DeleteScheduledMessages) and request.id == ids
