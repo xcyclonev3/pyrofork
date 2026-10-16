@@ -20,6 +20,7 @@
 guard bot answers, guest queries and business connected bots."""
 
 import asyncio
+from datetime import datetime
 
 import pytest
 
@@ -380,6 +381,36 @@ def test_guest_query_answer_bound_method():
 
     request = client.sent[-1]
     assert isinstance(request, raw.functions.messages.SetBotGuestChatResult) and request.query_id == 321
+
+
+# Business connected bots
+
+def test_confirm_business_connected_bot():
+    client = offline_client(BOT_PEERS, lambda q: True)
+    assert call(lambda: client.confirm_business_connected_bot(99)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.account.ConfirmBotConnection) and request.bot_id.write() == BOT.write()
+
+
+def test_business_connected_bot_type_unconfirmed():
+    # date, device and location share flags.1: the server sends all of them or none
+    update = roundtrip(raw.types.UpdateNewBotConnection(
+        bot_id=99, date=1700000000, device="Pixel 9", location="Berlin, Germany"
+    ))
+    parsed = types.BusinessConnectedBot._parse(None, update, {99: roundtrip(RAW_MANAGED_BOT)})
+
+    assert parsed.bot.id == 99 and parsed.bot.is_bot and parsed.is_confirmed is False
+    assert parsed.connection_date == datetime.fromtimestamp(1700000000)
+    assert parsed.device_model == "Pixel 9" and parsed.location == "Berlin, Germany"
+
+
+def test_business_connected_bot_type_confirmed():
+    update = roundtrip(raw.types.UpdateNewBotConnection(bot_id=99, confirmed=True))
+    parsed = types.BusinessConnectedBot._parse(None, update, {99: roundtrip(RAW_MANAGED_BOT)})
+
+    assert parsed.bot.id == 99 and parsed.is_confirmed is True
+    assert parsed.connection_date is None and parsed.device_model is None and parsed.location is None
 
 
 # Guard bots
