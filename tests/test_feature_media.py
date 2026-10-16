@@ -481,6 +481,21 @@ def test_edit_inline_media_uploads_static_photo(tmp_path):
     assert not request.media.live_photo and request.media.video is None
 
 
+def test_story_reply_photo_passes_live_video():
+    def respond(query):
+        if isinstance(query, raw.functions.users.GetUsers):
+            return [roundtrip(RAW_USER)]
+        return sent_message(live_photo_media())
+
+    client = offline_client(PEERS, respond)
+    story = parse_story(client, story_item())
+    call(lambda: story.reply_photo(photo_file_id(2001), live_video=LIVE_VIDEO_ID))
+
+    request = sent(client, raw.functions.messages.SendMedia)
+    assert_live_photo_media(request.media, raw.types.InputMediaPhoto)
+    assert isinstance(request.reply_to, raw.types.InputReplyToStory) and request.reply_to.story_id == 5
+
+
 def test_send_cached_media_with_live_video():
     client = offline_client(PEERS, upload_respond)
     message = call(lambda: client.send_cached_media(7, photo_file_id(2001), live_video=LIVE_VIDEO_ID))
