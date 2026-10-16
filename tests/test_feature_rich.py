@@ -816,3 +816,70 @@ def test_translate_message_rich_message():
     assert isinstance(request.peer, raw.types.InputPeerChannel) and request.id == [3]
     assert request.to_lang == "en" and request.tone == "casual"
     assert rich.blocks[0].text.text == "Hello"
+
+
+# AI composition
+
+def ai_client():
+    def respond(query):
+        if isinstance(query, raw.functions.aicompose.GetTones):
+            return raw.types.aicompose.Tones(hash=1, users=[], tones=[
+                raw.types.AiComposeToneDefault(tone="formal", emoji_id=1, title="Formal"),
+                raw.types.AiComposeTone(id=5, access_hash=6, slug="pirate", title="Pirate"),
+            ])
+        return raw.types.messages.ComposedRichMessageWithAI(result=raw.types.RichMessage(
+            blocks=[raw.types.PageBlockParagraph(text=plain("composed"))], photos=[], documents=[]))
+
+    return rich_client(respond)
+
+
+def test_compose_rich_message_with_ai():
+    client = ai_client()
+    rich = call(lambda: client.compose_rich_message_with_ai(
+        html_message("<p>we shipped</p>"), translate_to_language_code="it", custom_prompt="Sound excited",
+        add_emojis=True))
+
+    [request] = client.sent  # a custom prompt needs no style lookup
+    assert isinstance(request, raw.functions.messages.ComposeRichMessageWithAI)
+    assert request.emojify and not request.proofread and request.translate_to_lang == "it"
+    assert same(request.text, raw.types.InputRichMessageHTML(noautolink=True, html="<p>we shipped</p>"))
+    assert same(request.tone, raw.types.InputAiComposeToneSingleUse(custom_prompt="Sound excited"))
+    assert isinstance(rich, types.RichMessage) and rich.blocks[0].text.text == "composed"
+
+    for style_name, tone in [
+        ("formal", raw.types.InputAiComposeToneDefault(tone="formal")),
+        ("pirate", raw.types.InputAiComposeToneID(id=5, access_hash=6)),
+        ("some-slug_1", raw.types.InputAiComposeToneSlug(slug="some-slug_1")),
+    ]:
+        call(lambda: client.compose_rich_message_with_ai(html_message(), style_name=style_name))
+        assert isinstance(client.sent[-2], raw.functions.aicompose.GetTones) and client.sent[-2].hash == 0
+        assert same(client.sent[-1].tone, tone) and client.sent[-1].translate_to_lang is None
+
+    count = len(client.sent)
+    call(lambda: client.compose_rich_message_with_ai(html_message()))  # no style: the current one is kept
+    assert len(client.sent) == count + 1 and client.sent[-1].tone is None
+
+    with pytest.raises(ValueError, match="not found"):
+        call(lambda: client.compose_rich_message_with_ai(html_message(), style_name="no such style"))
+
+
+def test_create_rich_message_with_ai():
+    client = ai_client()
+    rich = call(lambda: client.create_rich_message_with_ai("A packing list", "en", add_emojis=True))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.ComposeRichMessageWithAI) and request.text is None
+    assert request.emojify and request.translate_to_lang == "en" and not request.proofread
+    assert same(request.tone, raw.types.InputAiComposeToneSingleUse(custom_prompt="A packing list"))
+    assert rich.blocks[0].text.text == "composed"
+
+
+def test_fix_rich_message_with_ai():
+    client = ai_client()
+    rich = call(lambda: client.fix_rich_message_with_ai(html_message("<p>teh fox</p>")))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.ComposeRichMessageWithAI)
+    assert request.proofread and not request.emojify and request.tone is None and request.translate_to_lang is None
+    assert request.text.html == "<p>teh fox</p>"
+    assert rich.blocks[0].text.text == "composed"

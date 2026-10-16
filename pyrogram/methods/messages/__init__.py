@@ -20,9 +20,11 @@
 from .add_poll_option import AddPollOption
 from .add_task_to_todo import AddTaskToTodo
 from .add_text_composition_style import AddTextCompositionStyle
+from .compose_rich_message_with_ai import ComposeRichMessageWithAi
 from .compose_text_with_ai import ComposeTextWithAi
 from .copy_media_group import CopyMediaGroup
 from .copy_message import CopyMessage
+from .create_rich_message_with_ai import CreateRichMessageWithAi
 from .create_text_composition_style import CreateTextCompositionStyle
 from .delete_all_recent_message_reactions_from_sender import DeleteAllRecentMessageReactionsFromSender
 from .delete_chat_history import DeleteChatHistory
@@ -43,6 +45,7 @@ from .edit_message_reply_markup import EditMessageReplyMarkup
 from .edit_message_rich_message import EditMessageRichMessage
 from .edit_message_text import EditMessageText
 from .edit_text_composition_style import EditTextCompositionStyle
+from .fix_rich_message_with_ai import FixRichMessageWithAi
 from .fix_text_with_ai import FixTextWithAi
 from .forward_media_group import ForwardMediaGroup
 from .forward_messages import ForwardMessages
@@ -206,6 +209,9 @@ class Messages(
     EditInlineRichMessage,
     GetFullRichMessage,
     TranslateRichMessage,
-    TranslateMessageRichMessage
+    TranslateMessageRichMessage,
+    ComposeRichMessageWithAi,
+    CreateRichMessageWithAi,
+    FixRichMessageWithAi
 ):
     pass

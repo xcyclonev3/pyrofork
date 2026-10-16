@@ -259,6 +259,9 @@ def pyrogram_api():
             get_full_rich_message
             translate_rich_message
             translate_message_rich_message
+            compose_rich_message_with_ai
+            create_rich_message_with_ai
+            fix_rich_message_with_ai
         """,
         chats="""
         Chats
