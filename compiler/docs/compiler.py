@@ -344,6 +344,7 @@ def pyrogram_api():
             get_stories_history
             get_peer_stories
             send_story
+            get_story_album_stories
         """,
         stickers="""
         Stickers

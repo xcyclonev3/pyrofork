@@ -18,6 +18,8 @@
 
 """Offline tests for the misc Layer 221-230 additions and the official apps' internal APIs (worker E)."""
 
+import asyncio
+
 import pytest
 
 from pyrogram import errors, raw, types, utils
@@ -325,3 +327,46 @@ def test_get_poll_vote_statistics():
     assert isinstance(statistics, types.PollVoteStatistics)
     assert isinstance(statistics.vote_graph, types.StatisticalGraphData)
     assert statistics.vote_graph.json_data == '{"x": 1}'
+
+
+# get_story_album_stories
+
+def collect(make_agen):
+    """Run an async generator method inside a running loop and collect what it yields."""
+    async def main():
+        return [item async for item in make_agen()]
+    return asyncio.run(main())
+
+
+def story_item(story_id):
+    return raw.types.StoryItem(id=story_id, date=1, expire_date=2, media=raw.types.MessageMediaEmpty(),
+                               caption=f"story {story_id}", entities=[])
+
+
+def album_client(pages):
+    def respond(query):
+        if isinstance(query, raw.functions.channels.GetChannels):
+            return raw.types.messages.Chats(chats=[RAW_CHANNEL])
+        return raw.types.stories.Stories(count=3, stories=pages[query.offset], chats=[], users=[])
+
+    return offline_client({**PEERS, utils.get_channel_id(123): CHANNEL}, respond)
+
+
+def test_get_story_album_stories():
+    client = album_client({0: [story_item(1), story_item(2)], 2: [story_item(3)]})
+    stories = collect(lambda: client.get_story_album_stories(-100123, 5))
+
+    requests = [q for q in client.sent if isinstance(q, raw.functions.stories.GetAlbumStories)]
+    assert [(q.album_id, q.offset, q.limit) for q in requests] == [(5, 0, 100), (5, 2, 100)]
+    assert all(q.peer.write() == CHANNEL.write() for q in requests)
+    assert [(s.id, s.caption) for s in stories] == [(1, "story 1"), (2, "story 2"), (3, "story 3")]
+    assert all(isinstance(s, types.Story) and s.sender_chat.id == utils.get_channel_id(123) for s in stories)
+
+
+def test_get_story_album_stories_limit_and_offset():
+    client = album_client({1: [story_item(2), story_item(3)]})
+    stories = collect(lambda: client.get_story_album_stories(-100123, 5, limit=1, offset=1))
+
+    requests = [q for q in client.sent if isinstance(q, raw.functions.stories.GetAlbumStories)]
+    assert [(q.offset, q.limit) for q in requests] == [(1, 1)]
+    assert [s.id for s in stories] == [2]

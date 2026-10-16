@@ -32,6 +32,7 @@ from .get_all_stories import GetAllStories
 from .get_stories import GetStories
 from .get_stories_history import GetUserStoriesHistory
 from .get_peer_stories import GetPeerStories
+from .get_story_album_stories import GetStoryAlbumStories
 from .get_users import GetUsers
 from .send_story import SendStory
 from .set_emoji_status import SetEmojiStatus
@@ -67,6 +68,7 @@ class Users(
     UpdateProfile,
     GetDefaultEmojiStatuses,
     SetEmojiStatus,
-    SendStory
+    SendStory,
+    GetStoryAlbumStories
 ):
     pass
