@@ -17,7 +17,9 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from .add_web_browser_settings_exception import AddWebBrowserSettingsException
 from .block_user import BlockUser
+from .change_web_browser_settings import ChangeWebBrowserSettings
 from .delete_profile_photos import DeleteProfilePhotos
 from .delete_stories import DeleteStories
 from .edit_story import EditStory
@@ -34,6 +36,9 @@ from .get_stories_history import GetUserStoriesHistory
 from .get_peer_stories import GetPeerStories
 from .get_story_album_stories import GetStoryAlbumStories
 from .get_users import GetUsers
+from .get_web_browser_settings import GetWebBrowserSettings
+from .remove_all_web_browser_settings_exceptions import RemoveAllWebBrowserSettingsExceptions
+from .remove_web_browser_settings_exception import RemoveWebBrowserSettingsException
 from .send_story import SendStory
 from .set_emoji_status import SetEmojiStatus
 from .set_profile_photo import SetProfilePhoto
@@ -69,6 +74,11 @@ class Users(
     GetDefaultEmojiStatuses,
     SetEmojiStatus,
     SendStory,
-    GetStoryAlbumStories
+    GetStoryAlbumStories,
+    GetWebBrowserSettings,
+    ChangeWebBrowserSettings,
+    AddWebBrowserSettingsException,
+    RemoveWebBrowserSettingsException,
+    RemoveAllWebBrowserSettingsExceptions
 ):
     pass

@@ -605,3 +605,87 @@ def test_dismiss_web_token():
     request = client.sent[-1]
     assert isinstance(request, raw.functions.auth.CancelWebTokenAuthorization)
     assert request.web_auth_token == "token"
+
+
+# Web browser settings
+
+def web_domain_exception(domain, favicon=None):
+    return raw.types.WebDomainException(domain=domain, url=f"https://{domain}/page", title=domain.title(),
+                                        favicon=favicon)
+
+
+def web_browser_settings(**kwargs):
+    return raw.types.account.WebBrowserSettings(
+        external_exceptions=[web_domain_exception("external.org", favicon=5)],
+        inapp_exceptions=[web_domain_exception("inapp.org")], hash=1, **kwargs
+    )
+
+
+def test_web_domain_exception_parsing():
+    exception = types.WebDomainException._parse(roundtrip(web_domain_exception("example.org", favicon=77)))
+    assert (exception.url, exception.domain, exception.title) == ("https://example.org/page", "example.org", "Example.Org")
+    assert exception.favicon_custom_emoji_id == 77
+    assert types.WebDomainException._parse(roundtrip(web_domain_exception("x.org"))).favicon_custom_emoji_id is None
+
+
+def test_web_browser_settings_parsing():
+    settings = types.WebBrowserSettings._parse(roundtrip(web_browser_settings(open_external_browser=True)))
+    assert settings.open_external_browser is True and settings.display_close_button is False
+    assert [e.domain for e in settings.external_exceptions] == ["external.org"]
+    assert settings.external_exceptions[0].favicon_custom_emoji_id == 5
+    assert [e.domain for e in settings.in_app_exceptions] == ["inapp.org"]
+
+    assert types.WebBrowserSettings._parse(roundtrip(raw.types.account.WebBrowserSettingsNotModified())) is None
+
+
+def test_get_web_browser_settings():
+    client = offline_client(PEERS, lambda q: web_browser_settings(display_close_button=True))
+    settings = call(lambda: client.get_web_browser_settings())
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.account.GetWebBrowserSettings) and request.hash == 0
+    assert isinstance(settings, types.WebBrowserSettings)
+    assert settings.display_close_button and not settings.open_external_browser
+
+
+def test_change_web_browser_settings():
+    client = offline_client(PEERS, lambda q: web_browser_settings(open_external_browser=True))
+    settings = call(lambda: client.change_web_browser_settings(True, False))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.account.UpdateWebBrowserSettings)
+    assert request.open_external_browser and not request.display_close_button
+    assert settings.open_external_browser
+
+
+@pytest.mark.parametrize("open_external_browser", [True, False])
+def test_add_web_browser_settings_exception(open_external_browser):
+    client = offline_client(PEERS, lambda q: empty_updates(updates=[raw.types.UpdateWebBrowserException(
+        exception=web_domain_exception("example.org"), open_external_browser=open_external_browser
+    )]))
+    assert call(lambda: client.add_web_browser_settings_exception("https://example.org", open_external_browser))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.account.ToggleWebBrowserSettingsException)
+    assert request.url == "https://example.org" and not request.delete
+    # The Bool is always sent, even when False: it chooses the external or the in-app browser
+    assert request.open_external_browser is open_external_browser
+
+
+def test_remove_web_browser_settings_exception():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    assert call(lambda: client.remove_web_browser_settings_exception("https://example.org")) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.account.ToggleWebBrowserSettingsException)
+    assert request.url == "https://example.org" and request.delete and request.open_external_browser is None
+
+
+def test_remove_all_web_browser_settings_exceptions():
+    client = offline_client(PEERS, lambda q: raw.types.account.WebBrowserSettings(
+        external_exceptions=[], inapp_exceptions=[], hash=2
+    ))
+    settings = call(lambda: client.remove_all_web_browser_settings_exceptions())
+
+    assert isinstance(client.sent[-1], raw.functions.account.DeleteWebBrowserSettingsExceptions)
+    assert settings.external_exceptions == [] and settings.in_app_exceptions == []

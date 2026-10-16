@@ -335,6 +335,11 @@ def pyrogram_api():
             get_common_chats
             get_default_emoji_statuses
             set_emoji_status
+            get_web_browser_settings
+            change_web_browser_settings
+            add_web_browser_settings_exception
+            remove_web_browser_settings_exception
+            remove_all_web_browser_settings_exceptions
         """,
         stories="""
         Stories
@@ -606,6 +611,8 @@ def pyrogram_api():
             CommunityChat
             CommunityChatRequest
             CommunityMemberChats
+            WebDomainException
+            WebBrowserSettings
         """,
         messages_media="""
         Messages & Media
