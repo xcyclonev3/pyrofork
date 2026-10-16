@@ -366,3 +366,19 @@ def test_gift_attribute_rarity(rarity, expected):
     assert parsed.type == pyrogram.enums.GiftAttributeType.BACKDROP
     assert parsed.name == "Night" and parsed.center_color == 1
     assert parsed.rarity == expected
+
+
+def test_bot_verification_description_with_entities():
+    verification = roundtrip(raw.types.BotVerification(
+        bot_id=99, icon=12345,
+        description=raw.types.TextWithEntities(
+            text="Verified by Guard",
+            entities=[raw.types.MessageEntityBold(offset=12, length=5)]
+        )
+    ))
+    parsed = types.BotVerification._parse(None, verification, {99: roundtrip(RAW_BOT)})
+
+    assert isinstance(parsed.description, str) and parsed.description == "Verified by Guard"
+    assert parsed.custom_emoji_id == 12345 and parsed.bot.id == 99
+    [entity] = parsed.description_entities
+    assert entity.type == pyrogram.enums.MessageEntityType.BOLD and (entity.offset, entity.length) == (12, 5)
