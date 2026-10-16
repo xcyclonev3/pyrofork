@@ -451,6 +451,15 @@ class Message(Object, Update):
         summary_language_code (``str``, *optional*):
             IETF language tag of the language in which the message can be summarized, if a summary is
             available.
+
+        chat_added_to_community (:obj:`~pyrogram.types.Chat`, *optional*):
+            Service message: the chat was added to this community.
+
+        chat_removed_from_community (``bool``, *optional*):
+            Service message: the chat was removed from its community.
+
+        chat_joined_from_community (:obj:`~pyrogram.types.Chat`, *optional*):
+            Service message: the members in *new_chat_members* joined the chat from this community.
     """
 
     # TODO: Add game missing field, Also connected_website
@@ -579,6 +588,9 @@ class Message(Object, Update):
         poll_option_deleted: "types.PollOption" = None,
         sender_tag: str = None,
         summary_language_code: str = None,
+        chat_added_to_community: "types.Chat" = None,
+        chat_removed_from_community: bool = None,
+        chat_joined_from_community: "types.Chat" = None,
         raw: "raw.types.Message" = None
     ):
         super().__init__(client)
@@ -698,6 +710,9 @@ class Message(Object, Update):
         self.poll_option_deleted = poll_option_deleted
         self.sender_tag = sender_tag
         self.summary_language_code = summary_language_code
+        self.chat_added_to_community = chat_added_to_community
+        self.chat_removed_from_community = chat_removed_from_community
+        self.chat_joined_from_community = chat_joined_from_community
         self.raw = raw
 
     async def wait_for_click(
@@ -817,6 +832,9 @@ class Message(Object, Update):
             todo_tasks_incompleted = None
             poll_option_added = None
             poll_option_deleted = None
+            chat_added_to_community = None
+            chat_removed_from_community = None
+            chat_joined_from_community = None
 
             service_type = None
             chat_join_type = None
@@ -947,6 +965,18 @@ class Message(Object, Update):
             elif isinstance(action, raw.types.MessageActionPollDeleteAnswer):
                 poll_option_deleted = await types.PollOption._parse(client, action.answer, users, chats)
                 service_type = enums.MessageServiceType.POLL_OPTION_DELETED
+            elif isinstance(action, raw.types.MessageActionChangeCommunity):
+                if action.community_id:
+                    chat_added_to_community = types.Chat._parse_community(client, action.community_id, chats)
+                    service_type = enums.MessageServiceType.CHAT_ADDED_TO_COMMUNITY
+                else:
+                    chat_removed_from_community = True
+                    service_type = enums.MessageServiceType.CHAT_REMOVED_FROM_COMMUNITY
+            elif isinstance(action, raw.types.MessageActionChatJoinedViaCommunity):
+                new_chat_members = [from_user] if from_user else None
+                chat_joined_from_community = types.Chat._parse_community(client, action.community_id, chats)
+                service_type = enums.MessageServiceType.NEW_CHAT_MEMBERS
+                chat_join_type = enums.ChatJoinType.BY_COMMUNITY
 
 
             parsed_message = Message(
@@ -996,6 +1026,9 @@ class Message(Object, Update):
                 paid_message_price_changed=paid_message_price_changed,
                 poll_option_added=poll_option_added,
                 poll_option_deleted=poll_option_deleted,
+                chat_added_to_community=chat_added_to_community,
+                chat_removed_from_community=chat_removed_from_community,
+                chat_joined_from_community=chat_joined_from_community,
                 raw=message,
                 chat_join_type=chat_join_type,
                 client=client

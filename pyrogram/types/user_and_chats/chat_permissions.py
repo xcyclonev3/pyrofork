@@ -96,6 +96,10 @@ class ChatPermissions(Object):
 
         can_edit_tag (``bool``, *optional*):
             True, if the user is allowed to change their own tag in the chat.
+
+        can_edit_chat_list (``bool``, *optional*):
+            True, if the user is allowed to add chats to the community and to remove them.
+            For communities only.
     """
 
     def __init__(
@@ -122,7 +126,8 @@ class ChatPermissions(Object):
         can_send_videos: bool = None,
         can_send_voices: bool = None,
         can_react_to_messages: bool = None,
-        can_edit_tag: bool = None
+        can_edit_tag: bool = None,
+        can_edit_chat_list: bool = None
     ):
         super().__init__(None)
 
@@ -148,6 +153,7 @@ class ChatPermissions(Object):
         self.can_send_voices = can_send_voices
         self.can_react_to_messages = can_react_to_messages
         self.can_edit_tag = can_edit_tag
+        self.can_edit_chat_list = can_edit_chat_list
         if (
             all_perms is None
             and can_send_messages is None
@@ -171,6 +177,7 @@ class ChatPermissions(Object):
             and can_send_voices is None
             and can_react_to_messages is None
             and can_edit_tag is None
+            and can_edit_chat_list is None
         ):
             self.all_perms = False
 
@@ -248,5 +255,6 @@ class ChatPermissions(Object):
                 can_send_videos=not denied_permissions.send_videos,
                 can_send_voices=not denied_permissions.send_voices,
                 can_react_to_messages=not denied_permissions.send_reactions,
-                can_edit_tag=not denied_permissions.edit_rank
+                can_edit_tag=not denied_permissions.edit_rank,
+                can_edit_chat_list=not denied_permissions.manage_linked_peers
             )

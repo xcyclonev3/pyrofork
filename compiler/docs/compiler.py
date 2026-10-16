@@ -461,6 +461,22 @@ def pyrogram_api():
             invoke
             resolve_peer
             save_file
+        """,
+        communities="""
+        Communities
+            create_community
+            get_joined_communities
+            add_chat_to_community
+            remove_chat_from_community
+            set_community_collapsed
+            get_community_chat_requests
+            approve_community_chat_request
+            decline_community_chat_request
+            approve_all_community_chat_requests
+            decline_all_community_chat_requests
+            ban_community_member
+            unban_community_member
+            get_community_member_chats
         """
     )
 
@@ -539,6 +555,9 @@ def pyrogram_api():
             CollectibleItemInfo
             BotVerification
             ChatJoinResult
+            CommunityChat
+            CommunityChatRequest
+            CommunityMemberChats
         """,
         messages_media="""
         Messages & Media

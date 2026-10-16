@@ -94,7 +94,8 @@ class PromoteChatMember:
                     other=privileges.can_manage_chat,
                     manage_direct_messages=privileges.can_manage_direct_messages,
                     manage_ranks=privileges.can_manage_tags,
-                    manage_welcome_messages=privileges.can_send_welcome_messages
+                    manage_welcome_messages=privileges.can_send_welcome_messages,
+                    manage_linked_peers=privileges.can_edit_chat_list
                 ),
                 # An unset rank leaves the current one (admin title or member tag) unchanged
                 rank=title or None

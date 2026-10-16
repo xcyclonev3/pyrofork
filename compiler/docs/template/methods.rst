@@ -99,6 +99,19 @@ Chats
 
     {chats}
 
+Communities
+-----------
+
+.. autosummary::
+    :nosignatures:
+
+    {communities}
+
+.. toctree::
+    :hidden:
+
+    {communities}
+
 Stickers
 --------
 

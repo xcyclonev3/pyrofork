@@ -175,6 +175,10 @@ class User(Object, Update):
         frozen_icon (``int``, *optional*):
             Frozen account icon.
             This field is available only in case *is_frozen* is True.
+
+        community_id (``int``, *optional*):
+            Identifier of the community the chat with the bot was added to.
+            For bots only.
     """
 
     def __init__(
@@ -212,7 +216,8 @@ class User(Object, Update):
         reply_color: "types.ChatColor" = None,
         profile_color: "types.ChatColor" = None,
         active_users: int = None,
-        frozen_icon: int = None
+        frozen_icon: int = None,
+        community_id: int = None
     ):
         super().__init__(client)
 
@@ -248,6 +253,7 @@ class User(Object, Update):
         self.profile_color = profile_color
         self.active_users = active_users
         self.frozen_icon = frozen_icon
+        self.community_id = community_id
 
     @property
     def full_name(self) -> str:
@@ -313,6 +319,7 @@ class User(Object, Update):
             profile_color=types.ChatColor._parse_profile_color(getattr(user, "profile_color", None)),
             active_users=active_users,
             frozen_icon=frozen_icon,
+            community_id=utils.get_channel_id(user.linked_community_id) if user.linked_community_id else None,
             client=client
         )
 

@@ -614,6 +614,14 @@ class Client(Methods):
                 peer_id = utils.get_channel_id(peer.id)
                 access_hash = peer.access_hash
                 peer_type = "channel" if peer.broadcast else "supergroup"
+            elif isinstance(peer, (raw.types.Community, raw.types.CommunityForbidden)):
+                # Communities share the channel id space and are addressed with InputChannel/InputPeerChannel
+                if peer.access_hash is None:
+                    continue
+
+                peer_id = utils.get_channel_id(peer.id)
+                access_hash = peer.access_hash
+                peer_type = "channel"
             else:
                 continue
 

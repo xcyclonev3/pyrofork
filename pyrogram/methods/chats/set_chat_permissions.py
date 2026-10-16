@@ -34,6 +34,7 @@ class SetChatPermissions:
 
         You must be an administrator in the group or a supergroup for this to work and must have the
         *can_restrict_members* admin rights.
+        In a community, only *can_edit_chat_list* is used.
 
         .. include:: /_includes/usable-by/users-bots.rst
 
@@ -79,6 +80,7 @@ class SetChatPermissions:
             send_voices=None
             send_reactions=None
             edit_rank=None
+            manage_linked_peers=None if permissions.can_edit_chat_list is None else not permissions.can_edit_chat_list
             if permissions.all_perms:
                 send_messages=False
                 send_media=False
@@ -104,7 +106,9 @@ class SetChatPermissions:
                 send_reactions=True
                 edit_rank=True
         else:
-            old_permissions = (await self.get_chat(chat_id)).permissions
+            old_permissions = (await self.get_chat(chat_id)).permissions or types.ChatPermissions._parse(
+                raw.types.ChatBannedRights(until_date=0)
+            )
             send_messages = None
             send_media = None
             embed_links=not permissions.can_add_web_page_previews if permissions.can_add_web_page_previews is not None else not old_permissions.can_add_web_page_previews
@@ -126,6 +130,7 @@ class SetChatPermissions:
             send_voices=not permissions.can_send_voices if permissions.can_send_voices is not None else not old_permissions.can_send_voices
             send_reactions=not permissions.can_react_to_messages if permissions.can_react_to_messages is not None else not old_permissions.can_react_to_messages
             edit_rank=not permissions.can_edit_tag if permissions.can_edit_tag is not None else not old_permissions.can_edit_tag
+            manage_linked_peers=not permissions.can_edit_chat_list if permissions.can_edit_chat_list is not None else not old_permissions.can_edit_chat_list
             if permissions.can_send_messages is not None:
                 if permissions.can_send_messages:
                     send_plain = False
@@ -186,7 +191,8 @@ class SetChatPermissions:
                     send_videos=send_videos,
                     send_voices=send_voices,
                     send_reactions=send_reactions,
-                    edit_rank=edit_rank
+                    edit_rank=edit_rank,
+                    manage_linked_peers=manage_linked_peers
                 )
             )
         )

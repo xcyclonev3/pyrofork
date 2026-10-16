@@ -21,6 +21,7 @@ from .advanced import Advanced
 from .auth import Auth
 from .bots import Bots
 from .chats import Chats
+from .communities import Communities
 from .contacts import Contacts
 from .decorators import Decorators
 from .forums import Forums
@@ -54,5 +55,6 @@ class Methods(
     Utilities,
     InviteLinks,
     TelegramBusiness,
+    Communities,
 ):
     pass

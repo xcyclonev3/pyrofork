@@ -41,6 +41,9 @@ from .chat_photo import ChatPhoto
 from .chat_preview import ChatPreview
 from .chat_privileges import ChatPrivileges
 from .chat_reactions import ChatReactions
+from .community_chat import CommunityChat
+from .community_chat_request import CommunityChatRequest
+from .community_member_chats import CommunityMemberChats
 from .dialog import Dialog
 from .emoji_status import EmojiStatus
 from .exported_folder_link import ExportedFolderLink
@@ -112,5 +115,8 @@ __all__ = [
     "ExportedFolderLink",
     "GroupCallMember",
     "ChatReactions",
-    "ChatJoinResult"
+    "ChatJoinResult",
+    "CommunityChat",
+    "CommunityChatRequest",
+    "CommunityMemberChats"
 ]
