@@ -530,6 +530,10 @@ def pyrogram_api():
             ban_community_member
             unban_community_member
             get_community_member_chats
+        """,
+        wallet="""
+        TON Wallet
+            get_ton_wallet_nfts
         """
     )
 
@@ -865,6 +869,12 @@ def pyrogram_api():
             TermsOfService
             OauthLinkInfo
             FirebasePnvIntent
+        """,
+        wallet="""
+        TON Wallet
+            WebDocument
+            TonNftAttribute
+            TonNft
         """
     )
 

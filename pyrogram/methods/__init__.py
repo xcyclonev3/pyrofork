@@ -35,6 +35,7 @@ from .phone import Phone
 from .users import Users
 from .utilities import Utilities
 from .business import TelegramBusiness
+from .wallet import Wallet
 
 
 class Methods(
@@ -56,5 +57,6 @@ class Methods(
     InviteLinks,
     TelegramBusiness,
     Communities,
+    Wallet,
 ):
     pass

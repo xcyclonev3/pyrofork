@@ -216,6 +216,19 @@ Payments
 
     {payments}
 
+TON Wallet
+----------
+
+.. autosummary::
+    :nosignatures:
+
+    {wallet}
+
+.. toctree::
+    :hidden:
+
+    {wallet}
+
 Authorization
 -------------
 
