@@ -55,11 +55,12 @@ class PollOption(Object):
         self.entities = entities
 
     async def write(self, client, i):
+        # Since Layer 230 the server assigns the option bytes: official clients send inputPollAnswer
+        # (tdesktop PollDataToMTP, TDLib PollOption::get_input_poll_answer). "i" is kept for compatibility.
         option, entities = (await pyrogram.utils.parse_text_entities(client, self.text, None, self.entities)).values()
-        return pyrogram.raw.types.PollAnswer(
+        return pyrogram.raw.types.InputPollAnswer(
             text=pyrogram.raw.types.TextWithEntities(
                 text=option,
                 entities=entities or []
-            ),
-            option=bytes([i])
+            )
         )

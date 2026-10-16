@@ -141,7 +141,7 @@ class Poll(Object, Update):
 
             if results:
                 result = results[i]
-                voter_count = result.voters
+                voter_count = result.voters or 0
 
                 if result.chosen:
                     chosen_option_id = i
@@ -220,7 +220,7 @@ class Poll(Object, Update):
             options.append(
                 types.PollOption(
                     text="",
-                    voter_count=result.voters,
+                    voter_count=result.voters or 0,
                     data=result.option
                 )
             )

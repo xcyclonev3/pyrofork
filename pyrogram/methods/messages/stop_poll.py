@@ -72,7 +72,9 @@ class StopPoll:
                     id=int(poll.id),
                     closed=True,
                     question=raw.types.TextWithEntities(text="", entities=[]),
-                    answers=[]
+                    answers=[],
+                    # TDLib's StopPollQuery sends 0 as well
+                    hash=0
                 )
             ),
             reply_markup=await reply_markup.write(self) if reply_markup else None

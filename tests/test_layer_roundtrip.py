@@ -290,3 +290,65 @@ def test_join_chat_guard_bot_web_view_raises():
 
     assert e.value.bot_id == 99 and e.value.query_id == 555
     assert isinstance(e.value.bot, types.User) and e.value.bot.id == 99 and e.value.bot.is_bot
+
+
+def test_send_poll_layer_230_request():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    call(lambda: client.send_poll(
+        -100123, "Q?", [types.PollOption("a"), types.PollOption("b")],
+        type=pyrogram.enums.PollType.QUIZ, correct_option_id=1
+    ))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SendMedia)
+    media = request.media
+    assert isinstance(media, raw.types.InputMediaPoll)
+    assert media.poll.hash == 0 and media.poll.quiz
+    assert media.correct_answers == [1]
+    assert all(isinstance(a, raw.types.InputPollAnswer) for a in media.poll.answers)
+    assert [a.text.text for a in media.poll.answers] == ["a", "b"]
+
+
+def poll_results(*voters):
+    # voters and recent_voters share flags.2: the server sends both or neither
+    return raw.types.PollResults(results=[
+        raw.types.PollAnswerVoters(
+            option=bytes([i]), voters=v, recent_voters=None if v is None else [], chosen=(i == 0)
+        )
+        for i, v in enumerate(voters)
+    ])
+
+
+def test_stop_poll_sends_hash_and_parses_optional_voters():
+    raw_poll = raw.types.Poll(
+        id=777, closed=True, hash=5,
+        question=raw.types.TextWithEntities(text="Q?", entities=[]),
+        answers=[
+            raw.types.PollAnswer(text=raw.types.TextWithEntities(text=t, entities=[]), option=bytes([i]))
+            for i, t in enumerate(("a", "b"))
+        ],
+    )
+    client = offline_client(PEERS, lambda q: empty_updates(updates=[
+        raw.types.UpdateMessagePoll(poll_id=777, poll=raw_poll, results=poll_results(3, None))
+    ]))
+
+    async def get_messages(chat_id, message_ids):
+        return types.Message(id=message_ids, poll=types.Poll(
+            id="777", question="Q?", options=[], total_voter_count=0, is_closed=False
+        ))
+
+    client.get_messages = get_messages
+    poll = call(lambda: client.stop_poll(-100123, 10))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.EditMessage)
+    assert request.media.poll.id == 777 and request.media.poll.closed and request.media.poll.hash == 0
+    assert poll.is_closed and [o.text for o in poll.options] == ["a", "b"]
+    assert [o.voter_count for o in poll.options] == [3, 0]
+    assert poll.chosen_option_id == 0
+
+
+def test_poll_update_without_voters():
+    update = roundtrip(raw.types.UpdateMessagePoll(poll_id=1, results=poll_results(None, 2)))
+    poll = asyncio.run(types.Poll._parse_update(None, update, {}))
+    assert [o.voter_count for o in poll.options] == [0, 2]

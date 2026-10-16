@@ -220,9 +220,11 @@ class SendPoll:
                     multiple_choice=allows_multiple_answers,
                     quiz=type == enums.PollType.QUIZ or False,
                     close_period=open_period,
-                    close_date=utils.datetime_to_timestamp(close_date)
+                    close_date=utils.datetime_to_timestamp(close_date),
+                    # Official clients send 0 for new polls (tdesktop PollDataToMTP, TDLib PollManager)
+                    hash=0
                 ),
-                correct_answers=[bytes([correct_option_id])] if correct_option_id is not None else None,
+                correct_answers=[correct_option_id] if correct_option_id is not None else None,
                 solution=solution,
                 solution_entities=solution_entities or []
             ),
