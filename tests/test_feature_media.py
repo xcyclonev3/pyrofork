@@ -24,7 +24,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from pyrogram import enums, raw, types
+from pyrogram import enums, raw, types, utils
 from pyrogram.file_id import FileId, FileType, ThumbnailSource
 from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
 
@@ -419,6 +419,66 @@ def test_edit_message_media_with_live_photo():
     assert isinstance(request, raw.functions.messages.EditMessage) and request.id == 9
     assert_live_photo_media(request.media, raw.types.InputMediaPhoto)
     assert request.message == "live"
+
+
+def inline_client(respond):
+    client = offline_client(PEERS, respond)
+
+    async def dc_id():
+        return 2  # the DC of inline_message_id(): edit_inline_media then invokes through the client itself
+
+    client.storage.dc_id = dc_id
+    return client
+
+
+def inline_message_id():
+    return utils.pack_inline_message_id(raw.types.InputBotInlineMessageID(dc_id=2, id=5, access_hash=6))
+
+
+def test_edit_inline_media_with_live_photo_file_ids():
+    client = inline_client(lambda q: True)
+    assert call(lambda: client.edit_inline_media(
+        inline_message_id(), types.InputMediaPhoto(photo_file_id(2001), live_video=LIVE_VIDEO_ID)
+    )) is True
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.EditInlineBotMessage) and request.id.id == 5
+    assert_live_photo_media(request.media, raw.types.InputMediaPhoto)
+    assert request.media.id.id == 2001
+
+
+def test_edit_inline_media_uploads_live_photo(tmp_path):
+    photo, video = tmp_path / "photo.jpg", tmp_path / "live.mp4"
+    photo.write_bytes(b"jpeg")
+    video.write_bytes(b"mp4")
+    client = inline_client(lambda q: upload_respond(q) if isinstance(q, raw.functions.messages.UploadMedia) else True)
+    saved = fake_uploads(client)
+    call(lambda: client.edit_inline_media(
+        inline_message_id(), types.InputMediaPhoto(str(photo), has_spoiler=True, live_video=str(video))
+    ))
+
+    assert saved == [str(photo), str(video)]
+    video_upload, photo_upload, request = client.sent
+    assert isinstance(video_upload.peer, raw.types.InputPeerSelf)
+    assert isinstance(video_upload.media, raw.types.InputMediaUploadedDocument)
+    assert isinstance(photo_upload.peer, raw.types.InputPeerSelf)
+    assert_live_photo_media(photo_upload.media, raw.types.InputMediaUploadedPhoto)
+    # the uploaded photo is sent as a photo, keeping its spoiler and live video
+    assert_live_photo_media(request.media, raw.types.InputMediaPhoto)
+    assert request.media.id.id == 2001 and request.media.spoiler
+
+
+def test_edit_inline_media_uploads_static_photo(tmp_path):
+    photo = tmp_path / "photo.jpg"
+    photo.write_bytes(b"jpeg")
+    client = inline_client(lambda q: upload_respond(q) if isinstance(q, raw.functions.messages.UploadMedia) else True)
+    fake_uploads(client)
+    call(lambda: client.edit_inline_media(inline_message_id(), types.InputMediaPhoto(str(photo), has_spoiler=True)))
+
+    upload, request = client.sent  # used to be sent as a document (AttributeError)
+    assert isinstance(upload.media, raw.types.InputMediaUploadedPhoto) and not upload.media.live_photo
+    assert isinstance(request.media, raw.types.InputMediaPhoto) and request.media.spoiler
+    assert not request.media.live_photo and request.media.video is None
 
 
 def test_send_paid_media_with_live_photo():
