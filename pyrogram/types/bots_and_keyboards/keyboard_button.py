@@ -150,6 +150,7 @@ class KeyboardButton(Object):
                 return KeyboardButton(
                     text=b.text,
                     request_chat=types.RequestPeerTypeChannel(
+                        button_id=button_type.button_id,
                         is_creator=button_type.peer_type.creator,
                         is_username=button_type.peer_type.has_username,
                         max=button_type.max_quantity,
@@ -163,6 +164,7 @@ class KeyboardButton(Object):
                 return KeyboardButton(
                     text=b.text,
                     request_chat=types.RequestPeerTypeChat(
+                        button_id=button_type.button_id,
                         is_creator=button_type.peer_type.creator,
                         is_bot_participant=button_type.peer_type.bot_participant,
                         is_username=button_type.peer_type.has_username,
@@ -177,6 +179,7 @@ class KeyboardButton(Object):
                 return KeyboardButton(
                     text=b.text,
                     request_user=types.RequestPeerTypeUser(
+                        button_id=button_type.button_id,
                         is_bot=button_type.peer_type.bot,
                         is_premium=button_type.peer_type.premium,
                         max=button_type.max_quantity

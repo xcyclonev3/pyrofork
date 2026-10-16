@@ -151,6 +151,27 @@ def test_toggle_bot_username_is_active(is_active):
     assert request.bot.write() == BOT.write() and request.username == "my_name" and request.active is is_active
 
 
+# Prepared keyboard buttons
+
+def test_reply_keyboard_read_keeps_request_button_ids():
+    def request_peer(text, button_id, peer_type):
+        return raw.types.KeyboardButton(text=text, type=raw.types.ButtonTypeRequestPeer(
+            button_id=button_id, peer_type=peer_type, max_quantity=1
+        ))
+
+    markup = raw.types.ReplyKeyboardMarkup(rows=[raw.types.KeyboardButtonRow(buttons=[
+        request_peer("user", 1, raw.types.RequestPeerTypeUser()),
+        request_peer("group", 2, raw.types.RequestPeerTypeChat()),
+        request_peer("channel", 3, raw.types.RequestPeerTypeBroadcast()),
+    ])])
+    [(user, group, channel)] = types.ReplyKeyboardMarkup.read(roundtrip(markup)).keyboard
+
+    # Needed to share the chosen peers with share_users_with_bot / share_chat_with_bot
+    assert user.request_user.button_id == 1
+    assert group.request_chat.button_id == 2 and isinstance(group.request_chat, types.RequestPeerTypeChat)
+    assert channel.request_chat.button_id == 3 and isinstance(channel.request_chat, types.RequestPeerTypeChannel)
+
+
 # Guard bots
 
 @pytest.mark.parametrize("result, url, expected", [
