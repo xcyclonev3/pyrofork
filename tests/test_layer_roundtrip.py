@@ -570,3 +570,35 @@ def test_formatted_date_html_and_markdown():
 
     with pytest.raises(ValueError):
         asyncio.run(HTML(None).parse('<tg-time unix="1647531900" format="x">bad</tg-time>'))
+
+
+class FakeSession:
+    """Stands in for Session so that the real Client.invoke() (and its peer caching) runs offline."""
+
+    def __init__(self, respond):
+        self.respond = respond
+        self.sent = []
+
+    async def invoke(self, query, *args, **kwargs):
+        self.sent.append(roundtrip(query))
+        return roundtrip(self.respond(query))
+
+
+def test_join_chat_caches_the_joined_chat():
+    client = pyrogram.Client("layer-roundtrip", api_id=1, api_hash="x", in_memory=True)
+    client.session = FakeSession(lambda q: raw.types.messages.ChatInviteJoinResultOk(
+        updates=empty_updates(chats=[RAW_CHANNEL])
+    ))
+    client.is_connected = True
+
+    async def main():
+        await client.storage.open()
+        try:
+            chat = await client.join_chat("https://t.me/+AbCdEf0123456789")
+            return chat, await client.storage.get_peer_by_id(chat.id)
+        finally:
+            await client.storage.close()
+
+    chat, peer = asyncio.run(main())
+    assert isinstance(client.session.sent[-1], raw.functions.messages.ImportChatInvite)
+    assert isinstance(peer, raw.types.InputPeerChannel) and (peer.channel_id, peer.access_hash) == (123, 1)
