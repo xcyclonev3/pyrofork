@@ -69,6 +69,7 @@ Index
     - :class:`EphemeralMessageHandler`
     - :class:`EditedEphemeralMessageHandler`
     - :class:`DeletedEphemeralMessagesHandler`
+    - :class:`UserSubscriptionUpdatedHandler`
 
 -----
 
@@ -110,3 +111,4 @@ Details
 .. autoclass:: EphemeralMessageHandler()
 .. autoclass:: EditedEphemeralMessageHandler()
 .. autoclass:: DeletedEphemeralMessagesHandler()
+.. autoclass:: UserSubscriptionUpdatedHandler()

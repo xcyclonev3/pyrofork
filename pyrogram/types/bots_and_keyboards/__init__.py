@@ -62,6 +62,7 @@ from .requested_chat import RequestedChat
 from .requested_chats import RequestedChats
 from .requested_user import RequestedUser
 from .sent_web_app_message import SentWebAppMessage
+from .user_subscription_updated import UserSubscriptionUpdated
 from .web_app_info import WebAppInfo
 
 __all__ = [
@@ -110,5 +111,6 @@ __all__ = [
     "ManagedBotCreated",
     "LoginUrlInfo",
     "LoginUrlInfoOpen",
-    "LoginUrlInfoRequestConfirmation"
+    "LoginUrlInfoRequestConfirmation",
+    "UserSubscriptionUpdated"
 ]

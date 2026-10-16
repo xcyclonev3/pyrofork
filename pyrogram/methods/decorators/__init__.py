@@ -53,6 +53,7 @@ from .on_story import OnStory
 from .on_message_reaction_updated import OnMessageReactionUpdated
 from .on_message_reaction_count_updated import OnMessageReactionCountUpdated
 from .on_shipping_query import OnShippingQuery
+from .on_user_subscription_updated import OnUserSubscriptionUpdated
 
 
 class Decorators(
@@ -91,6 +92,7 @@ class Decorators(
     OnTonConnectPendingDisconnect,
     OnEphemeralMessage,
     OnEditedEphemeralMessage,
-    OnDeletedEphemeralMessages
+    OnDeletedEphemeralMessages,
+    OnUserSubscriptionUpdated
 ):
     pass

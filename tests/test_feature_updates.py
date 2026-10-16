@@ -258,3 +258,15 @@ def test_wallet_decorators(decorator, handler):
 
     [(registered, group)] = callback.handlers
     assert isinstance(registered, handler) and group == 0
+
+
+@pytest.mark.parametrize("payload, expected", [(b"plan:gold", "plan:gold"), (b"\xff\x00", b"\xff\x00")])
+def test_user_subscription_updated(payload, expected):
+    parsed, handler = dispatch(raw.types.UpdateBotStarsSubscription(
+        user_id=7, payload=payload, qts=1, payment_failed=True), [RAW_USER])
+
+    assert handler is handlers.UserSubscriptionUpdatedHandler
+    assert parsed.user.id == 7 and parsed.payload == expected
+    assert (parsed.is_canceled, parsed.is_restored, parsed.is_payment_failed) == (False, False, True)
+    assert isinstance(pyrogram.Client.on_user_subscription_updated()(lambda c, u: None).handlers[0][0],
+                      handlers.UserSubscriptionUpdatedHandler)

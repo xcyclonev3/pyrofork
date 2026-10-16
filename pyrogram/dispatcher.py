@@ -62,7 +62,8 @@ from pyrogram.handlers import (
   TonConnectPendingDisconnectHandler,
   EphemeralMessageHandler,
   EditedEphemeralMessageHandler,
-  DeletedEphemeralMessagesHandler
+  DeletedEphemeralMessagesHandler,
+  UserSubscriptionUpdatedHandler
 )
 from pyrogram.raw.types import (
     UpdateNewMessage, UpdateNewChannelMessage, UpdateNewScheduledMessage,
@@ -91,7 +92,8 @@ from pyrogram.raw.types import (
     UpdateNewEphemeralMessage,
     UpdateEditEphemeralMessage,
     UpdateDeleteEphemeralMessages,
-    UpdateEphemeralBotCallbackQuery
+    UpdateEphemeralBotCallbackQuery,
+    UpdateBotStarsSubscription
 )
 
 log = logging.getLogger(__name__)
@@ -133,6 +135,7 @@ class Dispatcher:
     NEW_EPHEMERAL_MESSAGE_UPDATES = (UpdateNewEphemeralMessage,)
     EDIT_EPHEMERAL_MESSAGE_UPDATES = (UpdateEditEphemeralMessage,)
     DELETE_EPHEMERAL_MESSAGES_UPDATES = (UpdateDeleteEphemeralMessages,)
+    BOT_STARS_SUBSCRIPTION_UPDATES = (UpdateBotStarsSubscription,)
 
     def __init__(self, client: "pyrogram.Client"):
         self.client = client
@@ -364,6 +367,12 @@ class Dispatcher:
                 DeletedEphemeralMessagesHandler
             )
 
+        async def bot_stars_subscription_parser(update, users, chats):
+            return (
+                pyrogram.types.UserSubscriptionUpdated._parse(self.client, update, users),
+                UserSubscriptionUpdatedHandler
+            )
+
         self.update_parsers = {
             Dispatcher.NEW_MESSAGE_UPDATES: message_parser,
             Dispatcher.NEW_BOT_BUSINESS_MESSAGE_UPDATES: bot_business_message_parser,
@@ -396,7 +405,8 @@ class Dispatcher:
             Dispatcher.WALLET_TON_CONNECT_PENDING_DISCONNECT_UPDATES: wallet_ton_connect_pending_disconnect_parser,
             Dispatcher.NEW_EPHEMERAL_MESSAGE_UPDATES: ephemeral_message_parser,
             Dispatcher.EDIT_EPHEMERAL_MESSAGE_UPDATES: edited_ephemeral_message_parser,
-            Dispatcher.DELETE_EPHEMERAL_MESSAGES_UPDATES: deleted_ephemeral_messages_parser
+            Dispatcher.DELETE_EPHEMERAL_MESSAGES_UPDATES: deleted_ephemeral_messages_parser,
+            Dispatcher.BOT_STARS_SUBSCRIPTION_UPDATES: bot_stars_subscription_parser
         }
 
         self.update_parsers = {key: value for key_tuple, value in self.update_parsers.items() for key in key_tuple}

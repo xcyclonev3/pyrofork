@@ -70,6 +70,7 @@ Index
     - :meth:`~Client.on_ephemeral_message`
     - :meth:`~Client.on_edited_ephemeral_message`
     - :meth:`~Client.on_deleted_ephemeral_messages`
+    - :meth:`~Client.on_user_subscription_updated`
 
 -----
 
@@ -112,3 +113,4 @@ Details
 .. autodecorator:: pyrogram.Client.on_ephemeral_message()
 .. autodecorator:: pyrogram.Client.on_edited_ephemeral_message()
 .. autodecorator:: pyrogram.Client.on_deleted_ephemeral_messages()
+.. autodecorator:: pyrogram.Client.on_user_subscription_updated()

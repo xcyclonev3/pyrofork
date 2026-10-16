@@ -824,6 +824,7 @@ def pyrogram_api():
             GuestQuery
             ManagedBotUpdated
             ManagedBotCreated
+            UserSubscriptionUpdated
         """,
         bot_keyboards="""
         Bot keyboards

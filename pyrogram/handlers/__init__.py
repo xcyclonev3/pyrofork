@@ -54,6 +54,7 @@ from .message_reaction_updated_handler import MessageReactionUpdatedHandler
 from .message_reaction_count_updated_handler import MessageReactionCountUpdatedHandler
 from .pre_checkout_query_handler import PreCheckoutQueryHandler
 from .shipping_query_handler import ShippingQueryHandler
+from .user_subscription_updated_handler import UserSubscriptionUpdatedHandler
 
 __all__ = [
     "BotBusinessConnectHandler",
@@ -93,5 +94,6 @@ __all__ = [
     "TonConnectPendingDisconnectHandler",
     "EphemeralMessageHandler",
     "EditedEphemeralMessageHandler",
-    "DeletedEphemeralMessagesHandler"
+    "DeletedEphemeralMessagesHandler",
+    "UserSubscriptionUpdatedHandler"
 ]
