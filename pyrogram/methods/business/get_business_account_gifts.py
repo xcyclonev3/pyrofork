@@ -35,6 +35,8 @@ class GetBusinessAccountGifts:
         sort_by_price: Optional[bool] = None,
         limit: int = 0,
         offset: str = "",
+        exclude_upgradable: Optional[bool] = None,
+        exclude_unupgradable: Optional[bool] = None
     ):
         """Return the gifts received and owned by a managed business account.
 
@@ -59,6 +61,7 @@ class GetBusinessAccountGifts:
 
             exclude_limited (``bool``, *optional*):
                 Pass True to exclude gifts that can be purchased a limited number of times.
+                Same as passing both *exclude_upgradable* and *exclude_unupgradable*.
 
             exclude_upgraded (``bool``, *optional*):
                 Pass True to exclude upgraded gifts.
@@ -71,6 +74,12 @@ class GetBusinessAccountGifts:
 
             limit (``int``, *optional*):
                 The maximum number of gifts to be returned.
+
+            exclude_upgradable (``bool``, *optional*):
+                Pass True to exclude gifts that can be purchased a limited number of times and can be upgraded.
+
+            exclude_unupgradable (``bool``, *optional*):
+                Pass True to exclude gifts that can be purchased a limited number of times and can't be upgraded.
 
         Returns:
             ``Generator``: A generator yielding :obj:`~pyrogram.types.Gift` objects.
@@ -97,8 +106,8 @@ class GetBusinessAccountGifts:
                     exclude_saved=exclude_saved,
                     exclude_unlimited=exclude_unlimited,
                     # Limited gifts are now split into upgradable and non-upgradable ones (see TDLib's getReceivedGifts)
-                    exclude_upgradable=exclude_limited,
-                    exclude_unupgradable=exclude_limited,
+                    exclude_upgradable=exclude_upgradable or exclude_limited,
+                    exclude_unupgradable=exclude_unupgradable or exclude_limited,
                     exclude_unique=exclude_upgraded,
                     sort_by_value=sort_by_price
                 ),

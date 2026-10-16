@@ -33,7 +33,9 @@ class GetChatGiftsCount:
         exclude_saved: Optional[bool] = None,
         exclude_unlimited: Optional[bool] = None,
         exclude_limited: Optional[bool] = None,
-        exclude_upgraded: Optional[bool] = None
+        exclude_upgraded: Optional[bool] = None,
+        exclude_upgradable: Optional[bool] = None,
+        exclude_unupgradable: Optional[bool] = None
     ) -> int:
         """Get the total count of owned gifts of specified chat.
 
@@ -56,9 +58,16 @@ class GetChatGiftsCount:
                 
             exclude_limited (``bool``, *optional*):
                 Exclude limited star gifts.
+                Same as passing both *exclude_upgradable* and *exclude_unupgradable*.
                 
             exclude_upgraded (``bool``, *optional*):
                 Exclude upgraded star gifts.
+
+            exclude_upgradable (``bool``, *optional*):
+                Exclude limited star gifts that can be upgraded to collectible gifts.
+
+            exclude_unupgradable (``bool``, *optional*):
+                Exclude limited star gifts that can't be upgraded to collectible gifts.
 
         Returns:
             ``int``: On success, the star gifts count is returned.
@@ -78,8 +87,8 @@ class GetChatGiftsCount:
                 exclude_saved=exclude_saved,
                 exclude_unlimited=exclude_unlimited,
                 # Limited gifts are now split into upgradable and non-upgradable ones (see TDLib's getReceivedGifts)
-                exclude_upgradable=exclude_limited,
-                exclude_unupgradable=exclude_limited,
+                exclude_upgradable=exclude_upgradable or exclude_limited,
+                exclude_unupgradable=exclude_unupgradable or exclude_limited,
                 exclude_unique=exclude_upgraded,
                 limit=1
             )

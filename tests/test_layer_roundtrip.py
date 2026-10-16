@@ -468,3 +468,16 @@ def test_chat_member_rank_is_custom_title(member):
     users = {7: roundtrip(raw.types.User(id=7, access_hash=2, first_name="A"))}
     parsed = types.ChatMember._parse(None, roundtrip(member), users, {})
     assert parsed.custom_title == "tag" and parsed.user.id == 7
+
+
+@pytest.mark.parametrize("kwargs, upgradable, unupgradable", [
+    ({"exclude_upgradable": True}, True, False),
+    ({"exclude_unupgradable": True}, False, True),
+    ({"exclude_limited": True, "exclude_upgradable": False}, True, True),
+])
+def test_gift_listing_upgradable_filters(kwargs, upgradable, unupgradable):
+    client = offline_client(PEERS, lambda q: raw.types.payments.SavedStarGifts(count=0, gifts=[], chats=[], users=[]))
+    assert call(lambda: client.get_chat_gifts_count(-100123, **kwargs)) == 0
+
+    request = client.sent[-1]
+    assert (request.exclude_upgradable, request.exclude_unupgradable) == (upgradable, unupgradable)
