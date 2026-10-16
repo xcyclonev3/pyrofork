@@ -39,6 +39,7 @@ from .media_area import MediaArea
 from .media_area_channel_post import MediaAreaChannelPost
 from .media_area_coordinates import MediaAreaCoordinates
 from .message import Message
+from .message_draft_stopped import MessageDraftStopped
 from .message_entity import MessageEntity
 from .message_origin import MessageOrigin
 from .message_origin_channel import MessageOriginChannel
@@ -46,6 +47,7 @@ from .message_origin_chat import MessageOriginChat
 from .message_origin_hidden_user import MessageOriginHiddenUser
 from .message_origin_import import MessageOriginImport
 from .message_origin_user import MessageOriginUser
+from .pending_message import PendingMessage
 from .photo import Photo
 from .poll import Poll
 from .poll_option import PollOption
@@ -172,5 +174,7 @@ __all__ = [
     "StatisticalGraphData",
     "StatisticalGraphAsync",
     "StatisticalGraphError",
-    "PollVoteStatistics"
+    "PollVoteStatistics",
+    "PendingMessage",
+    "MessageDraftStopped"
 ]

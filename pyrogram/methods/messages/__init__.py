@@ -74,6 +74,7 @@ from .search_messages import SearchMessages
 from .search_messages_count import SearchMessagesCount
 from .search_text_composition_style import SearchTextCompositionStyle
 from .send_stake_dice import SendStakeDice
+from .send_text_message_draft import SendTextMessageDraft
 from .set_todo_tasks_completion import SetTodoTasksCompletion
 from .send_animation import SendAnimation
 from .send_audio import SendAudio
@@ -96,6 +97,7 @@ from .send_video_note import SendVideoNote
 from .send_voice import SendVoice
 from .send_web_page import SendWebPage
 from .start_bot import StartBot
+from .stop_pending_message import StopPendingMessage
 from .stop_poll import StopPoll
 from .stream_media import StreamMedia
 from .summarize_message import SummarizeMessage
@@ -188,6 +190,8 @@ class Messages(
     GetPersonalChatHistory,
     DeleteMessageReactionsFromSender,
     DeleteAllRecentMessageReactionsFromSender,
-    GetPollVoteStatistics
+    GetPollVoteStatistics,
+    SendTextMessageDraft,
+    StopPendingMessage
 ):
     pass

@@ -250,6 +250,8 @@ def pyrogram_api():
             delete_message_reactions_from_sender
             delete_all_recent_message_reactions_from_sender
             get_poll_vote_statistics
+            send_text_message_draft
+            stop_pending_message
         """,
         chats="""
         Chats
@@ -684,6 +686,8 @@ def pyrogram_api():
             StatisticalGraphAsync
             StatisticalGraphError
             PollVoteStatistics
+            PendingMessage
+            MessageDraftStopped
         """,
         stories="""
         Stories

@@ -22,12 +22,34 @@ import asyncio
 
 import pytest
 
-from pyrogram import errors, raw, types, utils
-from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
+from pyrogram import enums, errors, raw, types, utils
+from tests import test_layer_roundtrip
+from tests.test_layer_roundtrip import call, roundtrip, empty_updates, PEERS
 
 CHANNEL = PEERS[-100123]
 BASIC_GROUP = PEERS[-45]
 USER = PEERS[7]
+
+CLIENTS = []
+
+
+def offline_client(peers, respond):
+    """test_layer_roundtrip.offline_client, remembering the client to close the event loop it created."""
+    client = test_layer_roundtrip.offline_client(peers, respond)
+    CLIENTS.append(client)
+    return client
+
+
+@pytest.fixture(autouse=True)
+def close_client_loops():
+    # Every Client sets a new event loop that asyncio.run() then leaves unclosed: close them, so that their
+    # garbage collection doesn't emit unraisable exception warnings in later tests.
+    yield
+    while CLIENTS:
+        loop = CLIENTS.pop().loop
+        if not loop.is_running() and not loop.is_closed():
+            loop.close()
+    asyncio.set_event_loop(None)
 
 
 def raw_user(user_id=7, **kwargs):
@@ -404,3 +426,91 @@ def test_search_global_without_community():
 
     with pytest.raises(ValueError):
         call(lambda: client.search_global_count("hi", community_id=7))
+
+
+# Live drafts: send_text_message_draft, stop_pending_message, PendingMessage, MessageDraftStopped
+
+def test_send_text_message_draft():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.send_text_message_draft(
+        7, 11, "Hello **world**", message_thread_id=5, can_stop=True
+    )) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SetTyping)
+    assert request.peer.write() == USER.write() and request.top_msg_id == 5
+    action = request.action
+    assert isinstance(action, raw.types.SendMessageTextDraftAction)
+    assert action.random_id == 11 and action.can_stop and not action.keep_on_stop
+    assert action.text.text == "Hello world"
+    [entity] = action.text.entities
+    assert isinstance(entity, raw.types.MessageEntityBold) and (entity.offset, entity.length) == (6, 5)
+
+
+def test_send_text_message_draft_placeholder():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.send_text_message_draft(7, 11, keep_on_stop=True)) is True
+
+    request = client.sent[-1]
+    assert request.top_msg_id is None
+    assert request.action.text.text == "" and request.action.text.entities == []
+    assert request.action.keep_on_stop and not request.action.can_stop
+
+
+def test_stop_pending_message():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.stop_pending_message(7, 11, message_thread_id=5)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SetTyping)
+    assert request.peer.write() == USER.write() and request.top_msg_id == 5
+    assert isinstance(request.action, raw.types.SendMessageStopDraftAction) and request.action.random_id == 11
+
+
+def test_pending_message_parsing():
+    update = roundtrip(raw.types.UpdateUserTyping(
+        user_id=99, top_msg_id=5,
+        action=raw.types.SendMessageTextDraftAction(
+            random_id=11, can_stop=True, keep_on_stop=True,
+            text=raw.types.TextWithEntities(text="Hello world", entities=[
+                raw.types.MessageEntityItalic(offset=0, length=5)
+            ])
+        )
+    ))
+    pending = types.PendingMessage._parse(None, update, {99: roundtrip(RAW_BOT)})
+
+    assert isinstance(pending, types.PendingMessage)
+    assert pending.chat.id == 99 and pending.chat.type == enums.ChatType.BOT
+    assert (pending.draft_id, pending.message_thread_id) == (11, 5)
+    assert pending.text == "Hello world" and pending.can_stop and pending.keep_on_stop
+    [entity] = pending.entities
+    assert entity.type == enums.MessageEntityType.ITALIC and (entity.offset, entity.length) == (0, 5)
+
+    placeholder = types.PendingMessage._parse(None, roundtrip(raw.types.UpdateUserTyping(
+        user_id=99, action=raw.types.SendMessageTextDraftAction(
+            random_id=12, text=raw.types.TextWithEntities(text="", entities=[])
+        )
+    )), {})
+    assert placeholder.text == "" and placeholder.entities is None and not placeholder.can_stop
+    assert placeholder.chat.id == 99 and placeholder.message_thread_id is None
+
+    typing = roundtrip(raw.types.UpdateUserTyping(user_id=99, action=raw.types.SendMessageTypingAction()))
+    assert types.PendingMessage._parse(None, typing, {}) is None
+
+
+def test_message_draft_stopped_parsing():
+    update = roundtrip(raw.types.UpdateUserTyping(
+        user_id=7, top_msg_id=5, action=raw.types.SendMessageStopDraftAction(random_id=11)
+    ))
+    stopped = types.MessageDraftStopped._parse(None, update, {})
+
+    assert isinstance(stopped, types.MessageDraftStopped)
+    assert stopped.chat.id == 7 and stopped.chat.type == enums.ChatType.PRIVATE
+    assert (stopped.draft_id, stopped.message_thread_id) == (11, 5)
+
+    invalid = roundtrip(raw.types.UpdateUserTyping(user_id=7, action=raw.types.SendMessageStopDraftAction(random_id=0)))
+    assert types.MessageDraftStopped._parse(None, invalid, {}) is None
+    draft = roundtrip(raw.types.UpdateUserTyping(user_id=7, action=raw.types.SendMessageTextDraftAction(
+        random_id=1, text=raw.types.TextWithEntities(text="x", entities=[])
+    )))
+    assert types.MessageDraftStopped._parse(None, draft, {}) is None
