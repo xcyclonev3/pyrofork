@@ -20,8 +20,7 @@
 from typing import Union, Optional
 
 import pyrogram
-from pyrogram import raw
-from pyrogram import types
+from pyrogram import enums, raw, types, utils
 from ..object import Object
 
 
@@ -76,6 +75,15 @@ class InlineKeyboardButton(Object):
 
         copy_text (``str``, *optional*):
             A button that copies the text to the clipboard.
+
+        style (:obj:`~pyrogram.enums.ButtonStyle`, *optional*):
+            Style (color) of the button.
+
+        icon_custom_emoji_id (``int``, *optional*):
+            Identifier of the custom emoji shown on the button.
+
+        is_disabled (``bool``, *optional*):
+            True, if the button is disabled and does nothing when pressed.
     """
 
     def __init__(
@@ -90,7 +98,10 @@ class InlineKeyboardButton(Object):
         switch_inline_query_current_chat: Optional[str] = None,
         callback_game: Optional["types.CallbackGame"] = None,
         requires_password: Optional[bool] = None,
-        copy_text: Optional[str] = None
+        copy_text: Optional[str] = None,
+        style: Optional["enums.ButtonStyle"] = None,
+        icon_custom_emoji_id: Optional[int] = None,
+        is_disabled: Optional[bool] = None
     ):
         super().__init__()
 
@@ -106,9 +117,19 @@ class InlineKeyboardButton(Object):
         self.requires_password = requires_password
         # self.pay = pay
         self.copy_text = copy_text
+        self.style = style
+        self.icon_custom_emoji_id = icon_custom_emoji_id
+        self.is_disabled = is_disabled
 
     @staticmethod
     def read(b: "raw.base.KeyboardInlineButton"):
+        button = InlineKeyboardButton._read_type(b) or InlineKeyboardButton(text=b.text)
+        button.style, button.icon_custom_emoji_id = utils.parse_button_style(b.style)
+
+        return button
+
+    @staticmethod
+    def _read_type(b: "raw.base.KeyboardInlineButton"):
         button_type = b.type
 
         if isinstance(button_type, raw.types.InlineButtonTypeCallback):
@@ -179,12 +200,29 @@ class InlineKeyboardButton(Object):
             return types.InlineKeyboardButtonBuy.read(b)
 
         if isinstance(button_type, raw.types.InlineButtonTypeDisabled):
-            # A button that does nothing when pressed; only its label can be represented.
             return InlineKeyboardButton(
-                text=b.text
+                text=b.text,
+                is_disabled=True
             )
 
     async def write(self, client: "pyrogram.Client"):
+        button = await self._write_button(client)
+
+        if button is None:
+            raise ValueError(f"The inline keyboard button {self.text!r} has no action: pass exactly one of the optional "
+                             "fields or is_disabled=True")
+
+        button.style = utils.get_button_style(self.style, self.icon_custom_emoji_id)
+
+        return button
+
+    async def _write_button(self, client: "pyrogram.Client"):
+        if self.is_disabled:
+            return raw.types.KeyboardInlineButton(
+                text=self.text,
+                type=raw.types.InlineButtonTypeDisabled()
+            )
+
         if self.callback_data is not None:
             # Telegram only wants bytes, but we are allowed to pass strings too, for convenience.
             data = bytes(self.callback_data, "utf-8") if isinstance(self.callback_data, str) else self.callback_data

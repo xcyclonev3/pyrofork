@@ -611,3 +611,93 @@ def test_promote_chat_member_keeps_rank_unless_title_given(title, rank):
 
     [request] = client.sent  # no channels.getParticipant round trip any more
     assert isinstance(request, raw.functions.channels.EditAdmin) and request.rank == rank
+
+
+BS = pyrogram.enums.ButtonStyle
+
+
+def test_inline_button_style_icon_and_disabled_roundtrip():
+    markup = types.InlineKeyboardMarkup([[
+        types.InlineKeyboardButton("ok", callback_data="x", style=BS.SUCCESS, icon_custom_emoji_id=55),
+        types.InlineKeyboardButton("off", is_disabled=True, style=BS.DANGER),
+        types.InlineKeyboardButton("plain", url="https://telegram.org"),
+        types.InlineKeyboardButtonBuy("pay", style=BS.PRIMARY),
+    ]])
+    r = write_markup(markup)
+    ok, off, plain, pay = r.rows[0].buttons
+    assert ok.style.bg_success and not ok.style.bg_danger and ok.style.icon == 55
+    assert isinstance(off.type, raw.types.InlineButtonTypeDisabled) and off.style.bg_danger
+    assert plain.style is None
+    assert isinstance(pay.type, raw.types.InlineButtonTypeBuy) and pay.style.bg_primary
+
+    # The server sends the same constructors back: read them and write them again (e.g. Message.copy)
+    parsed = types.InlineKeyboardMarkup.read(r)
+    ok, off, plain, pay = parsed.inline_keyboard[0]
+    assert (ok.style, ok.icon_custom_emoji_id, ok.callback_data) == (BS.SUCCESS, 55, "x")
+    assert off.is_disabled and off.style == BS.DANGER
+    assert plain.style is None and plain.icon_custom_emoji_id is None
+    assert isinstance(pay, types.InlineKeyboardButtonBuy) and pay.style == BS.PRIMARY
+    assert write_markup(parsed).write() == r.write()
+
+
+def test_inline_button_without_action_raises():
+    with pytest.raises(ValueError):
+        write_markup(types.InlineKeyboardMarkup([[types.InlineKeyboardButton("nothing")]]))
+
+
+def test_inline_switch_inline_reads_other_chat_query():
+    server_markup = raw.types.ReplyInlineMarkup(rows=[raw.types.KeyboardInlineButtonRow(buttons=[
+        raw.types.KeyboardInlineButton(text="share", type=raw.types.InlineButtonTypeSwitchInline(query="q"))
+    ])])
+    [[button]] = types.InlineKeyboardMarkup.read(roundtrip(server_markup)).inline_keyboard
+    assert button.switch_inline_query == "q" and button.switch_inline_query_current_chat is None
+
+
+@pytest.mark.parametrize("poll_type, quiz", [(None, None), (pyrogram.enums.PollType.QUIZ, True),
+                                             (pyrogram.enums.PollType.REGULAR, False)])
+def test_reply_request_poll_button(poll_type, quiz):
+    markup = types.ReplyKeyboardMarkup([[types.KeyboardButton(
+        "poll", request_poll=types.KeyboardButtonPollType(type=poll_type)
+    )]])
+    r = write_markup(markup)
+    [[button]] = [row.buttons for row in r.rows]
+    assert isinstance(button.type, raw.types.ButtonTypeRequestPoll) and button.type.quiz == quiz
+
+    [[parsed]] = types.ReplyKeyboardMarkup.read(r).keyboard
+    assert parsed.request_poll.type == poll_type
+
+
+def test_reply_request_managed_bot_button():
+    markup = types.ReplyKeyboardMarkup([[types.KeyboardButton(
+        "new bot", request_managed_bot=types.RequestPeerTypeManagedBot(
+            button_id=9, suggested_name="Helper", suggested_username="helper_bot")
+    )]])
+    [[sent]] = [row.buttons for row in write_markup(markup).rows]
+    assert isinstance(sent.type, raw.types.InputButtonTypeRequestPeer)
+    assert sent.type.button_id == 9 and sent.type.max_quantity == 1
+    assert sent.type.peer_type.bot_managed and sent.type.peer_type.suggested_username == "helper_bot"
+
+    server_markup = raw.types.ReplyKeyboardMarkup(rows=[raw.types.KeyboardButtonRow(buttons=[
+        raw.types.KeyboardButton(text="new bot", type=raw.types.ButtonTypeRequestPeer(
+            button_id=9, max_quantity=1, peer_type=raw.types.RequestPeerTypeCreateBot(
+                bot_managed=True, suggested_name="Helper", suggested_username="helper_bot")))
+    ])])
+    [[parsed]] = types.ReplyKeyboardMarkup.read(roundtrip(server_markup)).keyboard
+    request = parsed.request_managed_bot
+    assert (request.button_id, request.suggested_name, request.suggested_username) == (9, "Helper", "helper_bot")
+
+
+def test_reply_keyboard_reads_styles_chats_and_unknown_buttons():
+    server_markup = roundtrip(raw.types.ReplyKeyboardMarkup(rows=[raw.types.KeyboardButtonRow(buttons=[
+        raw.types.KeyboardButton(text="red", type=raw.types.ButtonTypeDefault(),
+                                 style=raw.types.KeyboardButtonStyle(bg_danger=True)),
+        raw.types.KeyboardButton(text="group", type=raw.types.ButtonTypeRequestPeer(
+            button_id=2, max_quantity=1, peer_type=raw.types.RequestPeerTypeChat(forum=True, creator=True))),
+    ])]))
+    server_markup.rows[0].buttons.append(raw.types.KeyboardButton(text="future", type=object()))
+    red, group, future = types.ReplyKeyboardMarkup.read(server_markup).keyboard[0]
+
+    assert isinstance(red, types.KeyboardButton) and red.text == "red" and red.style == BS.DANGER
+    assert isinstance(group.request_chat, types.RequestPeerTypeChat)
+    assert group.request_chat.is_forum and group.request_chat.is_creator
+    assert isinstance(future, types.KeyboardButton) and future.text == "future"

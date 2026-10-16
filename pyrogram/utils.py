@@ -341,6 +341,41 @@ def get_channel_id(peer_id: int) -> int:
     return MAX_CHANNEL_ID - peer_id
 
 
+def parse_button_style(
+    style: Optional["raw.types.KeyboardButtonStyle"]
+) -> "tuple[Optional[enums.ButtonStyle], Optional[int]]":
+    """Style and icon custom emoji identifier of a keyboard button, as TDLib reads keyboardButtonStyle."""
+    if style is None:
+        return None, None
+
+    if style.bg_primary:
+        button_style = enums.ButtonStyle.PRIMARY
+    elif style.bg_danger:
+        button_style = enums.ButtonStyle.DANGER
+    elif style.bg_success:
+        button_style = enums.ButtonStyle.SUCCESS
+    else:
+        button_style = enums.ButtonStyle.DEFAULT
+
+    return button_style, style.icon
+
+
+def get_button_style(
+    style: Optional["enums.ButtonStyle"],
+    icon_custom_emoji_id: Optional[int]
+) -> Optional["raw.types.KeyboardButtonStyle"]:
+    """The keyboardButtonStyle to send for a button style and icon, or None for the default look."""
+    if style in (None, enums.ButtonStyle.DEFAULT) and icon_custom_emoji_id is None:
+        return None
+
+    return raw.types.KeyboardButtonStyle(
+        bg_primary=style == enums.ButtonStyle.PRIMARY,
+        bg_danger=style == enums.ButtonStyle.DANGER,
+        bg_success=style == enums.ButtonStyle.SUCCESS,
+        icon=icon_custom_emoji_id
+    )
+
+
 def get_premium_duration_month_count(day_count: int) -> int:
     """Convert a Telegram Premium duration in days to months; 0 if it isn't a whole number of months.
 

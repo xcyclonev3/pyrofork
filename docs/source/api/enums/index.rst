@@ -38,6 +38,7 @@ to apply only a valid value among the expected ones.
     ReplyColor
     StoriesPrivacyRules
     StoryPrivacy
+    ButtonStyle
 
 .. toctree::
     :hidden:
@@ -67,3 +68,4 @@ to apply only a valid value among the expected ones.
     ReplyColor
     StoriesPrivacyRules
     StoryPrivacy
+    ButtonStyle

@@ -39,6 +39,7 @@ from .inline_keyboard_button import InlineKeyboardButton
 from .inline_keyboard_markup import InlineKeyboardMarkup
 from .keyboard_button import KeyboardButton
 from .inline_keyboard_button_buy import InlineKeyboardButtonBuy
+from .keyboard_button_poll_type import KeyboardButtonPollType
 from .login_url import LoginUrl
 from .menu_button import MenuButton
 from .menu_button_commands import MenuButtonCommands
@@ -48,6 +49,7 @@ from .reply_keyboard_markup import ReplyKeyboardMarkup
 from .reply_keyboard_remove import ReplyKeyboardRemove
 from .request_peer_type_channel import RequestPeerTypeChannel
 from .request_peer_type_chat import RequestPeerTypeChat
+from .request_peer_type_managed_bot import RequestPeerTypeManagedBot
 from .request_peer_type_user import RequestPeerTypeUser
 from .requested_chat import RequestedChat
 from .requested_chats import RequestedChats
@@ -92,5 +94,7 @@ __all__ = [
     "MenuButtonCommands",
     "MenuButtonWebApp",
     "MenuButtonDefault",
-    "SentWebAppMessage"
+    "SentWebAppMessage",
+    "KeyboardButtonPollType",
+    "RequestPeerTypeManagedBot"
 ]
