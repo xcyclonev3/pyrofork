@@ -17,7 +17,7 @@
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime
-from typing import List, Union, Optional
+from typing import Dict, List, Union, Optional
 
 import pyrogram
 from pyrogram import raw, enums, utils
@@ -130,7 +130,9 @@ class Poll(Object, Update):
     ) -> "Poll":
         poll: raw.types.Poll = media_poll.poll
         poll_results: raw.types.PollResults = media_poll.results
-        results: List[raw.types.PollAnswerVoters] = poll_results.results
+        # Match results by option bytes like tdesktop and TDLib do: with open answers and shuffled polls
+        # the results are not guaranteed to follow the order of the answers
+        results: Dict[bytes, raw.types.PollAnswerVoters] = {r.option: r for r in poll_results.results}
 
         chosen_option_id = None
         correct_option_id = None
@@ -138,9 +140,9 @@ class Poll(Object, Update):
 
         for i, answer in enumerate(poll.answers):
             voter_count = 0
+            result = results.get(answer.option)
 
-            if results:
-                result = results[i]
+            if result is not None:
                 voter_count = result.voters or 0
 
                 if result.chosen:

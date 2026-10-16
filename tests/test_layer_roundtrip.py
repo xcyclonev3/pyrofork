@@ -701,3 +701,21 @@ def test_reply_keyboard_reads_styles_chats_and_unknown_buttons():
     assert isinstance(group.request_chat, types.RequestPeerTypeChat)
     assert group.request_chat.is_forum and group.request_chat.is_creator
     assert isinstance(future, types.KeyboardButton) and future.text == "future"
+
+
+def test_poll_results_are_matched_by_option():
+    raw_poll = raw.types.Poll(
+        id=1, hash=0, question=raw.types.TextWithEntities(text="Q?", entities=[]),
+        answers=[raw.types.PollAnswer(text=raw.types.TextWithEntities(text=t, entities=[]), option=o)
+                 for t, o in (("a", b"A"), ("b", b"B"), ("c", b"C"))]
+    )
+    # Results in another order than the answers, and one answer (added later) without results yet
+    results = raw.types.PollResults(results=[
+        raw.types.PollAnswerVoters(option=b"B", voters=5, recent_voters=[], chosen=True),
+        raw.types.PollAnswerVoters(option=b"A", voters=2, recent_voters=[], correct=True),
+    ])
+    media = roundtrip(raw.types.MessageMediaPoll(poll=raw_poll, results=results))
+    poll = asyncio.run(types.Poll._parse(None, media, {}))
+
+    assert [(o.text, o.voter_count) for o in poll.options] == [("a", 2), ("b", 5), ("c", 0)]
+    assert (poll.chosen_option_id, poll.correct_option_id) == (1, 0)
