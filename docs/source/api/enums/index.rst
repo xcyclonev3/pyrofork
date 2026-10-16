@@ -44,6 +44,8 @@ to apply only a valid value among the expected ones.
     CraftGiftResultType
     TonWalletTransactionType
     TonConnectSessionState
+    PageBlockHorizontalAlignment
+    PageBlockVerticalAlignment
 
 .. toctree::
     :hidden:
@@ -79,3 +81,5 @@ to apply only a valid value among the expected ones.
     CraftGiftResultType
     TonWalletTransactionType
     TonConnectSessionState
+    PageBlockHorizontalAlignment
+    PageBlockVerticalAlignment

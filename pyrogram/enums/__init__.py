@@ -39,6 +39,8 @@ from .message_origin_type import MessageOriginType
 from .message_service_type import MessageServiceType
 from .messages_filter import MessagesFilter
 from .next_code_type import NextCodeType
+from .page_block_horizontal_alignment import PageBlockHorizontalAlignment
+from .page_block_vertical_alignment import PageBlockVerticalAlignment
 from .parse_mode import ParseMode
 from .poll_type import PollType
 from .profile_color import ProfileColor
@@ -84,5 +86,7 @@ __all__ = [
     'GiftAttributeRarityType',
     'CraftGiftResultType',
     'TonWalletTransactionType',
-    'TonConnectSessionState'
+    'TonConnectSessionState',
+    'PageBlockHorizontalAlignment',
+    'PageBlockVerticalAlignment'
 ]
