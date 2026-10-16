@@ -455,3 +455,16 @@ def test_gift_code_parsers_read_days():
     checked = roundtrip(raw.types.payments.CheckedGiftCode(date=1, days=182, chats=[], users=[]))
     checked_gift_code = types.CheckedGiftCode._parse(None, checked, {}, {})
     assert (checked_gift_code.months, checked_gift_code.days) == (6, 182)
+
+
+@pytest.mark.parametrize("member", [
+    raw.types.ChannelParticipant(user_id=7, date=1, rank="tag"),
+    raw.types.ChannelParticipantSelf(user_id=7, inviter_id=7, date=1, rank="tag"),
+    raw.types.ChatParticipant(user_id=7, inviter_id=7, date=1, rank="tag"),
+    raw.types.ChatParticipantAdmin(user_id=7, inviter_id=7, date=1, rank="tag"),
+    raw.types.ChatParticipantCreator(user_id=7, rank="tag"),
+])
+def test_chat_member_rank_is_custom_title(member):
+    users = {7: roundtrip(raw.types.User(id=7, access_hash=2, first_name="A"))}
+    parsed = types.ChatMember._parse(None, roundtrip(member), users, {})
+    assert parsed.custom_title == "tag" and parsed.user.id == 7

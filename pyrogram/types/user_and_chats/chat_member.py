@@ -43,8 +43,8 @@ class ChatMember(Object):
             Not available for the owner.
 
         custom_title (``str``, *optional*):
-            A custom title that will be shown to all members instead of "Owner" or "Admin".
-            Creator (owner) and administrators only. Can be None in case there's no custom title set.
+            A custom title (tag) of the member. For the creator (owner) and administrators it is shown to all members
+            instead of "Owner" or "Admin". Can be None in case there's no custom title set.
 
         until_date (:py:obj:`~datetime.datetime`, *optional*):
             Restricted and banned only.
@@ -126,6 +126,7 @@ class ChatMember(Object):
                 user=types.User._parse(client, users[member.user_id]),
                 joined_date=utils.timestamp_to_datetime(member.date),
                 invited_by=types.User._parse(client, users[member.inviter_id]),
+                custom_title=member.rank,
                 client=client
             )
         elif isinstance(member, raw.types.ChatParticipantAdmin):
@@ -134,12 +135,14 @@ class ChatMember(Object):
                 user=types.User._parse(client, users[member.user_id]),
                 joined_date=utils.timestamp_to_datetime(member.date),
                 invited_by=types.User._parse(client, users[member.inviter_id]),
+                custom_title=member.rank,
                 client=client
             )
         elif isinstance(member, raw.types.ChatParticipantCreator):
             return ChatMember(
                 status=enums.ChatMemberStatus.OWNER,
                 user=types.User._parse(client, users[member.user_id]),
+                custom_title=member.rank,
                 client=client
             )
 
@@ -150,6 +153,7 @@ class ChatMember(Object):
                 user=types.User._parse(client, users[member.user_id]),
                 joined_date=utils.timestamp_to_datetime(member.date),
                 subscription_until_date=utils.timestamp_to_datetime(member.subscription_until_date),
+                custom_title=member.rank,
                 client=client
             )
         elif isinstance(member, raw.types.ChannelParticipantAdmin):
@@ -194,6 +198,7 @@ class ChatMember(Object):
                 is_member=not member.left,
                 restricted_by=types.User._parse(client, users[member.kicked_by]),
                 permissions=types.ChatPermissions._parse(member.banned_rights),
+                custom_title=member.rank,
                 client=client
             )
         elif isinstance(member, raw.types.ChannelParticipantCreator):
@@ -231,5 +236,6 @@ class ChatMember(Object):
                 joined_date=utils.timestamp_to_datetime(member.date),
                 invited_by=types.User._parse(client, users[member.inviter_id]),
                 subscription_until_date=utils.timestamp_to_datetime(member.subscription_until_date),
+                custom_title=member.rank,
                 client=client
             )
