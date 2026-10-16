@@ -268,3 +268,34 @@ def test_get_currency_exchange_rates():
     assert isinstance(request, raw.functions.payments.GetCurrencyRates)
     assert all(isinstance(r, types.CurrencyExchangeRate) for r in rates)
     assert [(r.currency, r.rate) for r in rates] == [("EUR", 1.25), ("TON", 3.5)]
+
+
+PRIZES = [0, 0, 500, 1000, 1500, 2000, 10000]
+
+
+def dice_info(**kwargs):
+    return raw.types.messages.EmojiGameDiceInfo(
+        game_hash="hash", prev_stake=100000000, current_streak=2, params=PRIZES, **kwargs
+    )
+
+
+@pytest.mark.parametrize("plays_left", [3, None])
+def test_stake_dice_state_type(plays_left):
+    state = types.StakeDiceState._parse(None, roundtrip(dice_info(plays_left=plays_left)))
+    assert isinstance(state, types.StakeDiceState)
+    assert (state.state_hash, state.stake_gram_amount, state.current_streak) == ("hash", 100000000, 2)
+    assert state.prize_per_mille == PRIZES[:6] and state.streak_prize_per_mille == 10000
+    assert state.plays_left == plays_left
+
+    unavailable = types.StakeDiceState._parse(None, roundtrip(raw.types.messages.EmojiGameUnavailable()))
+    assert isinstance(unavailable, types.StakeDiceState) and unavailable.state_hash is None
+    assert unavailable.prize_per_mille is None and unavailable.stake_gram_amount is None
+
+
+def test_get_stake_dice_state():
+    client = offline_client(PEERS, lambda q: dice_info())
+    state = call(lambda: client.get_stake_dice_state())
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.GetEmojiGameInfo)
+    assert state.state_hash == "hash" and state.prize_per_mille == PRIZES[:6] and state.plays_left is None

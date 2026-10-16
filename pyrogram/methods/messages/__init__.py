@@ -47,6 +47,7 @@ from .get_media_group import GetMediaGroup
 from .get_messages import GetMessages
 from .get_message_read_participants import GetMessageReadParticipants
 from .get_scheduled_messages import GetScheduledMessages
+from .get_stake_dice_state import GetStakeDiceState
 from .get_unread_poll_votes import GetUnreadPollVotes
 from .read_all_chat_poll_votes import ReadAllChatPollVotes
 from .read_chat_history import ReadChatHistory
@@ -152,6 +153,7 @@ class Messages(
     AddPollOption,
     DeletePollOption,
     GetUnreadPollVotes,
-    ReadAllChatPollVotes
+    ReadAllChatPollVotes,
+    GetStakeDiceState
 ):
     pass
