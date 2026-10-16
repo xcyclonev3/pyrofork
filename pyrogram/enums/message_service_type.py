@@ -156,3 +156,21 @@ class MessageServiceType(AutoName):
 
     MANAGED_BOT_CREATED = auto()
     "Managed bot created"
+
+    CHAT_OWNER_LEFT = auto()
+    "Chat owner left"
+
+    CHAT_OWNER_CHANGED = auto()
+    "Chat owner changed"
+
+    CHAT_HAS_PROTECTED_CONTENT_TOGGLED = auto()
+    "Chat content protection changed"
+
+    CHAT_HAS_PROTECTED_CONTENT_DISABLE_REQUESTED = auto()
+    "Request to disable the chat content protection"
+
+    TON_WALLET_TRANSFER = auto()
+    "TON wallet transfer"
+
+    TON_CONNECT_REQUEST = auto()
+    "TON Connect request"

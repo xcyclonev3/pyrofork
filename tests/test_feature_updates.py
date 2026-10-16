@@ -139,3 +139,87 @@ def test_managed_bot_created_message(out, manager_bot_id):
     assert parsed.managed_bot_created.bot.id == 98
     # For messages received by the bot itself the manager bot is client.me (None here)
     assert getattr(parsed.managed_bot_created.manager_bot, "id", None) == manager_bot_id
+
+
+def parse_service(action, reply_to=None):
+    client = new_client()
+    message = roundtrip(raw.types.MessageService(
+        id=3, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7), date=0, action=action,
+        reply_to=reply_to))
+    users = {u.id: roundtrip(u) for u in (RAW_USER, RAW_BOT)}
+    return asyncio.run(types.Message._parse(client, message, users, {}, replies=0))
+
+
+@pytest.mark.parametrize("new_creator_id, new_owner_id", [(99, 99), (0, None)])
+def test_chat_owner_left_message(new_creator_id, new_owner_id):
+    message = parse_service(raw.types.MessageActionNewCreatorPending(new_creator_id=new_creator_id))
+
+    assert message.service == enums.MessageServiceType.CHAT_OWNER_LEFT
+    assert getattr(message.chat_owner_left.new_owner, "id", None) == new_owner_id
+
+
+def test_chat_owner_changed_message():
+    message = parse_service(raw.types.MessageActionChangeCreator(new_creator_id=99))
+
+    assert message.service == enums.MessageServiceType.CHAT_OWNER_CHANGED
+    assert message.chat_owner_changed.new_owner.id == 99
+
+
+@pytest.mark.parametrize("reply_to, request_message_id", [
+    (raw.types.MessageReplyHeader(reply_to_msg_id=2), 2),
+    (raw.types.MessageReplyHeader(reply_to_msg_id=2, reply_to_peer_id=raw.types.PeerUser(user_id=99)), None),
+    (None, None),
+])
+def test_chat_has_protected_content_toggled_message(reply_to, request_message_id):
+    message = parse_service(raw.types.MessageActionNoForwardsToggle(prev_value=True, new_value=False), reply_to)
+
+    toggled = message.chat_has_protected_content_toggled
+    assert message.service == enums.MessageServiceType.CHAT_HAS_PROTECTED_CONTENT_TOGGLED
+    assert (toggled.request_message_id, toggled.old_has_protected_content, toggled.new_has_protected_content) == (
+        request_message_id, True, False)
+
+
+@pytest.mark.parametrize("expired", [True, False])
+def test_chat_has_protected_content_disable_requested_message(expired):
+    message = parse_service(raw.types.MessageActionNoForwardsRequest(prev_value=True, new_value=False, expired=expired))
+
+    assert message.service == enums.MessageServiceType.CHAT_HAS_PROTECTED_CONTENT_DISABLE_REQUESTED
+    assert message.chat_has_protected_content_disable_requested.is_expired is expired
+
+
+def test_requests_to_enable_protected_content_are_unsupported():
+    # Like TDLib, which takes them as unsupported messages
+    message = parse_service(raw.types.MessageActionNoForwardsRequest(prev_value=False, new_value=True))
+
+    assert message.service is None and message.chat_has_protected_content_disable_requested is None
+
+
+def test_ton_wallet_transfer_message():
+    message = parse_service(raw.types.MessageActionGramTransfer(
+        amount=5000000000, peer_address="EQxyz", transaction_id="tx1", comment="thanks"))
+
+    assert message.service == enums.MessageServiceType.TON_WALLET_TRANSFER
+    transfer = message.ton_wallet_transfer
+    assert (transfer.amount, transfer.peer_address, transfer.transaction_id, transfer.comment) == (
+        5000000000, "EQxyz", "tx1", "thanks")
+
+
+def test_ton_connect_request_message():
+    message = parse_service(raw.types.MessageActionWalletTonConnectRequest(
+        session_id=12, expires=1700000000, accepted=True, dapp_name="dApp", topic="sendTransaction"))
+
+    assert message.service == enums.MessageServiceType.TON_CONNECT_REQUEST
+    request = message.ton_connect_request
+    assert (request.session_id, request.message_id, request.dapp_name, request.is_accepted) == (12, 3, "dApp", True)
+
+
+@pytest.mark.parametrize("approve", [True, False])
+def test_process_chat_protected_content_disable_request(approve):
+    from tests.test_layer_roundtrip import PEERS, call, empty_updates, offline_client
+
+    client = offline_client(PEERS, lambda q: empty_updates())
+    assert call(lambda: client.process_chat_protected_content_disable_request(7, 2, approve=approve)) is True
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.ToggleNoForwards)
+    assert request.enabled is (not approve) and request.request_msg_id == 2

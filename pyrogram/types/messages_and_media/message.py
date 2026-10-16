@@ -463,6 +463,25 @@ class Message(Object, Update):
 
         managed_bot_created (:obj:`~pyrogram.types.ManagedBotCreated`, *optional*):
             Service message: a bot managed by the bot of this private chat was created.
+
+        chat_owner_left (:obj:`~pyrogram.types.ChatOwnerLeft`, *optional*):
+            Service message: the owner of the chat left it.
+
+        chat_owner_changed (:obj:`~pyrogram.types.ChatOwnerChanged`, *optional*):
+            Service message: the owner of the chat changed.
+
+        chat_has_protected_content_toggled (:obj:`~pyrogram.types.ChatHasProtectedContentToggled`, *optional*):
+            Service message: the content protection of the chat was changed, or a request to disable it was
+            rejected.
+
+        chat_has_protected_content_disable_requested (:obj:`~pyrogram.types.ChatHasProtectedContentDisableRequested`, *optional*):
+            Service message: a request to disable the content protection of the chat.
+
+        ton_wallet_transfer (:obj:`~pyrogram.types.TonWalletTransfer`, *optional*):
+            Service message: a TON transfer between the wallets of the users of this private chat.
+
+        ton_connect_request (:obj:`~pyrogram.types.TonConnectRequest`, *optional*):
+            Service message: a TON Connect request to the wallet of the current user.
     """
 
     # TODO: Add game missing field, Also connected_website
@@ -595,6 +614,12 @@ class Message(Object, Update):
         chat_removed_from_community: bool = None,
         chat_joined_from_community: "types.Chat" = None,
         managed_bot_created: "types.ManagedBotCreated" = None,
+        chat_owner_left: "types.ChatOwnerLeft" = None,
+        chat_owner_changed: "types.ChatOwnerChanged" = None,
+        chat_has_protected_content_toggled: "types.ChatHasProtectedContentToggled" = None,
+        chat_has_protected_content_disable_requested: "types.ChatHasProtectedContentDisableRequested" = None,
+        ton_wallet_transfer: "types.TonWalletTransfer" = None,
+        ton_connect_request: "types.TonConnectRequest" = None,
         raw: "raw.types.Message" = None
     ):
         super().__init__(client)
@@ -718,6 +743,12 @@ class Message(Object, Update):
         self.chat_removed_from_community = chat_removed_from_community
         self.chat_joined_from_community = chat_joined_from_community
         self.managed_bot_created = managed_bot_created
+        self.chat_owner_left = chat_owner_left
+        self.chat_owner_changed = chat_owner_changed
+        self.chat_has_protected_content_toggled = chat_has_protected_content_toggled
+        self.chat_has_protected_content_disable_requested = chat_has_protected_content_disable_requested
+        self.ton_wallet_transfer = ton_wallet_transfer
+        self.ton_connect_request = ton_connect_request
         self.raw = raw
 
     async def wait_for_click(
@@ -841,6 +872,12 @@ class Message(Object, Update):
             chat_removed_from_community = None
             chat_joined_from_community = None
             managed_bot_created = None
+            chat_owner_left = None
+            chat_owner_changed = None
+            chat_has_protected_content_toggled = None
+            chat_has_protected_content_disable_requested = None
+            ton_wallet_transfer = None
+            ton_connect_request = None
 
             service_type = None
             chat_join_type = None
@@ -992,6 +1029,36 @@ class Message(Object, Update):
                 )
                 managed_bot_created = types.ManagedBotCreated._parse(client, action, users, manager_bot=manager_bot)
                 service_type = enums.MessageServiceType.MANAGED_BOT_CREATED
+            elif isinstance(action, raw.types.MessageActionNewCreatorPending):
+                chat_owner_left = types.ChatOwnerLeft._parse(client, action, users)
+                service_type = enums.MessageServiceType.CHAT_OWNER_LEFT
+            elif isinstance(action, raw.types.MessageActionChangeCreator):
+                chat_owner_changed = types.ChatOwnerChanged._parse(client, action, users)
+                service_type = enums.MessageServiceType.CHAT_OWNER_CHANGED
+            elif isinstance(action, raw.types.MessageActionNoForwardsToggle):
+                # The service message replies to the request, if there was one
+                reply_to = message.reply_to
+                request_message_id = (
+                    reply_to.reply_to_msg_id
+                    if isinstance(reply_to, raw.types.MessageReplyHeader) and not reply_to.reply_to_peer_id
+                    else None
+                )
+                chat_has_protected_content_toggled = types.ChatHasProtectedContentToggled._parse(
+                    client, action, request_message_id
+                )
+                service_type = enums.MessageServiceType.CHAT_HAS_PROTECTED_CONTENT_TOGGLED
+            elif isinstance(action, raw.types.MessageActionNoForwardsRequest):
+                chat_has_protected_content_disable_requested = types.ChatHasProtectedContentDisableRequested._parse(
+                    client, action
+                )
+                if chat_has_protected_content_disable_requested is not None:
+                    service_type = enums.MessageServiceType.CHAT_HAS_PROTECTED_CONTENT_DISABLE_REQUESTED
+            elif isinstance(action, raw.types.MessageActionGramTransfer):
+                ton_wallet_transfer = types.TonWalletTransfer._parse(client, action)
+                service_type = enums.MessageServiceType.TON_WALLET_TRANSFER
+            elif isinstance(action, raw.types.MessageActionWalletTonConnectRequest):
+                ton_connect_request = types.TonConnectRequest._parse_action(client, action, message.id)
+                service_type = enums.MessageServiceType.TON_CONNECT_REQUEST
 
 
             parsed_message = Message(
@@ -1045,6 +1112,12 @@ class Message(Object, Update):
                 chat_removed_from_community=chat_removed_from_community,
                 chat_joined_from_community=chat_joined_from_community,
                 managed_bot_created=managed_bot_created,
+                chat_owner_left=chat_owner_left,
+                chat_owner_changed=chat_owner_changed,
+                chat_has_protected_content_toggled=chat_has_protected_content_toggled,
+                chat_has_protected_content_disable_requested=chat_has_protected_content_disable_requested,
+                ton_wallet_transfer=ton_wallet_transfer,
+                ton_connect_request=ton_connect_request,
                 raw=message,
                 chat_join_type=chat_join_type,
                 client=client

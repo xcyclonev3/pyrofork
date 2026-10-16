@@ -328,6 +328,7 @@ def pyrogram_api():
             set_chat_member_tag
             get_guard_bot_web_app_url
             get_chat_owner_after_leaving
+            process_chat_protected_content_disable_request
         """,
         users="""
         Users
@@ -665,6 +666,10 @@ def pyrogram_api():
             CommunityMemberChats
             WebDomainException
             WebBrowserSettings
+            ChatOwnerLeft
+            ChatOwnerChanged
+            ChatHasProtectedContentToggled
+            ChatHasProtectedContentDisableRequested
         """,
         messages_media="""
         Messages & Media

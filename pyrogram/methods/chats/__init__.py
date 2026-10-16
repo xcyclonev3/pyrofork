@@ -45,6 +45,7 @@ from .join_chat import JoinChat
 from .leave_chat import LeaveChat
 from .mark_chat_unread import MarkChatUnread
 from .pin_chat_message import PinChatMessage
+from .process_chat_protected_content_disable_request import ProcessChatProtectedContentDisableRequest
 from .promote_chat_member import PromoteChatMember
 from .restrict_chat_member import RestrictChatMember
 from .set_administrator_title import SetAdministratorTitle
@@ -113,6 +114,7 @@ class Chats(
     UpdateFolder,
     SetChatMemberTag,
     GetGuardBotWebAppUrl,
-    GetChatOwnerAfterLeaving
+    GetChatOwnerAfterLeaving,
+    ProcessChatProtectedContentDisableRequest
 ):
     pass

@@ -29,6 +29,8 @@ from .chat_admin_with_invite_links import ChatAdminWithInviteLinks
 from .chat_color import ChatColor
 from .chat_event import ChatEvent
 from .chat_event_filter import ChatEventFilter
+from .chat_has_protected_content_disable_requested import ChatHasProtectedContentDisableRequested
+from .chat_has_protected_content_toggled import ChatHasProtectedContentToggled
 from .chat_invite_link import ChatInviteLink
 from .chat_join_request import ChatJoinRequest
 from .chat_join_result import ChatJoinResult
@@ -36,6 +38,8 @@ from .chat_joined_by_request import ChatJoinedByRequest
 from .chat_joiner import ChatJoiner
 from .chat_member import ChatMember
 from .chat_member_updated import ChatMemberUpdated
+from .chat_owner_changed import ChatOwnerChanged
+from .chat_owner_left import ChatOwnerLeft
 from .chat_permissions import ChatPermissions
 from .chat_photo import ChatPhoto
 from .chat_preview import ChatPreview
@@ -122,5 +126,9 @@ __all__ = [
     "CommunityChatRequest",
     "CommunityMemberChats",
     "WebDomainException",
-    "WebBrowserSettings"
+    "WebBrowserSettings",
+    "ChatOwnerLeft",
+    "ChatOwnerChanged",
+    "ChatHasProtectedContentToggled",
+    "ChatHasProtectedContentDisableRequested"
 ]
