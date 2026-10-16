@@ -2,6 +2,9 @@
 import asyncio
 from io import BytesIO
 
+import pytest
+
+import pyrogram
 from pyrogram import raw, types
 from pyrogram.raw.core import TLObject
 
@@ -200,3 +203,61 @@ def test_reply_keyboard_layer_230_button_types():
     assert app.web_app.url == "https://example.org/app"
     assert user_b.request_user.is_bot is False
     assert isinstance(channel_b.request_chat, types.RequestPeerTypeChannel) and channel_b.request_chat.max == 2
+
+
+def offline_client(peers, respond):
+    """A Client that never connects: queries and results go through a TL round trip."""
+    client = pyrogram.Client("layer-roundtrip", api_id=1, api_hash="x", in_memory=True)
+    client.sent = []
+
+    async def resolve_peer(peer_id):
+        return peers[peer_id]
+
+    async def invoke(query, *args, **kwargs):
+        client.sent.append(roundtrip(query))
+        return roundtrip(respond(query))
+
+    client.resolve_peer = resolve_peer
+    client.invoke = invoke
+    return client
+
+
+def call(make_coro):
+    """Run a Client method inside a running loop, so the sync wrapper hands back a coroutine."""
+    async def main():
+        return await make_coro()
+    return asyncio.run(main())
+
+
+def empty_updates(updates=(), users=(), chats=()):
+    return raw.types.Updates(updates=list(updates), users=list(users), chats=list(chats), date=0, seq=0)
+
+
+CHANNEL = raw.types.InputPeerChannel(channel_id=123, access_hash=1)
+BASIC_GROUP = raw.types.InputPeerChat(chat_id=45)
+USER = raw.types.InputPeerUser(user_id=7, access_hash=2)
+PEERS = {-100123: CHANNEL, -45: BASIC_GROUP, 7: USER}
+
+
+@pytest.mark.parametrize("chat_id, peer", [(-100123, CHANNEL), (-45, BASIC_GROUP)])
+def test_transfer_chat_ownership_uses_edit_chat_creator(monkeypatch, chat_id, peer):
+    password_check = raw.types.InputCheckPasswordSRP(srp_id=1, A=b"a", M1=b"m")
+    monkeypatch.setattr(pyrogram.utils, "compute_password_check", lambda r, password: password_check)
+
+    def respond(query):
+        if isinstance(query, raw.functions.account.GetPassword):
+            return raw.types.account.Password(
+                new_algo=raw.types.PasswordKdfAlgoUnknown(),
+                new_secure_algo=raw.types.SecurePasswordKdfAlgoUnknown(),
+                secure_random=b""
+            )
+        return empty_updates()
+
+    client = offline_client(PEERS, respond)
+    assert call(lambda: client.transfer_chat_ownership(chat_id, 7, "password")) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.EditChatCreator)
+    assert request.peer.write() == peer.write()
+    assert request.user_id.write() == USER.write()
+    assert request.password.write() == password_check.write()
