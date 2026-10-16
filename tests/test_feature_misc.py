@@ -370,3 +370,37 @@ def test_get_story_album_stories_limit_and_offset():
     requests = [q for q in client.sent if isinstance(q, raw.functions.stories.GetAlbumStories)]
     assert [(q.offset, q.limit) for q in requests] == [(1, 1)]
     assert [s.id for s in stories] == [2]
+
+
+# search_global / search_global_count: community_id
+
+COMMUNITY = raw.types.InputChannel(channel_id=123, access_hash=1)
+
+
+def test_search_global_count_in_community():
+    client = offline_client(PEERS, lambda q: raw.types.messages.MessagesSlice(
+        count=12, messages=[], topics=[], chats=[], users=[]
+    ))
+    assert call(lambda: client.search_global_count("hi", community_id=-100123)) == 12
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SearchGlobal)
+    assert request.q == "hi" and request.community.write() == COMMUNITY.write()
+
+
+def test_search_global_in_community():
+    client = offline_client(PEERS, lambda q: raw.types.messages.Messages(messages=[], topics=[], chats=[], users=[]))
+    assert collect(lambda: client.search_global("hi", community_id=-100123)) == []
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SearchGlobal)
+    assert request.community.write() == COMMUNITY.write()
+
+
+def test_search_global_without_community():
+    client = offline_client(PEERS, lambda q: raw.types.messages.Messages(messages=[], topics=[], chats=[], users=[]))
+    assert call(lambda: client.search_global_count("hi")) == 0
+    assert client.sent[-1].community is None
+
+    with pytest.raises(ValueError):
+        call(lambda: client.search_global_count("hi", community_id=7))

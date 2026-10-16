@@ -25,6 +25,22 @@ from pyrogram import types
 from pyrogram import utils
 
 
+async def get_input_community(
+    client: "pyrogram.Client",
+    community_id: Optional[int]
+) -> Optional["raw.types.InputChannel"]:
+    """InputChannel of a community, as messages.searchGlobal.community expects it."""
+    if community_id is None:
+        return None
+
+    peer = await client.resolve_peer(community_id)
+
+    if not isinstance(peer, raw.types.InputPeerChannel):
+        raise ValueError("The community_id must belong to a community.")
+
+    return raw.types.InputChannel(channel_id=peer.channel_id, access_hash=peer.access_hash)
+
+
 class SearchGlobal:
     async def search_global(
         self: "pyrogram.Client",
@@ -34,6 +50,7 @@ class SearchGlobal:
         groups_only: Optional[bool] = None,
         users_only: Optional[bool] = None,
         limit: int = 0,
+        community_id: int = None
     ) -> Optional[AsyncGenerator["types.Message", None]]:
         """Search messages globally from all of your chats.
 
@@ -68,6 +85,10 @@ class SearchGlobal:
             users_only (``bool``, *optional*):
                 Pass True to search only in users.
 
+            community_id (``int``, *optional*):
+                Unique identifier of a community.
+                Pass it to search only for messages in the chats of the community.
+
         Returns:
             ``Generator``: A generator yielding :obj:`~pyrogram.types.Message` objects.
 
@@ -84,6 +105,8 @@ class SearchGlobal:
                 async for message in app.search_global(filter=enums.MessagesFilter.PHOTO, limit=20):
                     print(message.photo)
         """
+        community = await get_input_community(self, community_id)
+
         current = 0
         # There seems to be an hard limit of 10k, beyond which Telegram starts spitting one message at a time.
         total = abs(limit) or (1 << 31)
@@ -108,6 +131,7 @@ class SearchGlobal:
                         broadcasts_only=channels_only,
                         groups_only=groups_only,
                         users_only=users_only,
+                        community=community,
                         limit=limit
                     ),
                     sleep_threshold=60
