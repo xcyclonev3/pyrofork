@@ -18,9 +18,14 @@
 
 """Rich messages (Layer 226-230): received blocks and texts, sending, editing, drafts, translation and AI."""
 
+import os
+from datetime import datetime
+
+import pytest
+
 import pyrogram
 from pyrogram import enums, raw, types
-from tests.test_layer_roundtrip import roundtrip
+from tests.test_layer_roundtrip import PEERS, USER, call, empty_updates, offline_client, roundtrip
 
 HA = enums.PageBlockHorizontalAlignment
 VA = enums.PageBlockVerticalAlignment
@@ -366,3 +371,306 @@ def test_received_message_rich_message_field():
     rich = types.RichMessage._parse(offline_parser_client(), message.rich_message)
     assert rich.blocks[0].text.text == "hi" and rich.is_full
     assert types.RichMessage._parse(None, None) is None
+
+
+# Sending
+
+RAW_USER = raw.types.User(id=7, access_hash=2, first_name="A")
+PHOTO_FILE_ID = types.Photo._parse(None, raw_photo(PHOTO_ID)).file_id
+AUDIO_FILE_ID = types.Audio._parse(None, roundtrip(RAW_DOCUMENTS[2]), RAW_DOCUMENTS[2].attributes[0], "song.mp3").file_id
+
+
+def uploaded_media(media):
+    """What messages.uploadMedia returns for an uploaded or external media."""
+    if isinstance(media, (raw.types.InputMediaUploadedPhoto, raw.types.InputMediaPhotoExternal)):
+        return raw.types.MessageMediaPhoto(photo=raw_photo(PHOTO_ID))
+
+    if isinstance(media, raw.types.InputMediaDocumentExternal):
+        document_id = ANIMATION_ID
+    else:
+        kinds = {type(attribute) for attribute in media.attributes}
+        if raw.types.DocumentAttributeAnimated in kinds:
+            document_id = ANIMATION_ID
+        elif raw.types.DocumentAttributeVideo in kinds:
+            document_id = VIDEO_ID
+        elif raw.types.DocumentAttributeAudio in kinds:
+            document_id = VOICE_ID if media.attributes[0].voice else AUDIO_ID
+        else:
+            document_id = DOCUMENT_ID
+
+    return raw.types.MessageMediaDocument(document=next(d for d in RAW_DOCUMENTS if d.id == document_id))
+
+
+def sent_message_updates(message_id=10, update_type=raw.types.UpdateNewMessage):
+    return empty_updates(
+        updates=[update_type(
+            message=raw.types.Message(
+                id=message_id, out=True, peer_id=raw.types.PeerUser(user_id=7), date=1, message="",
+                rich_message=raw.types.RichMessage(blocks=[raw.types.PageBlockParagraph(text=plain("hi"))],
+                                                   photos=[], documents=[])
+            ),
+            pts=1, pts_count=1
+        )],
+        users=[RAW_USER]
+    )
+
+
+def rich_client(respond=None):
+    def default_respond(query):
+        if isinstance(query, raw.functions.messages.UploadMedia):
+            return uploaded_media(query.media)
+        return sent_message_updates()
+
+    client = offline_client(PEERS, respond or default_respond)
+
+    async def save_file(path, *args, **kwargs):
+        if path is None:
+            return None
+        return raw.types.InputFile(id=1, parts=1, name=os.path.basename(str(path)), md5_checksum="")
+
+    client.save_file = save_file
+    return client
+
+
+def requests_of(client, request_type):
+    return [request for request in client.sent if isinstance(request, request_type)]
+
+
+def same(actual, expected):
+    """Compare raw objects (or lists of them) by their TL bytes: flags read back are False/[] instead of None."""
+    if isinstance(expected, list):
+        return len(actual) == len(expected) and all(same(a, e) for a, e in zip(actual, expected))
+
+    return actual.write() == expected.write()
+
+
+@pytest.fixture
+def media_files(tmp_path):
+    files = {}
+    for name in ("photo.jpg", "clip.mp4", "voice.ogg", "report.pdf"):
+        path = tmp_path / name
+        path.write_bytes(b"data")
+        files[name] = str(path)
+    return files
+
+
+def test_send_rich_message_from_blocks(media_files):
+    client = rich_client()
+    message = call(lambda: client.send_rich_message(7, types.InputRichMessage(types.RichMessageSourceBlocks([
+        types.InputPageBlockSectionHeading("Title", size=2),
+        types.InputPageBlockParagraph(types.RichTexts([
+            "Hi ",
+            types.RichTextBold("bold"),
+            types.RichTextItalic(types.RichTextUnderline(types.RichTextStrikethrough("deep"))),
+            types.RichTextMentionName("Pavel", user_id=7),
+            types.RichTextUrl("site", url="https://telegram.org"),
+            types.RichTextDateTime("now", date=datetime.fromtimestamp(1647531900), relative=True),
+            types.RichTextMention("@durov", username="durov"),
+            types.RichTextHashtag("#tag"),
+            types.RichTextCustomEmoji(5, "*"),
+            types.RichTextMathematicalExpression("x^2"),
+            types.RichTextAnchorLink("go", anchor_name="sec name"),
+            types.RichTextReference("note", "note text"),
+            types.RichTextAnchor("here"),
+            types.RichTextEmailAddress("mail", "a@b.c"),
+            types.RichTextPhoneNumber("call", "+1"),
+            types.RichTextSpoiler("s"),
+            types.RichTextButton(types.InlineButton("Open", url="https://example.org",
+                                                    style=enums.ButtonStyle.SUCCESS)),
+            "",
+        ])),
+        types.InputPageBlockPreformatted("print(1)", "python"),
+        types.InputPageBlockFooter("bye"),
+        types.InputPageBlockThinking("..."),
+        types.InputPageBlockDivider(),
+        types.InputPageBlockMathematicalExpression("e=mc^2"),
+        types.InputPageBlockAnchor("sec name"),
+        types.InputPageBlockList([
+            types.InputPageBlockListItem([types.InputPageBlockParagraph("a")], has_checkbox=True, is_checked=True),
+            types.InputPageBlockListItem([types.InputPageBlockParagraph("b")], is_checked=True),
+        ]),
+        types.InputPageBlockList([types.InputPageBlockListItem([types.InputPageBlockParagraph("c")], value=3,
+                                                               type="i")]),
+        types.InputPageBlockBlockQuote([types.InputPageBlockParagraph("q")], credit="Credit"),
+        types.InputPageBlockExpandableBlockQuote("long"),
+        types.InputPageBlockPullQuote("pull", credit="who"),
+        types.InputPageBlockPhoto(media_files["photo.jpg"], caption="A photo", has_spoiler=True),
+        types.InputPageBlockVideo(types.InputMediaVideo(media_files["clip.mp4"], width=640, height=360, duration=3)),
+        types.InputPageBlockAnimation("https://example.org/a.mp4"),
+        types.InputPageBlockAudio(AUDIO_FILE_ID, caption=types.PageBlockCaption("A song", credit="Band")),
+        types.InputPageBlockVoiceNote(media_files["voice.ogg"], duration=5),
+        types.InputPageBlockDocument(types.InputMediaDocument(media_files["report.pdf"], file_name="r.pdf")),
+        types.InputPageBlockCollage([types.InputPageBlockPhoto(PHOTO_FILE_ID)]),
+        types.InputPageBlockSlideshow([types.InputPageBlockParagraph("slide")], caption="Slides"),
+        types.InputPageBlockTable([[
+            types.PageBlockTableCell("h", is_header=True, colspan=2, align=HA.RIGHT),
+            types.PageBlockTableCell(valign=VA.TOP),
+        ]], caption="Table", is_striped=True),
+        types.InputPageBlockDetails("More", [types.InputPageBlockParagraph("in")], is_open=True),
+        types.InputPageBlockMap(types.Location(longitude=1.5, latitude=2.5), zoom=10, width=300, height=200),
+        types.InputPageBlockButtonRow([
+            types.InlineButton("Data", callback_data="cb", style=enums.ButtonStyle.LINK),
+            types.InlineButton(types.RichTexts([types.RichTextCustomEmoji(1, "*"), "Me"]), user_id=7),
+            types.InlineButton("Copy", copy_text="secret"),
+        ], align=HA.RIGHT),
+    ])), reply_to_message_id=5, protect_content=True, clear_draft=True))
+
+    assert isinstance(message, types.Message) and message.id == 10
+
+    [request] = requests_of(client, raw.functions.messages.SendMessage)
+    assert request.peer.write() == USER.write() and request.message == "" and not request.entities
+    assert request.noforwards and request.clear_draft and request.reply_to.reply_to_msg_id == 5
+    rich = request.rich_message
+    assert isinstance(rich, raw.types.InputRichMessage) and rich.noautolink and not rich.rtl
+
+    # The media are uploaded to the target chat; a file id needs no upload
+    upload_requests = requests_of(client, raw.functions.messages.UploadMedia)
+    assert all(r.peer.write() == USER.write() for r in upload_requests)
+    uploads = [r.media for r in upload_requests]
+    assert [type(m) for m in uploads] == [
+        raw.types.InputMediaUploadedPhoto, raw.types.InputMediaUploadedDocument, raw.types.InputMediaDocumentExternal,
+        raw.types.InputMediaUploadedDocument, raw.types.InputMediaUploadedDocument,
+    ]
+    _, video_upload, animation_upload, voice_upload, document_upload = uploads
+    video_attribute, video_name = video_upload.attributes
+    assert (video_attribute.w, video_attribute.h, video_attribute.duration) == (640, 360, 3)
+    assert video_name.file_name == "clip.mp4" and video_upload.mime_type == "video/mp4"
+    assert animation_upload.url == "https://example.org/a.mp4"
+    assert same(voice_upload.attributes, [raw.types.DocumentAttributeAudio(voice=True, duration=5)])
+    assert voice_upload.mime_type == "audio/ogg"
+    assert document_upload.attributes[0].file_name == "r.pdf" and document_upload.mime_type == "application/pdf"
+
+    assert [p.id for p in rich.photos] == [PHOTO_ID, PHOTO_ID]
+    assert [d.id for d in rich.documents] == [VIDEO_ID, ANIMATION_ID, AUDIO_ID, VOICE_ID, DOCUMENT_ID]
+    assert same(rich.users, [raw.types.InputUser(user_id=7, access_hash=2)])  # mentioned once, button user too
+
+    (
+        heading, paragraph, pre, footer, thinking, divider, math, anchor, bullets, ordered, quote, expandable, pull,
+        photo, video, animation, audio, voice, document, collage, slideshow, table, details, map_block, buttons
+    ) = rich.blocks
+    assert same(heading, raw.types.PageBlockHeading2(text=plain("Title")))
+    assert same(paragraph.text.texts, [
+        plain("Hi "),
+        raw.types.TextBold(text=plain("bold")),
+        raw.types.TextItalic(text=raw.types.TextUnderline(text=raw.types.TextStrike(text=plain("deep")))),
+        raw.types.TextMentionName(text=plain("Pavel"), user_id=7),
+        raw.types.TextUrl(text=plain("site"), url="https://telegram.org", webpage_id=0),
+        raw.types.TextDate(text=plain("now"), date=1647531900, relative=True),
+        # Mentions and hashtags are detected by Telegram: only their text is sent
+        plain("@durov"),
+        plain("#tag"),
+        raw.types.TextCustomEmoji(document_id=5, alt="*"),
+        raw.types.TextMath(source="x^2"),
+        raw.types.TextUrl(text=plain("go"), url="#sec%20name", webpage_id=0),
+        raw.types.TextAnchor(text=plain("note text"), name="note"),
+        raw.types.TextAnchor(text=raw.types.TextEmpty(), name="here"),
+        raw.types.TextEmail(text=plain("mail"), email="a@b.c"),
+        raw.types.TextPhone(text=plain("call"), phone="+1"),
+        raw.types.TextSpoiler(text=plain("s")),
+        raw.types.TextButton(text=plain("Open"), type=raw.types.InlineButtonTypeUrl(url="https://example.org"),
+                             style=raw.types.RichButtonStyle(bg_success=True)),
+        raw.types.TextEmpty(),
+    ])
+
+    assert same(pre, raw.types.PageBlockPreformatted(text=plain("print(1)"), language="python"))
+    assert same(footer, raw.types.PageBlockFooter(text=plain("bye")))
+    assert same(thinking, raw.types.PageBlockThinking(text=plain("...")))
+    assert same(divider, raw.types.PageBlockDivider()) and same(math, raw.types.PageBlockMath(source="e=mc^2"))
+    assert same(anchor, raw.types.PageBlockAnchor(name="sec name"))
+    assert same(bullets, raw.types.PageBlockList(items=[
+        raw.types.PageListItemBlocks(checkbox=True, checked=True,
+                                     blocks=[raw.types.PageBlockParagraph(text=plain("a"))]),
+        raw.types.PageListItemBlocks(blocks=[raw.types.PageBlockParagraph(text=plain("b"))]),
+    ]))
+    assert same(ordered, raw.types.PageBlockOrderedList(start=0, type="", items=[raw.types.PageListOrderedItemBlocks(
+        num="iii.", value=3, type="i", blocks=[raw.types.PageBlockParagraph(text=plain("c"))])]))
+    assert same(quote, raw.types.PageBlockBlockquoteBlocks(blocks=[raw.types.PageBlockParagraph(text=plain("q"))],
+                                                            caption=plain("Credit")))
+    assert same(expandable, raw.types.PageBlockBlockquote(collapsed=True, text=plain("long"),
+                                                          caption=raw.types.TextEmpty()))
+    assert same(pull, raw.types.PageBlockPullquote(text=plain("pull"), caption=plain("who")))
+    assert same(photo, raw.types.PageBlockPhoto(spoiler=True, photo_id=PHOTO_ID, caption=caption("A photo")))
+    assert same(video, raw.types.PageBlockVideo(video_id=VIDEO_ID, caption=empty_caption()))
+    assert same(animation, raw.types.PageBlockVideo(autoplay=True, loop=True, video_id=ANIMATION_ID,
+                                                    caption=empty_caption()))
+    assert same(audio, raw.types.PageBlockAudio(audio_id=AUDIO_ID, caption=caption("A song", "Band")))
+    assert same(voice, raw.types.PageBlockAudio(audio_id=VOICE_ID, caption=empty_caption()))
+    assert same(document, raw.types.PageBlockDocument(document_id=DOCUMENT_ID, caption=empty_caption()))
+    assert same(collage, raw.types.PageBlockCollage(
+        items=[raw.types.PageBlockPhoto(photo_id=PHOTO_ID, caption=empty_caption())], caption=empty_caption()))
+    assert same(slideshow, raw.types.PageBlockSlideshow(items=[raw.types.PageBlockParagraph(text=plain("slide"))],
+                                                        caption=caption("Slides")))
+    assert same(table, raw.types.PageBlockTable(striped=True, title=plain("Table"), rows=[raw.types.PageTableRow(cells=[
+        raw.types.PageTableCell(header=True, align_right=True, valign_middle=True, text=plain("h"), colspan=2),
+        raw.types.PageTableCell(),
+    ])]))
+    assert same(details, raw.types.PageBlockDetails(open=True, blocks=[raw.types.PageBlockParagraph(text=plain("in"))],
+                                                    title=plain("More")))
+    assert same(map_block, raw.types.InputPageBlockMap(geo=raw.types.InputGeoPoint(lat=2.5, long=1.5), zoom=10, w=300,
+                                                       h=200, caption=empty_caption()))
+    assert same(buttons, raw.types.PageBlockButtonRow(align_right=True, buttons=[
+        raw.types.PageButton(text=plain("Data"), type=raw.types.InlineButtonTypeCallback(data=b"cb"),
+                             style=raw.types.RichButtonStyle(link=True)),
+        raw.types.PageButton(
+            text=raw.types.TextConcat(texts=[raw.types.TextCustomEmoji(document_id=1, alt="*"), plain("Me")]),
+            type=raw.types.InputInlineButtonTypeUserProfile(user_id=raw.types.InputUser(user_id=7, access_hash=2))
+        ),
+        raw.types.PageButton(text=plain("Copy"), type=raw.types.InlineButtonTypeCopy(copy_text="secret")),
+    ]))
+
+
+def test_send_rich_message_from_html_and_markdown():
+    client = rich_client()
+    call(lambda: client.send_rich_message(7, types.InputRichMessage(types.RichMessageSourceHtml(
+        "<h1>Report</h1><img src='tg://media?id=chart'>",
+        media=[
+            types.InputRichMessageMedia("chart", types.InputMediaPhoto(PHOTO_FILE_ID)),
+            types.InputRichMessageMedia("clip_2", types.InputMediaVideo("https://example.org/v.mp4")),
+        ]
+    ), is_rtl=True, detect_automatic_blocks=True)))
+    call(lambda: client.send_rich_message("me", types.InputRichMessage(
+        types.RichMessageSourceMarkdown("# Title\n**bold**")), business_connection_id="biz"))
+
+    upload, html_request, wrapped = client.sent
+    assert isinstance(upload.media, raw.types.InputMediaDocumentExternal) and upload.media.url.endswith("v.mp4")
+    assert isinstance(html_request, raw.functions.messages.SendMessage)
+    html = html_request.rich_message
+    assert isinstance(html, raw.types.InputRichMessageHTML) and html.rtl and not html.noautolink
+    assert html.html == "<h1>Report</h1><img src='tg://media?id=chart'>"
+    chart, clip = html.files
+    assert same(chart, raw.types.InputRichFilePhoto(id="chart", photo=raw.types.InputPhoto(
+        id=PHOTO_ID, access_hash=1, file_reference=b"r")))
+    assert isinstance(clip, raw.types.InputRichFileDocument) and clip.id == "clip_2"
+    assert clip.document.id == ANIMATION_ID
+
+    assert isinstance(wrapped, raw.functions.InvokeWithBusinessConnection) and wrapped.connection_id == "biz"
+    markdown = wrapped.query.rich_message
+    assert isinstance(markdown, raw.types.InputRichMessageMarkdown) and markdown.noautolink and not markdown.rtl
+    assert markdown.markdown == "# Title\n**bold**" and not markdown.files
+    assert isinstance(wrapped.query.peer, raw.types.InputPeerSelf)
+
+
+@pytest.mark.parametrize("source, error", [
+    (types.RichMessageSourceHtml("x", media=[types.InputRichMessageMedia("bad id", types.InputMediaPhoto("x"))]),
+     "identifier"),
+    (types.RichMessageSourceHtml("x", media=[types.InputRichMessageMedia("a", types.InputPhoneContact("1", "a"))]),
+     "rich message media"),
+    (types.RichMessageSourceBlocks([types.InputPageBlockSectionHeading("x", size=7)]), "heading size"),
+    (types.RichMessageSourceBlocks([types.InputPageBlockList([])]), "non-empty"),
+    (types.RichMessageSourceBlocks([types.InputPageBlockList([
+        types.InputPageBlockListItem([], type="1"), types.InputPageBlockListItem([])])]), "ordered or unordered"),
+    (types.RichMessageSourceBlocks([types.InputPageBlockList([types.InputPageBlockListItem([], type="x")])]),
+     "list item type"),
+    (types.RichMessageSourceBlocks([types.InputPageBlockButtonRow([])]), "non-empty"),
+    (types.RichMessageSourceBlocks([types.InputPageBlockButtonRow([types.InlineButton("no action")])]), "no action"),
+    (types.RichMessageSourceBlocks([types.InputPageBlockMap(types.Location(longitude=0, latitude=0), zoom=25,
+                                                            width=10, height=10)]), "map"),
+    (types.RichMessageSourceBlocks([types.InputPageBlockParagraph(types.RichTextIcon(None, 1, 1))]), "can't be sent"),
+    (types.RichMessageSourceBlocks([types.InputPageBlockParagraph(types.RichTextDiff("a", "b"))]), "can't be sent"),
+    (types.RichMessageSourceBlocks([types.InputPageBlockPhoto(AUDIO_FILE_ID)]), "can't be used as a photo"),
+])
+def test_invalid_rich_messages_are_rejected(source, error):
+    client = rich_client()
+    with pytest.raises(ValueError, match=error):
+        call(lambda: client.send_rich_message(7, types.InputRichMessage(source)))
+    assert requests_of(client, raw.functions.messages.SendMessage) == []

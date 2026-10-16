@@ -253,6 +253,7 @@ def pyrogram_api():
             send_text_message_draft
             stop_pending_message
             send_message_view_metrics
+            send_rich_message
         """,
         chats="""
         Chats
@@ -941,6 +942,12 @@ def pyrogram_api():
         Rich Messages
             RichMessage
             InlineButton
+            InputRichMessage
+            RichMessageSource
+            RichMessageSourceBlocks
+            RichMessageSourceMarkdown
+            RichMessageSourceHtml
+            InputRichMessageMedia
         """,
         rich_texts="""
         Rich Texts
@@ -1020,6 +1027,32 @@ def pyrogram_api():
             PageBlockListItem
             PageBlockTableCell
             PageBlockRelatedArticle
+            InputPageBlock
+            InputPageBlockSectionHeading
+            InputPageBlockParagraph
+            InputPageBlockPreformatted
+            InputPageBlockFooter
+            InputPageBlockThinking
+            InputPageBlockDivider
+            InputPageBlockMathematicalExpression
+            InputPageBlockAnchor
+            InputPageBlockList
+            InputPageBlockListItem
+            InputPageBlockBlockQuote
+            InputPageBlockExpandableBlockQuote
+            InputPageBlockPullQuote
+            InputPageBlockAnimation
+            InputPageBlockAudio
+            InputPageBlockDocument
+            InputPageBlockPhoto
+            InputPageBlockVideo
+            InputPageBlockVoiceNote
+            InputPageBlockCollage
+            InputPageBlockSlideshow
+            InputPageBlockTable
+            InputPageBlockDetails
+            InputPageBlockMap
+            InputPageBlockButtonRow
         """
     )
 

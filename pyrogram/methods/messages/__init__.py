@@ -74,6 +74,7 @@ from .search_messages import SearchMessages
 from .search_messages_count import SearchMessagesCount
 from .search_text_composition_style import SearchTextCompositionStyle
 from .send_message_view_metrics import SendMessageViewMetrics
+from .send_rich_message import SendRichMessage
 from .send_stake_dice import SendStakeDice
 from .send_text_message_draft import SendTextMessageDraft
 from .set_todo_tasks_completion import SetTodoTasksCompletion
@@ -194,6 +195,7 @@ class Messages(
     GetPollVoteStatistics,
     SendTextMessageDraft,
     StopPendingMessage,
-    SendMessageViewMetrics
+    SendMessageViewMetrics,
+    SendRichMessage
 ):
     pass

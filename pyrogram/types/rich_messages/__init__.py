@@ -17,6 +17,34 @@
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
 from .inline_button import InlineButton
+from .input_page_block import InputPageBlock
+from .input_page_block import InputPageBlockAnchor
+from .input_page_block import InputPageBlockAnimation
+from .input_page_block import InputPageBlockAudio
+from .input_page_block import InputPageBlockBlockQuote
+from .input_page_block import InputPageBlockButtonRow
+from .input_page_block import InputPageBlockCollage
+from .input_page_block import InputPageBlockDetails
+from .input_page_block import InputPageBlockDivider
+from .input_page_block import InputPageBlockDocument
+from .input_page_block import InputPageBlockExpandableBlockQuote
+from .input_page_block import InputPageBlockFooter
+from .input_page_block import InputPageBlockList
+from .input_page_block import InputPageBlockListItem
+from .input_page_block import InputPageBlockMap
+from .input_page_block import InputPageBlockMathematicalExpression
+from .input_page_block import InputPageBlockParagraph
+from .input_page_block import InputPageBlockPhoto
+from .input_page_block import InputPageBlockPreformatted
+from .input_page_block import InputPageBlockPullQuote
+from .input_page_block import InputPageBlockSectionHeading
+from .input_page_block import InputPageBlockSlideshow
+from .input_page_block import InputPageBlockTable
+from .input_page_block import InputPageBlockThinking
+from .input_page_block import InputPageBlockVideo
+from .input_page_block import InputPageBlockVoiceNote
+from .input_rich_message import InputRichMessage
+from .input_rich_message_media import InputRichMessageMedia
 from .page_block import PageBlock
 from .page_block import PageBlockAnchor
 from .page_block import PageBlockAnimation
@@ -59,6 +87,10 @@ from .page_block_list_item import PageBlockListItem
 from .page_block_related_article import PageBlockRelatedArticle
 from .page_block_table_cell import PageBlockTableCell
 from .rich_message import RichMessage
+from .rich_message_source import RichMessageSource
+from .rich_message_source import RichMessageSourceBlocks
+from .rich_message_source import RichMessageSourceHtml
+from .rich_message_source import RichMessageSourceMarkdown
 from .rich_text import RichText
 from .rich_text import RichTextAnchor
 from .rich_text import RichTextAnchorLink
@@ -168,5 +200,37 @@ __all__ = [
     "PageBlockCaption",
     "PageBlockListItem",
     "PageBlockTableCell",
-    "PageBlockRelatedArticle"
+    "PageBlockRelatedArticle",
+    "InputRichMessage",
+    "RichMessageSource",
+    "RichMessageSourceBlocks",
+    "RichMessageSourceMarkdown",
+    "RichMessageSourceHtml",
+    "InputRichMessageMedia",
+    "InputPageBlock",
+    "InputPageBlockSectionHeading",
+    "InputPageBlockParagraph",
+    "InputPageBlockPreformatted",
+    "InputPageBlockFooter",
+    "InputPageBlockThinking",
+    "InputPageBlockDivider",
+    "InputPageBlockMathematicalExpression",
+    "InputPageBlockAnchor",
+    "InputPageBlockList",
+    "InputPageBlockListItem",
+    "InputPageBlockBlockQuote",
+    "InputPageBlockExpandableBlockQuote",
+    "InputPageBlockPullQuote",
+    "InputPageBlockAnimation",
+    "InputPageBlockAudio",
+    "InputPageBlockDocument",
+    "InputPageBlockPhoto",
+    "InputPageBlockVideo",
+    "InputPageBlockVoiceNote",
+    "InputPageBlockCollage",
+    "InputPageBlockSlideshow",
+    "InputPageBlockTable",
+    "InputPageBlockDetails",
+    "InputPageBlockMap",
+    "InputPageBlockButtonRow"
 ]
