@@ -42,6 +42,7 @@ to apply only a valid value among the expected ones.
     ChatJoinResultType
     GiftAttributeRarityType
     CraftGiftResultType
+    TonWalletTransactionType
 
 .. toctree::
     :hidden:
@@ -75,3 +76,4 @@ to apply only a valid value among the expected ones.
     ChatJoinResultType
     GiftAttributeRarityType
     CraftGiftResultType
+    TonWalletTransactionType

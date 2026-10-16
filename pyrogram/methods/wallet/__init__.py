@@ -16,10 +16,22 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from .check_wallet_bot_balance import CheckWalletBotBalance
+from .get_ton_wallet_gasless_transfers_info import GetTonWalletGaslessTransfersInfo
 from .get_ton_wallet_nfts import GetTonWalletNfts
+from .get_ton_wallet_state import GetTonWalletState
+from .get_ton_wallet_transaction import GetTonWalletTransaction
+from .get_ton_wallet_transaction_by_msg_hash import GetTonWalletTransactionByMsgHash
+from .get_ton_wallet_transactions import GetTonWalletTransactions
 
 
 class Wallet(
     GetTonWalletNfts,
+    GetTonWalletState,
+    GetTonWalletTransactions,
+    GetTonWalletTransaction,
+    GetTonWalletTransactionByMsgHash,
+    GetTonWalletGaslessTransfersInfo,
+    CheckWalletBotBalance,
 ):
     pass

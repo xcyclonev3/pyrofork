@@ -534,6 +534,12 @@ def pyrogram_api():
         wallet="""
         TON Wallet
             get_ton_wallet_nfts
+            get_ton_wallet_state
+            get_ton_wallet_transactions
+            get_ton_wallet_transaction
+            get_ton_wallet_transaction_by_msg_hash
+            get_ton_wallet_gasless_transfers_info
+            check_wallet_bot_balance
         """
     )
 
@@ -875,6 +881,10 @@ def pyrogram_api():
             WebDocument
             TonNftAttribute
             TonNft
+            TonWalletState
+            TonWalletTransaction
+            TonWalletGaslessTransfersInfo
+            WalletBotBalance
         """
     )
 

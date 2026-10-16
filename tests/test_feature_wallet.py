@@ -18,9 +18,15 @@
 
 """Offline tests of the TON wallet, TON Connect, on-ramp and TON Center API (Layer 230)."""
 import asyncio
+from datetime import datetime
 
-from pyrogram import raw, types
-from tests.test_layer_roundtrip import offline_client, roundtrip, PEERS
+import pytest
+
+from pyrogram import enums, raw, types
+from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
+
+TWT = enums.TonWalletTransactionType
+RAW_PEER_USER = raw.types.User(id=7, access_hash=2, first_name="Peer")
 
 
 def collect(make_gen):
@@ -126,3 +132,180 @@ def test_get_ton_wallet_nfts_respects_limit_and_offset():
 
     assert [nft.address for nft in nfts] == ["EQ1"]
     assert [(q.offset, q.limit) for q in client.sent] == [("start", 1)]
+
+
+# Wallet state and transactions
+
+def wallet_state(**kwargs):
+    return raw.types.WalletState(address="UQme", public_key=b"\x01" * 32, balance=5_000_000_000, **kwargs)
+
+
+def wallet_transaction(id="tx1", peer=None, **kwargs):
+    return raw.types.WalletTransaction(
+        id=id, amount=1_500_000_000, fee=4_000_000, date=1_700_000_000,
+        peer=peer or raw.types.WalletTransactionPeerAddress(address="UQpeer"), **kwargs,
+    )
+
+
+def wallet_transactions(*transactions, next_offset=None, users=()):
+    return raw.types.wallet.Transactions(
+        balance=5_000_000_000, transactions=list(transactions), next_offset=next_offset, chats=[], users=list(users),
+    )
+
+
+def test_ton_wallet_state_parses_wallet_and_empty_state():
+    state = types.TonWalletState._parse(None, roundtrip(wallet_state(backup_enabled=True, can_export_phrase=True)))
+    assert (state.address, state.public_key, state.balance) == ("UQme", b"\x01" * 32, 5_000_000_000)
+    assert state.is_backup_enabled and state.can_export_phrase
+    assert not state.can_enable_backup and not state.is_being_created
+
+    empty = types.TonWalletState._parse(None, roundtrip(raw.types.WalletStateEmpty(creating=True)))
+    assert empty.is_being_created
+    assert empty.address is empty.public_key is empty.balance is None
+    assert not (empty.is_backup_enabled or empty.can_enable_backup or empty.can_export_phrase)
+
+
+def test_get_ton_wallet_state():
+    client = offline_client(PEERS, lambda q: wallet_state(can_enable_backup=True))
+    state = call(lambda: client.get_ton_wallet_state())
+
+    assert isinstance(client.sent[-1], raw.functions.wallet.GetState)
+    assert isinstance(state, types.TonWalletState) and state.address == "UQme" and state.can_enable_backup
+
+
+def test_ton_wallet_transaction_incoming_transfer_from_user():
+    transaction = types.TonWalletTransaction._parse(None, roundtrip(wallet_transaction(
+        peer=raw.types.WalletTransactionPeerUser(user_id=7, address="UQpeer", domain="peer.ton"),
+        incoming=True, gasless=True, comment="thanks", tx_hash="hash1",
+    )), {7: roundtrip(RAW_PEER_USER)})
+
+    assert (transaction.id, transaction.type, transaction.amount) == ("tx1", TWT.TRANSFER, 1_500_000_000)
+    assert (transaction.fee_amount, transaction.date) == (4_000_000, datetime.fromtimestamp(1_700_000_000))
+    assert not transaction.is_outgoing and transaction.is_gasless and not transaction.is_failed
+    assert (transaction.peer_address, transaction.peer_domain) == ("UQpeer", "peer.ton")
+    assert isinstance(transaction.peer_user, types.User) and transaction.peer_user.id == 7
+    assert (transaction.comment, transaction.tx_hash) == ("thanks", "hash1")
+    assert not transaction.is_comment_encrypted and transaction.nft is None
+    assert transaction.on_ramp_provider_name is None
+
+
+@pytest.mark.parametrize("peer, flags, transaction_type, amount", [
+    (raw.types.WalletTransactionPeerAddress(address="UQpeer"), {}, TWT.TRANSFER, -1_500_000_000),
+    (raw.types.WalletTransactionPeerOnramp(address="UQramp", provider_name="Ramp", domain="ramp.ton"),
+     {"incoming": True}, TWT.ON_RAMP_DEPOSIT, 1_500_000_000),
+    (raw.types.WalletTransactionPeerUnsupported(), {"key_change": True}, TWT.KEY_CHANGE, -1_500_000_000),
+    (raw.types.WalletTransactionPeerAddress(address="UQpeer"),
+     {"nft": nft_item("EQgift"), "comment_encrypted": True, "comment": "c2VjcmV0"}, TWT.NFT_TRANSFER, -1_500_000_000),
+])
+def test_ton_wallet_transaction_types(peer, flags, transaction_type, amount):
+    transaction = types.TonWalletTransaction._parse(None, roundtrip(wallet_transaction(peer=peer, failed=True, **flags)))
+
+    assert transaction.type == transaction_type and transaction.amount == amount
+    assert transaction.is_outgoing is not flags.get("incoming", False) and transaction.is_failed
+    assert transaction.peer_user is None and transaction.peer_address == getattr(peer, "address", None)
+
+    if transaction_type == TWT.ON_RAMP_DEPOSIT:
+        assert transaction.on_ramp_provider_name == "Ramp" and transaction.peer_domain == "ramp.ton"
+    if transaction_type == TWT.NFT_TRANSFER:
+        assert transaction.nft.address == "EQgift" and transaction.is_comment_encrypted
+        assert transaction.comment == "c2VjcmV0"
+
+
+def test_get_ton_wallet_transactions_follows_next_offset():
+    pages = {
+        "": wallet_transactions(
+            wallet_transaction("tx1", peer=raw.types.WalletTransactionPeerUser(user_id=7, address="UQpeer")),
+            wallet_transaction("tx2"), next_offset="page2", users=[RAW_PEER_USER],
+        ),
+        "page2": wallet_transactions(wallet_transaction("tx3")),
+    }
+    client = offline_client(PEERS, lambda q: pages[q.offset])
+
+    transactions = collect(lambda: client.get_ton_wallet_transactions(is_inbound=True))
+
+    assert [t.id for t in transactions] == ["tx1", "tx2", "tx3"]
+    assert transactions[0].peer_user.first_name == "Peer"
+    assert all(isinstance(q, raw.functions.wallet.GetTransactions) for q in client.sent)
+    assert [(q.offset, q.limit, q.inbound, q.outbound) for q in client.sent] == [
+        ("", 100, True, False), ("page2", 100, True, False)
+    ]
+
+
+def test_get_ton_wallet_transactions_respects_limit():
+    client = offline_client(PEERS, lambda q: wallet_transactions(
+        wallet_transaction("tx1"), wallet_transaction("tx2"), next_offset="more"))
+
+    transactions = collect(lambda: client.get_ton_wallet_transactions(limit=1, offset="o", is_outbound=True))
+
+    assert [t.id for t in transactions] == ["tx1"]
+    assert [(q.offset, q.limit, q.inbound, q.outbound) for q in client.sent] == [("o", 1, False, True)]
+
+
+@pytest.mark.parametrize("method, request_type, field", [
+    ("get_ton_wallet_transaction", raw.functions.wallet.GetTransactionsByIDs, "id"),
+    ("get_ton_wallet_transaction_by_msg_hash", raw.functions.wallet.GetTransactionsByMsgHash, "msg_hash"),
+])
+def test_get_ton_wallet_transaction_by_id_or_msg_hash(method, request_type, field):
+    def respond(query):
+        return wallet_transactions(*[wallet_transaction(i) for i in getattr(query, field) if i != "missing"])
+
+    client = offline_client(PEERS, respond)
+
+    single = call(lambda: getattr(client, method)("tx1"))
+    assert isinstance(single, types.TonWalletTransaction) and single.id == "tx1"
+    assert isinstance(client.sent[-1], request_type) and getattr(client.sent[-1], field) == ["tx1"]
+
+    assert call(lambda: getattr(client, method)("missing")) is None
+
+    several = call(lambda: getattr(client, method)(["tx1", "missing", "tx2"]))
+    assert isinstance(several, list) and [t.id for t in several] == ["tx1", "tx2"]
+    assert getattr(client.sent[-1], field) == ["tx1", "missing", "tx2"]
+
+
+def gasless_info_update(**kwargs):
+    return raw.types.UpdateWalletGaslessInfo(
+        left=3, reset_at=1_700_000_000, min_amount=10_000_000, relayer_address="UQrelayer", **kwargs)
+
+
+def test_ton_wallet_gasless_transfers_info():
+    info = types.TonWalletGaslessTransfersInfo._parse(None, roundtrip(gasless_info_update(available=True)))
+    assert info.is_available and (info.left_count, info.min_amount) == (3, 10_000_000)
+    assert info.relayer_address == "UQrelayer" and info.reset_date == datetime.fromtimestamp(1_700_000_000)
+
+    never = types.TonWalletGaslessTransfersInfo._parse(
+        None, roundtrip(raw.types.UpdateWalletGaslessInfo(left=0, reset_at=0, min_amount=0, relayer_address="")))
+    assert not never.is_available and never.reset_date is None
+
+
+@pytest.mark.parametrize("result", [
+    empty_updates([gasless_info_update(available=True)]),
+    raw.types.UpdateShort(update=gasless_info_update(available=True), date=0),
+])
+def test_get_ton_wallet_gasless_transfers_info(result):
+    client = offline_client(PEERS, lambda q: result)
+    info = call(lambda: client.get_ton_wallet_gasless_transfers_info())
+
+    assert isinstance(client.sent[-1], raw.functions.wallet.GetGaslessInfo)
+    assert isinstance(info, types.TonWalletGaslessTransfersInfo) and info.is_available and info.left_count == 3
+
+
+def test_get_ton_wallet_gasless_transfers_info_without_update():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    assert call(lambda: client.get_ton_wallet_gasless_transfers_info()) is None
+
+
+def test_wallet_bot_balance():
+    balance = types.WalletBotBalance._parse(
+        None, roundtrip(raw.types.wallet.ExistingBalance(has_balance=True, url="https://t.me/walt?start=x")))
+    assert balance.has_balance and balance.url == "https://t.me/walt?start=x"
+
+    empty = types.WalletBotBalance._parse(None, roundtrip(raw.types.wallet.ExistingBalance(url="")))
+    assert not empty.has_balance and empty.url is None
+
+
+def test_check_wallet_bot_balance():
+    client = offline_client(PEERS, lambda q: raw.types.wallet.ExistingBalance(has_balance=True, url="https://t.me/walt"))
+    balance = call(lambda: client.check_wallet_bot_balance())
+
+    assert isinstance(client.sent[-1], raw.functions.wallet.GetExistingWaltBalance)
+    assert isinstance(balance, types.WalletBotBalance) and balance.has_balance and balance.url == "https://t.me/walt"

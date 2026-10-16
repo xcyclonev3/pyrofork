@@ -18,11 +18,19 @@
 
 from .ton_nft import TonNft
 from .ton_nft_attribute import TonNftAttribute
+from .ton_wallet_gasless_transfers_info import TonWalletGaslessTransfersInfo
+from .ton_wallet_state import TonWalletState
+from .ton_wallet_transaction import TonWalletTransaction
+from .wallet_bot_balance import WalletBotBalance
 from .web_document import WebDocument
 
 
 __all__ = [
     "WebDocument",
     "TonNftAttribute",
-    "TonNft"
+    "TonNft",
+    "TonWalletState",
+    "TonWalletTransaction",
+    "TonWalletGaslessTransfersInfo",
+    "WalletBotBalance"
 ]
