@@ -27,6 +27,7 @@ from .contact import Contact
 from .contact_registered import ContactRegistered
 from .dice import Dice
 from .document import Document
+from .draft_message import DraftMessage
 from .external_reply_info import ExternalReplyInfo
 from .fixed_text import FixedText
 from .formatted_text import FormattedText
@@ -176,5 +177,6 @@ __all__ = [
     "StatisticalGraphError",
     "PollVoteStatistics",
     "PendingMessage",
-    "MessageDraftStopped"
+    "MessageDraftStopped",
+    "DraftMessage"
 ]

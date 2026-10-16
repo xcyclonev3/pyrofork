@@ -907,3 +907,50 @@ def test_send_rich_message_draft():
             blocks=[raw.types.PageBlockThinking(text=plain("Thinking"))], photos=[], documents=[])))
     [thinking] = types.RichMessage._parse(None, received.rich_message).blocks
     assert isinstance(thinking, types.PageBlockThinking) and thinking.text.text == "Thinking"
+
+
+def test_set_chat_draft_message():
+    client = rich_client(lambda q: True)
+
+    assert call(lambda: client.set_chat_draft_message(
+        -100123, rich_message=html_message("<h1>Plan</h1>"), message_thread_id=4, message_effect_id=9)) is True
+    assert call(lambda: client.set_chat_draft_message(7, "**later**", reply_to_message_id=3,
+                                                      disable_web_page_preview=True)) is True
+    assert call(lambda: client.set_chat_draft_message(7)) is True
+
+    rich, text, cleared = client.sent
+    assert all(isinstance(r, raw.functions.messages.SaveDraft) for r in client.sent)
+    assert isinstance(rich.peer, raw.types.InputPeerChannel) and rich.message == "" and not rich.entities
+    assert rich.rich_message.html == "<h1>Plan</h1>" and rich.effect == 9
+    assert rich.reply_to.top_msg_id == 4
+    assert text.message == "later" and isinstance(text.entities[0], raw.types.MessageEntityBold)
+    assert text.no_webpage and text.rich_message is None and text.reply_to.reply_to_msg_id == 3
+    assert cleared.message == "" and not cleared.entities and cleared.rich_message is None and cleared.reply_to is None
+
+    with pytest.raises(ValueError):
+        call(lambda: client.set_chat_draft_message(7, "text", rich_message=html_message()))
+
+
+def test_draft_message_parsing():
+    rich_draft = types.DraftMessage._parse(None, roundtrip(raw.types.DraftMessage(
+        message="", date=1700000000, effect=9,
+        reply_to=raw.types.InputReplyToMessage(reply_to_msg_id=4, top_msg_id=4),
+        rich_message=raw.types.RichMessage(blocks=[raw.types.PageBlockHeading2(text=plain("Plan"))], photos=[],
+                                           documents=[])
+    )))
+    assert isinstance(rich_draft, types.DraftMessage) and rich_draft.date.timestamp() == 1700000000
+    assert rich_draft.text is None and rich_draft.entities is None and rich_draft.effect_id == 9
+    assert (rich_draft.reply_to_message_id, rich_draft.message_thread_id) == (4, 4)
+    [heading] = rich_draft.rich_message.blocks
+    assert isinstance(heading, types.PageBlockSectionHeading) and heading.size == 2
+
+    text_draft = types.DraftMessage._parse(None, roundtrip(raw.types.DraftMessage(
+        message="hello", date=1, no_webpage=True, invert_media=True,
+        entities=[raw.types.MessageEntityBold(offset=0, length=5)]
+    )))
+    assert text_draft.text == "hello" and text_draft.entities[0].type == enums.MessageEntityType.BOLD
+    assert text_draft.text.html == "<b>hello</b>"
+    assert text_draft.disable_web_page_preview and text_draft.invert_media and text_draft.rich_message is None
+    assert text_draft.reply_to_message_id is None
+
+    assert types.DraftMessage._parse(None, roundtrip(raw.types.DraftMessageEmpty(date=1))) is None

@@ -84,6 +84,7 @@ from .send_rich_message import SendRichMessage
 from .send_rich_message_draft import SendRichMessageDraft
 from .send_stake_dice import SendStakeDice
 from .send_text_message_draft import SendTextMessageDraft
+from .set_chat_draft_message import SetChatDraftMessage
 from .set_todo_tasks_completion import SetTodoTasksCompletion
 from .send_animation import SendAnimation
 from .send_audio import SendAudio
@@ -214,6 +215,7 @@ class Messages(
     ComposeRichMessageWithAi,
     CreateRichMessageWithAi,
     FixRichMessageWithAi,
-    SendRichMessageDraft
+    SendRichMessageDraft,
+    SetChatDraftMessage
 ):
     pass

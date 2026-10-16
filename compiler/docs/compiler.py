@@ -263,6 +263,7 @@ def pyrogram_api():
             create_rich_message_with_ai
             fix_rich_message_with_ai
             send_rich_message_draft
+            set_chat_draft_message
         """,
         chats="""
         Chats
@@ -751,6 +752,7 @@ def pyrogram_api():
             PollVoteStatistics
             PendingMessage
             MessageDraftStopped
+            DraftMessage
         """,
         stories="""
         Stories
