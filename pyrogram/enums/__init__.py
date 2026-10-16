@@ -27,6 +27,7 @@ from .chat_member_status import ChatMemberStatus
 from .chat_members_filter import ChatMembersFilter
 from .chat_type import ChatType
 from .client_platform import ClientPlatform
+from .craft_gift_result_type import CraftGiftResultType
 from .folder_color import FolderColor
 from .gift_attribute_rarity_type import GiftAttributeRarityType
 from .gift_attribute_type import GiftAttributeType
@@ -78,5 +79,6 @@ __all__ = [
     'UserStatus',
     'ButtonStyle',
     'ChatJoinResultType',
-    'GiftAttributeRarityType'
+    'GiftAttributeRarityType',
+    'CraftGiftResultType'
 ]

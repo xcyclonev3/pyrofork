@@ -389,6 +389,7 @@ def pyrogram_api():
             upgrade_gift
             get_stars_balance
             get_gifts_for_crafting
+            craft_gift
         """,
         phone="""
         Phone
@@ -643,6 +644,7 @@ def pyrogram_api():
             StarsStatus
             StarsTransaction
             SuccessfulPayment
+            CraftGiftResult
         """,
         pyromod="""
         Pyromod

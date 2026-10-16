@@ -22,7 +22,7 @@ import asyncio
 import pytest
 
 import pyrogram
-from pyrogram import enums, raw, types
+from pyrogram import enums, errors, raw, types
 from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
 
 STICKER = raw.types.Document(
@@ -174,3 +174,79 @@ def test_get_gifts_for_crafting(limit, expected):
     assert all(isinstance(r, raw.functions.payments.GetCraftStarGifts) and r.gift_id == 2 for r in client.sent)
     assert [r.offset for r in client.sent] == (["", "6"] if limit == 0 else [""])
     assert client.sent[0].limit == (100 if limit == 0 else limit)
+
+
+CR = enums.CraftGiftResultType
+
+
+def test_craft_gift_success():
+    client = offline_client(PEERS, lambda q: empty_updates(updates=[
+        raw.types.UpdateNewMessage(message=craft_message(message_id=42, craft=True), pts=1, pts_count=1)
+    ]))
+    result = call(lambda: client.craft_gift([123, "456", "https://t.me/nft/Helmet-1", "-100123_789"]))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.payments.CraftStarGift)
+    by_id, by_str, by_slug, by_chat = request.stargift
+    assert isinstance(by_id, raw.types.InputSavedStarGiftUser) and by_id.msg_id == 123
+    assert isinstance(by_str, raw.types.InputSavedStarGiftUser) and by_str.msg_id == 456
+    assert isinstance(by_slug, raw.types.InputSavedStarGiftSlug) and by_slug.slug == "Helmet-1"
+    assert isinstance(by_chat, raw.types.InputSavedStarGiftChat) and by_chat.saved_id == 789
+    assert by_chat.peer.write() == PEERS[-100123].write()
+
+    assert isinstance(result, types.CraftGiftResult) and result.type == CR.SUCCESS
+    assert result.owned_gift_id == "42" and result.retry_after is None
+    assert isinstance(result.gift, types.Gift) and result.gift.name == "Helmet-1" and result.gift.is_crafted
+
+
+@pytest.mark.parametrize("response", [
+    empty_updates(updates=[raw.types.UpdateStarGiftCraftFail()]),
+    raw.types.UpdateShort(update=raw.types.UpdateStarGiftCraftFail(), date=1),
+])
+def test_craft_gift_fail(response):
+    client = offline_client(PEERS, lambda q: response)
+    result = call(lambda: client.craft_gift(["123"]))
+    assert result.type == CR.FAIL and result.gift is None and result.owned_gift_id is None
+
+
+def rpc_error(code, message):
+    try:
+        errors.RPCError.raise_it(raw.types.RpcError(error_code=code, error_message=message),
+                                 raw.functions.payments.CraftStarGift)
+    except errors.RPCError as e:
+        return e
+
+
+class StargiftCraftTooEarly(errors.BadRequest):  # stands for the class the error table may get one day
+    ID = "STARGIFT_CRAFT_TOO_EARLY_X"
+    MESSAGE = "The gift can't be used for crafting yet"
+
+
+@pytest.mark.parametrize("make_error, result_type, retry_after", [
+    (lambda: rpc_error(400, "STARGIFT_CRAFT_TOO_EARLY_3600"), CR.TOO_EARLY, 3600),
+    (lambda: StargiftCraftTooEarly(value="3600"), CR.TOO_EARLY, 3600),
+    (lambda: rpc_error(400, "STARGIFT_CRAFT_UNAVAILABLE"), CR.INVALID_GIFT, None),
+    (lambda: rpc_error(400, "STARGIFT_ALREADY_CRAFTED"), CR.INVALID_GIFT, None),
+])
+def test_craft_gift_errors_are_results(monkeypatch, tmp_path, make_error, result_type, retry_after):
+    monkeypatch.chdir(tmp_path)  # unknown errors are logged to ./unknown_errors.txt
+    error = make_error()
+
+    def respond(query):
+        raise error
+
+    client = offline_client(PEERS, respond)
+    result = call(lambda: client.craft_gift(["123"]))
+    assert result.type == result_type and result.retry_after == retry_after and result.gift is None
+
+
+def test_craft_gift_other_errors_are_raised(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    error = rpc_error(400, "STARGIFT_INVALID")
+
+    def respond(query):
+        raise error
+
+    client = offline_client(PEERS, respond)
+    with pytest.raises(errors.StargiftInvalid):
+        call(lambda: client.craft_gift(["123"]))

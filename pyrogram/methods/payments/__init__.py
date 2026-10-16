@@ -20,6 +20,7 @@
 from .apply_gift_code import ApplyGiftCode
 from .check_giftcode import CheckGiftCode
 from .convert_gift import ConvertGift
+from .craft_gift import CraftGift
 from .create_invoice_link import CreateInvoiceLink
 from .get_gifts_for_crafting import GetGiftsForCrafting
 from .get_payment_form import GetPaymentForm
@@ -72,6 +73,7 @@ class Payments(
     ShowGift,
     TransferGift,
     UpgradeGift,
-    GetGiftsForCrafting
+    GetGiftsForCrafting,
+    CraftGift
 ):
     pass
