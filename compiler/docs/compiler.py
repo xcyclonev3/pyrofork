@@ -457,6 +457,8 @@ def pyrogram_api():
             share_users_with_bot
             share_chat_with_bot
             answer_guest_query
+            get_login_url_info
+            get_login_url
         """,
         business="""
         Telegram Business
@@ -486,6 +488,12 @@ def pyrogram_api():
             recover_password
             log_out
             get_active_sessions
+            get_external_link_info
+            get_external_link
+            get_oauth_link_info
+            check_oauth_request_match_code
+            accept_oauth_request
+            decline_oauth_request
         """,
         advanced="""
         Advanced
@@ -747,6 +755,9 @@ def pyrogram_api():
             SentWebAppMessage
             KeyboardButtonPollType
             RequestPeerTypeManagedBot
+            LoginUrlInfo
+            LoginUrlInfoOpen
+            LoginUrlInfoRequestConfirmation
         """,
         bot_commands="""
         Bot commands
@@ -829,6 +840,7 @@ def pyrogram_api():
             LoginToken
             SentCode
             TermsOfService
+            OauthLinkInfo
         """
     )
 

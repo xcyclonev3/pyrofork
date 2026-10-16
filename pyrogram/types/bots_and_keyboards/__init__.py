@@ -43,6 +43,9 @@ from .keyboard_button import KeyboardButton
 from .inline_keyboard_button_buy import InlineKeyboardButtonBuy
 from .keyboard_button_poll_type import KeyboardButtonPollType
 from .login_url import LoginUrl
+from .login_url_info import LoginUrlInfo
+from .login_url_info_open import LoginUrlInfoOpen
+from .login_url_info_request_confirmation import LoginUrlInfoRequestConfirmation
 from .managed_bot_created import ManagedBotCreated
 from .managed_bot_updated import ManagedBotUpdated
 from .menu_button import MenuButton
@@ -104,5 +107,8 @@ __all__ = [
     "BotAccessSettings",
     "GuestQuery",
     "ManagedBotUpdated",
-    "ManagedBotCreated"
+    "ManagedBotCreated",
+    "LoginUrlInfo",
+    "LoginUrlInfoOpen",
+    "LoginUrlInfoRequestConfirmation"
 ]

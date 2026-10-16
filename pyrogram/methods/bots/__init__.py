@@ -34,6 +34,8 @@ from .get_chat_menu_button import GetChatMenuButton
 from .get_collectible_item_info import GetCollectibleItemInfo
 from .get_game_high_scores import GetGameHighScores
 from .get_inline_bot_results import GetInlineBotResults
+from .get_login_url import GetLoginUrl
+from .get_login_url_info import GetLoginUrlInfo
 from .get_managed_bot_access_settings import GetManagedBotAccessSettings
 from .get_managed_bot_token import GetManagedBotToken
 from .get_prepared_keyboard_button import GetPreparedKeyboardButton
@@ -90,5 +92,7 @@ class Bots(
     ShareUsersWithBot,
     ShareChatWithBot,
     AnswerGuestQuery,
+    GetLoginUrlInfo,
+    GetLoginUrl,
 ):
     pass

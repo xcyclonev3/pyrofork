@@ -122,3 +122,175 @@ def test_delete_all_recent_message_reactions_from_sender():
     assert isinstance(request, raw.functions.messages.DeleteParticipantReactions)
     assert request.peer.write() == BASIC_GROUP.write()
     assert request.participant.write() == CHANNEL.write()
+
+
+# URL authorization: login buttons, external links and OAuth requests
+
+RAW_BOT = raw.types.User(id=99, access_hash=3, first_name="Login", username="loginbot", bot=True, bot_info_version=1)
+OAUTH_LINK = "tg://oauth?token=abc"
+
+
+def url_auth_request(**kwargs):
+    return raw.types.UrlAuthResultRequest(bot=RAW_BOT, domain="example.org", **kwargs)
+
+
+def login_button_client(respond, button_id=3):
+    client = offline_client(PEERS, respond)
+    client.message_requests = []
+
+    async def get_messages(chat_id, message_ids, replies=1):
+        client.message_requests.append((chat_id, message_ids, replies))
+        return types.Message(id=message_ids, reply_markup=types.InlineKeyboardMarkup([[
+            types.InlineKeyboardButton("cb", callback_data="x"),
+            types.InlineKeyboardButton("login", login_url=types.LoginUrl(
+                url="https://example.org/login", button_id=button_id
+            )),
+        ]]))
+
+    client.get_messages = get_messages
+    return client
+
+
+def test_login_url_info_parsing():
+    request = roundtrip(url_auth_request(request_write_access=True, request_phone_number=True))
+    info = types.LoginUrlInfo._parse(None, request, "https://example.org/login")
+    assert isinstance(info, types.LoginUrlInfoRequestConfirmation) and isinstance(info, types.LoginUrlInfo)
+    assert (info.url, info.domain) == ("https://example.org/login", "example.org")
+    assert info.bot.id == 99 and info.bot.is_bot
+    assert info.request_write_access and info.request_phone_number_access
+
+    accepted = types.LoginUrlInfo._parse(None, roundtrip(raw.types.UrlAuthResultAccepted(url="https://a/b")), "x")
+    assert isinstance(accepted, types.LoginUrlInfoOpen)
+    assert (accepted.url, accepted.skip_confirmation) == ("https://a/b", True)
+
+    default = types.LoginUrlInfo._parse(None, roundtrip(raw.types.UrlAuthResultDefault()), "https://example.org")
+    assert isinstance(default, types.LoginUrlInfoOpen)
+    assert (default.url, default.skip_confirmation) == ("https://example.org", False)
+
+
+def test_get_login_url_info():
+    client = login_button_client(lambda q: url_auth_request(request_write_access=True))
+    info = call(lambda: client.get_login_url_info(-100123, 10, 3))
+
+    assert client.message_requests == [(-100123, 10, 0)]
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.RequestUrlAuth)
+    assert request.peer.write() == CHANNEL.write() and (request.msg_id, request.button_id) == (10, 3)
+    assert request.url is None and request.in_app_origin is None
+    assert isinstance(info, types.LoginUrlInfoRequestConfirmation)
+    assert info.url == "https://example.org/login" and info.request_write_access
+    assert not info.request_phone_number_access
+
+
+def test_get_login_url_info_unknown_button():
+    client = login_button_client(lambda q: url_auth_request(), button_id=4)
+    with pytest.raises(ValueError):
+        call(lambda: client.get_login_url_info(-100123, 10, 3))
+    assert client.sent == []
+
+
+@pytest.mark.parametrize("result, expected", [
+    (raw.types.UrlAuthResultAccepted(url="https://example.org/login?hash=1"), "https://example.org/login?hash=1"),
+    (raw.types.UrlAuthResultDefault(), "https://example.org/login"),
+])
+def test_get_login_url(result, expected):
+    client = login_button_client(lambda q: result)
+    assert call(lambda: client.get_login_url(-100123, 10, 3, allow_write_access=True)) == expected
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.AcceptUrlAuth)
+    assert request.peer.write() == CHANNEL.write() and (request.msg_id, request.button_id) == (10, 3)
+    assert request.write_allowed and not request.share_phone_number
+    assert request.url is None and request.match_code is None
+
+
+def test_get_external_link_info():
+    client = offline_client(PEERS, lambda q: raw.types.UrlAuthResultDefault())
+    info = call(lambda: client.get_external_link_info("https://example.telegram.org"))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.RequestUrlAuth)
+    assert request.url == "https://example.telegram.org" and request.peer is None
+    assert isinstance(info, types.LoginUrlInfoOpen)
+    assert (info.url, info.skip_confirmation) == ("https://example.telegram.org", False)
+
+
+def test_get_external_link():
+    client = offline_client(PEERS, lambda q: raw.types.UrlAuthResultAccepted())
+    link = "https://example.telegram.org"
+    assert call(lambda: client.get_external_link(link, allow_phone_number_access=True)) is None
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.AcceptUrlAuth)
+    assert request.url == link and request.share_phone_number and not request.write_allowed
+    assert request.peer is None and request.msg_id is None and request.button_id is None
+
+
+def test_get_oauth_link_info():
+    client = offline_client(PEERS, lambda q: url_auth_request(
+        request_write_access=True, request_phone_number=True, match_codes_first=True, is_app=True,
+        browser="Firefox", platform="Linux", ip="1.2.3.4", region="Somewhere",
+        match_codes=["A", "B"], user_id_hint=7, verified_app_name="App"
+    ))
+    info = call(lambda: client.get_oauth_link_info(OAUTH_LINK, in_app_origin="https://app.example.org"))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.RequestUrlAuth)
+    assert request.url == OAUTH_LINK and request.in_app_origin == "https://app.example.org"
+    assert request.peer is None
+    assert isinstance(info, types.OauthLinkInfo)
+    assert (info.url, info.domain, info.bot.id, info.user_id) == (OAUTH_LINK, "example.org", 99, 7)
+    assert info.is_from_app and info.verified_app_name == "App"
+    assert info.request_write_access and info.request_phone_number_access
+    assert (info.browser, info.platform, info.ip_address, info.location) == ("Firefox", "Linux", "1.2.3.4", "Somewhere")
+    assert info.match_code_first and info.match_codes == ["A", "B"]
+
+
+def test_oauth_link_info_minimal_request():
+    info = types.OauthLinkInfo._parse(None, roundtrip(url_auth_request()), OAUTH_LINK)
+    assert info.user_id is None and info.match_codes is None and info.browser is None
+    assert not info.is_from_app and not info.match_code_first
+
+
+@pytest.mark.parametrize("result", [raw.types.UrlAuthResultDefault(), raw.types.UrlAuthResultAccepted(url="x")])
+def test_get_oauth_link_info_expired(result):
+    client = offline_client(PEERS, lambda q: result)
+    with pytest.raises(errors.UrlExpired):
+        call(lambda: client.get_oauth_link_info(OAUTH_LINK))
+    assert client.sent[-1].in_app_origin is None
+
+
+def test_check_oauth_request_match_code():
+    client = offline_client(PEERS, lambda q: False)
+    assert call(lambda: client.check_oauth_request_match_code(OAUTH_LINK, "A")) is False
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.CheckUrlAuthMatchCode)
+    assert (request.url, request.match_code) == (OAUTH_LINK, "A")
+
+
+def test_accept_oauth_request():
+    client = offline_client(PEERS, lambda q: raw.types.UrlAuthResultAccepted(url="https://example.org/done"))
+    url = call(lambda: client.accept_oauth_request(
+        OAUTH_LINK, match_code="A", allow_write_access=True, allow_phone_number_access=True
+    ))
+    assert url == "https://example.org/done"
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.AcceptUrlAuth)
+    assert (request.url, request.match_code) == (OAUTH_LINK, "A")
+    assert request.write_allowed and request.share_phone_number and request.peer is None
+
+
+def test_accept_oauth_request_unexpected_confirmation():
+    client = offline_client(PEERS, lambda q: url_auth_request())
+    with pytest.raises(ValueError):
+        call(lambda: client.accept_oauth_request(OAUTH_LINK))
+
+
+def test_decline_oauth_request():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.decline_oauth_request(OAUTH_LINK)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.DeclineUrlAuth) and request.url == OAUTH_LINK
