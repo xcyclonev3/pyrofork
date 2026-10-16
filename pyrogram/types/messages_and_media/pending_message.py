@@ -39,7 +39,8 @@ class PendingMessage(Object):
             Unique identifier of the draft within the message thread.
 
         text (``str``):
-            The text of the draft; empty while a "Thinking..." placeholder must be shown.
+            The text of the draft; empty while a "Thinking..." placeholder must be shown, and for drafts of rich
+            messages.
 
         entities (List of :obj:`~pyrogram.types.MessageEntity`, *optional*):
             Special entities like usernames, URLs, bot commands, etc. that appear in the text.
@@ -53,6 +54,9 @@ class PendingMessage(Object):
 
         keep_on_stop (``bool``, *optional*):
             True, if the draft must not be automatically deleted when the user stops the generation.
+
+        rich_message (:obj:`~pyrogram.types.RichMessage`, *optional*):
+            For drafts of rich messages, the rich message (see :meth:`~pyrogram.Client.send_rich_message_draft`).
     """
 
     def __init__(
@@ -65,7 +69,8 @@ class PendingMessage(Object):
         entities: Optional[List["types.MessageEntity"]] = None,
         message_thread_id: Optional[int] = None,
         can_stop: Optional[bool] = None,
-        keep_on_stop: Optional[bool] = None
+        keep_on_stop: Optional[bool] = None,
+        rich_message: Optional["types.RichMessage"] = None
     ):
         super().__init__(client)
 
@@ -76,6 +81,7 @@ class PendingMessage(Object):
         self.message_thread_id = message_thread_id
         self.can_stop = can_stop
         self.keep_on_stop = keep_on_stop
+        self.rich_message = rich_message
 
     @staticmethod
     def _parse_chat(client: "pyrogram.Client", user_id: int, users: Dict[int, "raw.base.User"]) -> "types.Chat":
@@ -91,6 +97,18 @@ class PendingMessage(Object):
         users: Dict[int, "raw.base.User"]
     ) -> Optional["PendingMessage"]:
         action = update.action
+
+        if isinstance(action, raw.types.SendMessageRichMessageDraftAction):
+            return PendingMessage(
+                chat=PendingMessage._parse_chat(client, update.user_id, users),
+                draft_id=action.random_id,
+                text="",
+                message_thread_id=update.top_msg_id,
+                can_stop=action.can_stop,
+                keep_on_stop=action.keep_on_stop,
+                rich_message=types.RichMessage._parse(client, action.rich_message),
+                client=client
+            )
 
         if not isinstance(action, raw.types.SendMessageTextDraftAction):
             return None

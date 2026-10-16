@@ -18,6 +18,7 @@
 
 """Rich messages (Layer 226-230): received blocks and texts, sending, editing, drafts, translation and AI."""
 
+import asyncio
 import os
 from datetime import datetime
 
@@ -954,3 +955,69 @@ def test_draft_message_parsing():
     assert text_draft.reply_to_message_id is None
 
     assert types.DraftMessage._parse(None, roundtrip(raw.types.DraftMessageEmpty(date=1))) is None
+
+
+# Messages, copies, drafts and pending messages
+
+def raw_rich(text="hi"):
+    return raw.types.RichMessage(blocks=[raw.types.PageBlockParagraph(text=plain(text))], photos=[], documents=[])
+
+
+def received_rich_message():
+    from tests.test_layer_roundtrip import parse_message
+
+    return parse_message(raw.types.Message(
+        id=1, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7), date=1, message="",
+        rich_message=raw_rich()
+    ), users=[RAW_USER])
+
+
+def test_message_rich_message():
+    message = received_rich_message()
+
+    assert message.rich_message.blocks[0].text.text == "hi" and message.rich_message.is_full
+    assert message.text is None and message.media is None
+
+
+def test_copy_rich_message_forwards_without_author():
+    message = received_rich_message()
+    calls = []
+
+    async def forward_messages(*args, **kwargs):
+        calls.append((args, kwargs))
+
+    message._client.forward_messages = forward_messages
+    call(lambda: message.copy("me", disable_notification=True))
+
+    [(args, kwargs)] = calls
+    assert args == ("me",) and kwargs["from_chat_id"] == 7 and kwargs["message_ids"] == 1
+    assert kwargs["drop_author"] is True and kwargs["disable_notification"] is True
+
+
+def test_drafts_of_dialogs_and_topics():
+    draft = raw.types.DraftMessage(message="draft text", date=1700000000, rich_message=raw_rich("rich draft"))
+    dialog = roundtrip(raw.types.Dialog(
+        peer=raw.types.PeerUser(user_id=7), top_message=1, read_inbox_max_id=0, read_outbox_max_id=0, unread_count=0,
+        unread_mentions_count=0, unread_reactions_count=0, unread_poll_votes_count=0,
+        notify_settings=raw.types.PeerNotifySettings(), draft=draft))
+    parsed = types.Dialog._parse(offline_parser_client(), dialog, {}, {7: roundtrip(RAW_USER)}, {})
+
+    assert parsed.draft.text == "draft text" and parsed.draft.rich_message.blocks[0].text.text == "rich draft"
+
+    topic = roundtrip(raw.types.ForumTopic(
+        id=2, date=1, peer=raw.types.PeerChannel(channel_id=123), title="t", icon_color=0, top_message=1,
+        read_inbox_max_id=0, read_outbox_max_id=0, unread_count=0, unread_mentions_count=0, unread_reactions_count=0,
+        unread_poll_votes_count=0, from_id=raw.types.PeerUser(user_id=7), notify_settings=raw.types.PeerNotifySettings(),
+        draft=raw.types.DraftMessage(message="topic draft", date=1)))
+    assert types.ForumTopic._parse(topic).draft.text == "topic draft"
+
+
+def test_pending_rich_message():
+    client = offline_parser_client()
+    update = roundtrip(raw.types.UpdateUserTyping(user_id=7, action=raw.types.SendMessageRichMessageDraftAction(
+        random_id=5, rich_message=raw_rich("streaming"), can_stop=True)))
+    parsed, handler = asyncio.run(client.dispatcher.update_parsers[type(update)](update, {7: roundtrip(RAW_USER)}, {}))
+
+    assert handler is pyrogram.handlers.PendingMessageHandler
+    assert parsed.draft_id == 5 and parsed.text == "" and parsed.can_stop is True
+    assert parsed.rich_message.blocks[0].text.text == "streaming"

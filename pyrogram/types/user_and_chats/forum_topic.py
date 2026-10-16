@@ -24,7 +24,6 @@ from ..object import Object
 class ForumTopic(Object):
     # todo
     # notify_settings: `~pyrogram.types.PeerNotifySettings`
-    # draft: `~pyrogram.types.DraftMessage`
     """A forum topic.
 
 
@@ -80,6 +79,9 @@ class ForumTopic(Object):
         icon_emoji_id (``Integer``, *optional*):
             Unique identifier of the custom emoji shown as the topic icon
 
+        draft (:obj:`~pyrogram.types.DraftMessage`, *optional*):
+            The draft message of the topic.
+
     """
 
     def __init__(
@@ -102,8 +104,8 @@ class ForumTopic(Object):
         pinned: bool = None,
         short: bool = None,
         icon_emoji_id: int = None,
-        #draft: "types.DraftMessage" = None //todo
-        unread_poll_votes_count: int = None
+        unread_poll_votes_count: int = None,
+        draft: "types.DraftMessage" = None
     ):
         super().__init__()
 
@@ -125,7 +127,7 @@ class ForumTopic(Object):
         self.short = short
         self.icon_emoji_id = icon_emoji_id
         self.unread_poll_votes_count = unread_poll_votes_count
-        #self.draft = draft //todo
+        self.draft = draft
 
     @staticmethod
     def _parse(forum_topic: "raw.types.ForumTopic") -> "ForumTopic":
@@ -155,6 +157,6 @@ class ForumTopic(Object):
             pinned=getattr(forum_topic,"pinned", None),
             short=getattr(forum_topic,"short", None),
             icon_emoji_id=getattr(forum_topic,"icon_emoji_id", None),
-            #draft=None //todo
-            unread_poll_votes_count=getattr(forum_topic, "unread_poll_votes_count", None)
+            unread_poll_votes_count=getattr(forum_topic, "unread_poll_votes_count", None),
+            draft=types.DraftMessage._parse(None, getattr(forum_topic, "draft", None))
         )

@@ -48,6 +48,9 @@ class Dialog(Object):
 
         unread_poll_votes_count (``int``, *optional*):
             Amount of poll messages with votes the current user didn't see yet.
+
+        draft (:obj:`~pyrogram.types.DraftMessage`, *optional*):
+            The draft message of the dialog.
     """
 
     def __init__(
@@ -60,7 +63,8 @@ class Dialog(Object):
         unread_mentions_count: int,
         unread_mark: bool,
         is_pinned: bool,
-        unread_poll_votes_count: int = None
+        unread_poll_votes_count: int = None,
+        draft: "types.DraftMessage" = None
     ):
         super().__init__(client)
 
@@ -71,6 +75,7 @@ class Dialog(Object):
         self.unread_mark = unread_mark
         self.is_pinned = is_pinned
         self.unread_poll_votes_count = unread_poll_votes_count
+        self.draft = draft
 
     @staticmethod
     def _parse(client, dialog: "raw.types.Dialog", messages, users, chats) -> "Dialog":
@@ -82,5 +87,6 @@ class Dialog(Object):
             unread_mark=dialog.unread_mark,
             is_pinned=dialog.pinned,
             unread_poll_votes_count=getattr(dialog, "unread_poll_votes_count", None),
+            draft=types.DraftMessage._parse(client, dialog.draft, users),
             client=client
         )

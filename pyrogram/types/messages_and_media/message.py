@@ -482,6 +482,10 @@ class Message(Object, Update):
 
         ton_connect_request (:obj:`~pyrogram.types.TonConnectRequest`, *optional*):
             Service message: a TON Connect request to the wallet of the current user.
+
+        rich_message (:obj:`~pyrogram.types.RichMessage`, *optional*):
+            The message is a rich message: its blocks. If *rich_message.is_full* is False, get the full
+            message with get_full_rich_message().
     """
 
     # TODO: Add game missing field, Also connected_website
@@ -620,6 +624,7 @@ class Message(Object, Update):
         chat_has_protected_content_disable_requested: "types.ChatHasProtectedContentDisableRequested" = None,
         ton_wallet_transfer: "types.TonWalletTransfer" = None,
         ton_connect_request: "types.TonConnectRequest" = None,
+        rich_message: "types.RichMessage" = None,
         raw: "raw.types.Message" = None
     ):
         super().__init__(client)
@@ -749,6 +754,7 @@ class Message(Object, Update):
         self.chat_has_protected_content_disable_requested = chat_has_protected_content_disable_requested
         self.ton_wallet_transfer = ton_wallet_transfer
         self.ton_connect_request = ton_connect_request
+        self.rich_message = rich_message
         self.raw = raw
 
     async def wait_for_click(
@@ -1449,6 +1455,7 @@ class Message(Object, Update):
                 reply_markup=reply_markup,
                 reactions=reactions,
                 effect_id=getattr(message, "effect", None),
+                rich_message=types.RichMessage._parse(client, getattr(message, "rich_message", None)),
                 raw=message,
                 client=client
             )
@@ -5205,6 +5212,19 @@ class Message(Object, Update):
                     message_thread_id=message_thread_id,
                     allow_paid_broadcast=allow_paid_broadcast
                 )
+        elif self.rich_message:
+            # Rich messages are copied on the server, as forwards without the author
+            return await self._client.forward_messages(
+                chat_id,
+                from_chat_id=self.chat.id,
+                message_ids=self.id,
+                message_thread_id=message_thread_id,
+                disable_notification=disable_notification,
+                schedule_date=schedule_date,
+                protect_content=protect_content,
+                allow_paid_broadcast=allow_paid_broadcast,
+                drop_author=True
+            )
         else:
             raise ValueError("Can't copy this message")
 
