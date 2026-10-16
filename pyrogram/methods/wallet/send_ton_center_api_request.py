@@ -63,8 +63,12 @@ class SendTonCenterApiRequest:
 
                 import json
 
-                response = await app.send_ton_center_api_request("/api/v3/wallet", query="address=UQ...")
+                # GET request
+                response = await app.send_ton_center_api_request(endpoint, query=urlencoded_query)
                 print(json.loads(response))
+
+                # POST request
+                response = await app.send_ton_center_api_request(endpoint, payload=json.dumps(data))
         """
         if query is not None and payload is not None:
             raise ValueError("Pass either a query (GET request) or a payload (POST request), not both")
