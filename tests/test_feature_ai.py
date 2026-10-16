@@ -398,3 +398,46 @@ def test_translate_message_text_tone_of_messages():
     assert request.peer.write() == PEERS[7].write() and request.id == [1, 2]
     assert request.tone == "formal"
     assert [t.text for t in translated] == ["Hallo", "Welt"]
+
+
+# Bound methods and link previews
+
+def ai_message():
+    from tests.test_layer_roundtrip import parse_message
+
+    return parse_message(raw.types.Message(
+        id=55, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7), date=1, message="Hello",
+        summary_from_language="en"
+    ), users=[RAW_AUTHOR])
+
+
+def test_message_summarize_and_translate_bound_methods():
+    message = ai_message()
+    calls = []
+
+    async def fake(name, **kwargs):
+        calls.append((name, kwargs))
+
+    message._client.summarize_message = lambda **kwargs: fake("summarize_message", **kwargs)
+    message._client.translate_message_text = lambda **kwargs: fake("translate_message_text", **kwargs)
+
+    call(lambda: message.summarize("de", tone="casual"))
+    call(lambda: message.translate("fr", tone="formal"))
+
+    assert message.summary_language_code == "en"
+    assert calls == [
+        ("summarize_message", dict(chat_id=7, message_id=55, translate_to_language_code="de", tone="casual")),
+        ("translate_message_text", dict(chat_id=7, message_ids=55, to_language_code="fr", tone="formal")),
+    ]
+
+
+def test_text_composition_style_link_preview():
+    webpage = roundtrip(raw.types.WebPage(
+        id=1, url="https://t.me/addstyle/AbCdEf123", display_url="t.me/addstyle/AbCdEf123", hash=0,
+        type="telegram_aicomposetone", attributes=[raw.types.WebPageAttributeAiComposeTone(emoji_id=5001)]
+    ))
+    parsed = types.WebPage._parse(None, webpage)
+
+    assert parsed.type == "telegram_aicomposetone" and parsed.custom_emoji_id == 5001
+    assert types.WebPage._parse(None, roundtrip(raw.types.WebPage(
+        id=2, url="https://example.org", display_url="example.org", hash=0))).custom_emoji_id is None

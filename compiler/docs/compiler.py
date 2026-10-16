@@ -896,6 +896,7 @@ def pyrogram_api():
             Message.react
             Message.transcribe
             Message.translate
+            Message.summarize
             Message.wait_for_click
         """,
         chat="""
