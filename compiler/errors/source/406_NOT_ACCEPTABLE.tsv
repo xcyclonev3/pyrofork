@@ -3,12 +3,14 @@ AUTH_KEY_DUPLICATED	The same authorization key (session file) was used in more t
 CHANNEL_PRIVATE	The channel/supergroup is not accessible
 CHANNEL_TOO_LARGE	Сhannel is too large to be deleted. Contact support for removal
 CHAT_FORWARDS_RESTRICTED	You can't forward messages from a protected chat
+EDIT_MESSAGE_TEMP_RESTRICTED	Message editing is temporarily forbidden for this user due to regulatory restrictions.
 FILEREF_UPGRADE_NEEDED	The file reference has expired and you must use a refreshed one by obtaining the original media message
 FRESH_CHANGE_ADMINS_FORBIDDEN	You were just elected admin, you can't add or modify other admins yet
 FRESH_CHANGE_PHONE_FORBIDDEN	You can't change your phone number because your session was logged-in recently
 FRESH_RESET_AUTHORISATION_FORBIDDEN	You can't terminate other authorized sessions because the current was logged-in recently
 GIFTCODE_NOT_ALLOWED	Giftcode not allowed
 INVITE_HASH_EXPIRED	The chat the user tried to join has expired and is not valid anymore
+PAYMENT_UNSUPPORTED	A detailed description of the error will be received separately as described here.
 PHONE_NUMBER_INVALID	The phone number is invalid
 PHONE_PASSWORD_FLOOD	You have tried to log-in too many times
 PREMIUM_CURRENTLY_UNAVAILABLE	Premium currently unavailable
@@ -17,6 +19,7 @@ SEND_CODE_UNAVAILABLE	Returned when all available options for this type of numbe
 PREMIUM_GIFTCODE_WAS_REFUNDED	This gift code can't be redeemed because the giveaway organizer requested a refund
 STICKERSET_INVALID	The sticker set is invalid
 STICKERSET_OWNER_ANONYMOUS	This sticker set can't be used as the group's sticker set because it was created by one of its anonymous admins
+TRANSLATIONS_DISABLED	Translations are unavailable, a detailed and localized description for the error will be emitted via an updateServiceNotification as specified here.
 UPDATE_APP_TO_LOGIN	Update app to login
 USERPIC_PRIVACY_REQUIRED	You need to disable privacy settings for your profile picture in order to make your geolocation public
 USERPIC_UPLOAD_REQUIRED	You must have a profile picture to publish your geolocation
