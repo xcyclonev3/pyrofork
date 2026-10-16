@@ -199,6 +199,24 @@ def test_craft_gift_success():
     assert isinstance(result.gift, types.Gift) and result.gift.name == "Helmet-1" and result.gift.is_crafted
 
 
+@pytest.mark.parametrize("update", [
+    raw.types.UpdateNewMessage(message=craft_message(message_id=42, craft=True), pts=1, pts_count=1),
+    raw.types.UpdateNewChannelMessage(message=craft_message(message_id=42, craft=True), pts=1, pts_count=1),
+])
+def test_craft_gift_result_type(update):
+    updates = roundtrip(raw.types.UpdatesCombined(updates=[update], users=[], chats=[], date=1, seq_start=0, seq=0))
+    result = asyncio.run(types.CraftGiftResult._parse(None, updates))
+    assert result.type == CR.SUCCESS and result.owned_gift_id == "42" and result.retry_after is None
+    assert result.gift.regular_gift_id == 2 and result.gift.is_crafted
+
+    # Neither a crafted gift nor updateStarGiftCraftFail: nothing to report
+    other = roundtrip(empty_updates(updates=[raw.types.UpdateNewMessage(
+        message=raw.types.Message(id=1, peer_id=raw.types.PeerUser(user_id=7), date=1, message="hi"),
+        pts=1, pts_count=1
+    )]))
+    assert asyncio.run(types.CraftGiftResult._parse(None, other)) is None
+
+
 @pytest.mark.parametrize("response", [
     empty_updates(updates=[raw.types.UpdateStarGiftCraftFail()]),
     raw.types.UpdateShort(update=raw.types.UpdateStarGiftCraftFail(), date=1),

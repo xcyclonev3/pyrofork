@@ -24,7 +24,7 @@ class GiftAttributeRarityType(AutoName):
     """Rarity type of an upgraded gift attribute enumeration used in :obj:`~pyrogram.types.GiftAttribute`."""
 
     PER_MILLE = raw.types.StarGiftAttributeRarity
-    "The rarity is represented as the numeric frequency of the attribute, see the *rarity* field of :obj:`~pyrogram.types.GiftAttribute`"
+    "The rarity is the frequency of the attribute in permilles, see :obj:`~pyrogram.types.GiftAttribute` *rarity*"
 
     UNCOMMON = raw.types.StarGiftAttributeRarityUncommon
     "The attribute is uncommon"
