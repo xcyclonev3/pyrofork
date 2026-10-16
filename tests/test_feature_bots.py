@@ -19,8 +19,11 @@
 """Offline tests for the Layer 221-230 bot features: managed bots, prepared keyboard buttons,
 guard bot answers, guest queries and business connected bots."""
 
+import asyncio
+
 import pytest
 
+import pyrogram
 from pyrogram import enums, raw, types
 from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS, USER, CHANNEL
 
@@ -288,6 +291,76 @@ def test_share_with_bot_needs_one_button_source(source):
     with pytest.raises(ValueError):
         call(lambda: client.share_chat_with_bot(99, 2, -100123, **source))
     assert client.sent == []
+
+
+# Guest queries
+
+RAW_GROUP = raw.types.Channel(
+    id=123, access_hash=1, title="Group", photo=raw.types.ChatPhotoEmpty(), date=0, megagroup=True
+)
+
+
+def guest_result():
+    return types.InlineQueryResultArticle("Answer", types.InputTextMessageContent("Hello"), id="r1")
+
+
+def test_answer_guest_query():
+    msg_id = raw.types.InputBotInlineMessageID64(dc_id=2, owner_id=7, id=10, access_hash=5)
+    client = offline_client(PEERS, lambda q: msg_id)
+    inline_message_id = call(lambda: client.answer_guest_query("321", guest_result()))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SetBotGuestChatResult) and request.query_id == 321
+    assert isinstance(request.result, raw.types.InputBotInlineResult)
+    assert request.result.id == "r1" and request.result.title == "Answer"
+    assert request.result.send_message.message == "Hello"
+    assert inline_message_id == pyrogram.utils.pack_inline_message_id(msg_id)
+    assert pyrogram.utils.unpack_inline_message_id(inline_message_id).write() == msg_id.write()
+
+
+def test_guest_query_type():
+    def group_message(message_id, text, **kwargs):
+        return raw.types.Message(
+            id=message_id, peer_id=raw.types.PeerChannel(channel_id=123), from_id=raw.types.PeerUser(user_id=7),
+            date=message_id, message=text, **kwargs
+        )
+
+    update = roundtrip(raw.types.UpdateBotGuestChatQuery(
+        query_id=321, qts=1,
+        message=group_message(5, "@guest_bot what time is it?", reply_to=raw.types.MessageReplyHeader(reply_to_msg_id=4)),
+        reference_messages=[group_message(4, "Lunch at noon")]
+    ))
+    client = offline_client(PEERS, lambda q: None)
+    client.me = None
+    query = asyncio.run(types.GuestQuery._parse(client, update, {7: roundtrip(RAW_USER)}, {123: roundtrip(RAW_GROUP)}))
+
+    assert isinstance(query, types.GuestQuery) and query.id == "321"
+    assert query.message.id == 5 and query.message.text == "@guest_bot what time is it?"
+    assert query.message.chat.id == pyrogram.utils.get_channel_id(123) and query.message.from_user.id == 7
+    assert query.message.reply_to_message_id == 4
+    [reference] = query.reference_messages
+    assert reference.id == 4 and reference.text == "Lunch at noon"
+    assert client.sent == []  # nothing is fetched from a chat the bot may not be a member of
+
+
+def test_guest_query_type_without_reference_messages():
+    update = roundtrip(raw.types.UpdateBotGuestChatQuery(query_id=1, qts=1, message=raw.types.Message(
+        id=1, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7), date=1, message="hi"
+    )))
+    client = offline_client(PEERS, lambda q: None)
+    client.me = None
+    query = asyncio.run(types.GuestQuery._parse(client, update, {7: roundtrip(RAW_USER)}, {}))
+    assert query.message.text == "hi" and query.reference_messages is None
+
+
+def test_guest_query_answer_bound_method():
+    msg_id = raw.types.InputBotInlineMessageID(dc_id=2, id=10, access_hash=5)
+    client = offline_client(PEERS, lambda q: msg_id)
+    query = types.GuestQuery(id="321", message=None, client=client)
+    assert call(lambda: query.answer(guest_result())) == pyrogram.utils.pack_inline_message_id(msg_id)
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SetBotGuestChatResult) and request.query_id == 321
 
 
 # Guard bots

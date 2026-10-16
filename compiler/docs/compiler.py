@@ -451,6 +451,7 @@ def pyrogram_api():
             get_prepared_keyboard_button
             share_users_with_bot
             share_chat_with_bot
+            answer_guest_query
         """,
         business="""
         Telegram Business
@@ -709,6 +710,7 @@ def pyrogram_api():
             BotApp
             BotBusinessConnection
             BotAccessSettings
+            GuestQuery
         """,
         bot_keyboards="""
         Bot keyboards

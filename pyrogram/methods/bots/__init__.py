@@ -20,6 +20,7 @@
 from .add_bot_secondary_username import AddBotSecondaryUsername
 from .answer_callback_query import AnswerCallbackQuery
 from .answer_chat_join_request_query import AnswerChatJoinRequestQuery
+from .answer_guest_query import AnswerGuestQuery
 from .answer_inline_query import AnswerInlineQuery
 from .answer_web_app_query import AnswerWebAppQuery
 from .check_bot_username import CheckBotUsername
@@ -88,5 +89,6 @@ class Bots(
     GetPreparedKeyboardButton,
     ShareUsersWithBot,
     ShareChatWithBot,
+    AnswerGuestQuery,
 ):
     pass
