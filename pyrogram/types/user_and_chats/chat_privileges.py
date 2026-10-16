@@ -84,6 +84,13 @@ class ChatPrivileges(Object):
 
         can_manage_direct_messages (``bool``, *optional*):
             True, if the administrator can manage direct messages sent to the chat.
+
+        can_manage_tags (``bool``, *optional*):
+            Groups and supergroups only.
+            True, if the administrator can change the tags of other members.
+
+        can_send_welcome_messages (``bool``, *optional*):
+            True, if the administrator can manage and send welcome messages.
     """
 
     def __init__(
@@ -104,7 +111,9 @@ class ChatPrivileges(Object):
         can_edit_stories: bool = False, # Channels only
         can_delete_stories: bool = False, # Channels only
         is_anonymous: bool = False,
-        can_manage_direct_messages: bool = False
+        can_manage_direct_messages: bool = False,
+        can_manage_tags: bool = False,  # Groups and supergroups only
+        can_send_welcome_messages: bool = False
     ):
         super().__init__(None)
 
@@ -124,6 +133,8 @@ class ChatPrivileges(Object):
         self.can_delete_stories: bool = can_delete_stories
         self.is_anonymous: bool = is_anonymous
         self.can_manage_direct_messages: bool = can_manage_direct_messages
+        self.can_manage_tags: bool = can_manage_tags
+        self.can_send_welcome_messages: bool = can_send_welcome_messages
 
     @staticmethod
     def _parse(admin_rights: "raw.base.ChatAdminRights") -> "ChatPrivileges":
@@ -143,5 +154,7 @@ class ChatPrivileges(Object):
             can_edit_stories=admin_rights.edit_stories,
             can_delete_stories=admin_rights.delete_stories,
             is_anonymous=admin_rights.anonymous,
-            can_manage_direct_messages=admin_rights.manage_direct_messages
+            can_manage_direct_messages=admin_rights.manage_direct_messages,
+            can_manage_tags=admin_rights.manage_ranks,
+            can_send_welcome_messages=admin_rights.manage_welcome_messages
         )

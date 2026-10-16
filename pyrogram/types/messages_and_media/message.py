@@ -443,6 +443,14 @@ class Message(Object, Update):
 
         poll_option_deleted (:obj:`~pyrogram.types.PollOption`, *optional*):
             Service message: an answer option was deleted from the poll this message replies to.
+
+        sender_tag (``str``, *optional*):
+            Tag of the sender in the supergroup at the time the message was sent. For basic groups and
+            administrators, see the custom title of the member instead.
+
+        summary_language_code (``str``, *optional*):
+            IETF language tag of the language in which the message can be summarized, if a summary is
+            available.
     """
 
     # TODO: Add game missing field, Also connected_website
@@ -569,6 +577,8 @@ class Message(Object, Update):
         chat_join_type: "enums.ChatJoinType" = None,
         poll_option_added: "types.PollOption" = None,
         poll_option_deleted: "types.PollOption" = None,
+        sender_tag: str = None,
+        summary_language_code: str = None,
         raw: "raw.types.Message" = None
     ):
         super().__init__(client)
@@ -686,6 +696,8 @@ class Message(Object, Update):
         self.chat_join_type = chat_join_type
         self.poll_option_added = poll_option_added
         self.poll_option_deleted = poll_option_deleted
+        self.sender_tag = sender_tag
+        self.summary_language_code = summary_language_code
         self.raw = raw
 
     async def wait_for_click(
@@ -1272,6 +1284,8 @@ class Message(Object, Update):
                     else None
                 ),
                 author_signature=message.post_author,
+                sender_tag=getattr(message, "from_rank", None),
+                summary_language_code=getattr(message, "summary_from_language", None),
                 has_protected_content=message.noforwards,
                 has_media_spoiler=has_media_spoiler,
                 forward_origin=forward_origin,

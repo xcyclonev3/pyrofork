@@ -223,7 +223,9 @@ class KeyboardButton(Object):
                     add_admins=user_privileges.can_promote_members,
                     anonymous=user_privileges.is_anonymous,
                     manage_call=user_privileges.can_manage_video_chats,
-                    other=user_privileges.can_manage_chat
+                    other=user_privileges.can_manage_chat,
+                    manage_ranks=getattr(user_privileges, "can_manage_tags", None),
+                    manage_welcome_messages=getattr(user_privileges, "can_send_welcome_messages", None)
             ) if user_privileges else None
 
             bot_admin_rights = raw.types.ChatAdminRights(
@@ -240,7 +242,9 @@ class KeyboardButton(Object):
                     add_admins=bot_privileges.can_promote_members,
                     anonymous=bot_privileges.is_anonymous,
                     manage_call=bot_privileges.can_manage_video_chats,
-                    other=bot_privileges.can_manage_chat
+                    other=bot_privileges.can_manage_chat,
+                    manage_ranks=getattr(bot_privileges, "can_manage_tags", None),
+                    manage_welcome_messages=getattr(bot_privileges, "can_send_welcome_messages", None)
             ) if bot_privileges else None
 
             if isinstance(self.request_chat, types.RequestPeerTypeChannel):

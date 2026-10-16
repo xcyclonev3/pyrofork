@@ -70,6 +70,10 @@ class ChatEventFilter(Object):
         video_chats (``bool``, *optional*):
             True, if video chats events should be returned.
             Defaults to False.
+
+        member_tags (``bool``, *optional*):
+            True, if member tag changes should be returned.
+            Defaults to False.
     """
 
     def __init__(
@@ -84,7 +88,8 @@ class ChatEventFilter(Object):
         edited_messages: bool = False,
         pinned_messages: bool = False,
         leaving_members: bool = False,
-        video_chats: bool = False
+        video_chats: bool = False,
+        member_tags: bool = False
     ):
         super().__init__()
 
@@ -99,6 +104,7 @@ class ChatEventFilter(Object):
         self.pinned_messages = pinned_messages
         self.leaving_members = leaving_members
         self.video_chats = video_chats
+        self.member_tags = member_tags
 
     def write(self) -> "raw.base.ChannelAdminLogEventsFilter":
         join = False
@@ -117,6 +123,7 @@ class ChatEventFilter(Object):
         delete = False
         group_call = False
         invites = False
+        edit_rank = False
 
         if self.new_restrictions:
             ban = True
@@ -156,6 +163,9 @@ class ChatEventFilter(Object):
         if self.video_chats:
             group_call = True
 
+        if self.member_tags:
+            edit_rank = True
+
         return raw.types.ChannelAdminLogEventsFilter(
             join=join,
             leave=leave,
@@ -172,5 +182,6 @@ class ChatEventFilter(Object):
             edit=edit,
             delete=delete,
             group_call=group_call,
-            invites=invites
+            invites=invites,
+            edit_rank=edit_rank
         )

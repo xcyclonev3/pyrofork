@@ -293,6 +293,7 @@ def pyrogram_api():
             unhide_general_topic
             update_color
             update_folder
+            set_chat_member_tag
         """,
         users="""
         Users

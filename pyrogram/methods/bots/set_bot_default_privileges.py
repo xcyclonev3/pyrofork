@@ -76,7 +76,10 @@ class SetBotDefaultPrivileges:
             add_admins=privileges.can_promote_members,
             anonymous=privileges.is_anonymous,
             manage_call=privileges.can_manage_video_chats,
-            other=privileges.can_manage_chat
+            other=privileges.can_manage_chat,
+            manage_direct_messages=privileges.can_manage_direct_messages,
+            manage_ranks=privileges.can_manage_tags,
+            manage_welcome_messages=privileges.can_send_welcome_messages
         ) if privileges else raw.types.ChatAdminRights()
 
         return await self.invoke(function(admin_rights=admin_rights))

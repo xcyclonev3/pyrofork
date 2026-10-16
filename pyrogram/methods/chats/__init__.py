@@ -47,6 +47,7 @@ from .promote_chat_member import PromoteChatMember
 from .restrict_chat_member import RestrictChatMember
 from .set_administrator_title import SetAdministratorTitle
 from .set_chat_description import SetChatDescription
+from .set_chat_member_tag import SetChatMemberTag
 from .set_chat_permissions import SetChatPermissions
 from .set_chat_photo import SetChatPhoto
 from .set_chat_protected_content import SetChatProtectedContent
@@ -107,6 +108,7 @@ class Chats(
     SetChatProtectedContent,
     TransferChatOwnership,
     UpdateColor,
-    UpdateFolder
+    UpdateFolder,
+    SetChatMemberTag
 ):
     pass

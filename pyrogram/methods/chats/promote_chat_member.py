@@ -91,7 +91,10 @@ class PromoteChatMember:
                     post_stories=privileges.can_post_stories,
                     edit_stories=privileges.can_edit_stories,
                     delete_stories=privileges.can_delete_stories,
-                    other=privileges.can_manage_chat
+                    other=privileges.can_manage_chat,
+                    manage_direct_messages=privileges.can_manage_direct_messages,
+                    manage_ranks=privileges.can_manage_tags,
+                    manage_welcome_messages=privileges.can_send_welcome_messages
                 ),
                 # An unset rank leaves the current one (admin title or member tag) unchanged
                 rank=title or None
