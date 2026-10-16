@@ -711,6 +711,8 @@ def pyrogram_api():
             BotBusinessConnection
             BotAccessSettings
             GuestQuery
+            ManagedBotUpdated
+            ManagedBotCreated
         """,
         bot_keyboards="""
         Bot keyboards

@@ -96,6 +96,25 @@ def test_set_managed_bot_access_settings(is_restricted, user_ids):
     assert [user.write() for user in request.add_users] == [USER.write() for _ in user_ids or []]
 
 
+def test_managed_bot_updated_type():
+    update = roundtrip(raw.types.UpdateManagedBot(user_id=7, bot_id=99, qts=1))
+    users = {user.id: roundtrip(user) for user in (RAW_USER, RAW_MANAGED_BOT)}
+    parsed = types.ManagedBotUpdated._parse(None, update, users)
+
+    assert parsed.user.id == 7 and parsed.user.first_name == "Alice"
+    assert parsed.bot.id == 99 and parsed.bot.is_bot and parsed.bot.username == "my_managed_bot"
+
+
+def test_managed_bot_created_type():
+    action = roundtrip(raw.types.MessageActionManagedBotCreated(bot_id=99))
+    manager_bot = types.User._parse(None, roundtrip(RAW_MANAGER_BOT))
+    parsed = types.ManagedBotCreated._parse(None, action, {99: roundtrip(RAW_MANAGED_BOT)}, manager_bot=manager_bot)
+
+    assert parsed.bot.id == 99 and parsed.bot.is_bot and parsed.bot.first_name == "My Bot"
+    assert parsed.manager_bot.id == 98 and parsed.manager_bot.is_bot
+    assert types.ManagedBotCreated._parse(None, action, {99: roundtrip(RAW_MANAGED_BOT)}).manager_bot is None
+
+
 # Bot usernames
 
 @pytest.mark.parametrize("is_secondary", [False, True])
