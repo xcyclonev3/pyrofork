@@ -21,6 +21,7 @@ from .apply_gift_code import ApplyGiftCode
 from .check_giftcode import CheckGiftCode
 from .convert_gift import ConvertGift
 from .create_invoice_link import CreateInvoiceLink
+from .get_gifts_for_crafting import GetGiftsForCrafting
 from .get_payment_form import GetPaymentForm
 from .get_stars_balance import GetStarsBalance
 from .get_upgraded_gift import GetUpgradedGift
@@ -70,6 +71,7 @@ class Payments(
     SetPinnedGifts,
     ShowGift,
     TransferGift,
-    UpgradeGift
+    UpgradeGift,
+    GetGiftsForCrafting
 ):
     pass

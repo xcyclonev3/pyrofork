@@ -388,6 +388,7 @@ def pyrogram_api():
             transfer_gift
             upgrade_gift
             get_stars_balance
+            get_gifts_for_crafting
         """,
         phone="""
         Phone

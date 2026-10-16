@@ -153,3 +153,24 @@ def test_search_gifts_for_resale_crafting_filters(kwargs, for_craft, stars_only)
     assert isinstance(request, raw.functions.payments.GetResaleStarGifts) and request.gift_id == 2
     assert (request.for_craft, request.stars_only) == (for_craft, stars_only)
     assert [g.name for g in gifts] == ["Helmet-1"] and gifts[0].craft_probability_per_mille == 250
+
+
+def saved_gifts(*msg_ids, next_offset=None):
+    return raw.types.payments.SavedStarGifts(
+        count=3, next_offset=next_offset, chats=[], users=[],
+        gifts=[raw.types.SavedStarGift(date=1, gift=unique_gift(craft_chance_permille=100), msg_id=i,
+                                       can_craft_at=1700000000) for i in msg_ids]
+    )
+
+
+@pytest.mark.parametrize("limit, expected", [(0, [5, 6, 7]), (2, [5, 6])])
+def test_get_gifts_for_crafting(limit, expected):
+    client = offline_client(PEERS, lambda q: saved_gifts(5, 6, next_offset="6") if not q.offset else saved_gifts(7))
+    gifts = collect(lambda: client.get_gifts_for_crafting(2, limit=limit))
+
+    assert [g.message_id for g in gifts] == expected
+    assert all(g.regular_gift_id == 2 and g.craft_probability_per_mille == 100 for g in gifts)
+    assert gifts[0].can_craft_at == pyrogram.utils.timestamp_to_datetime(1700000000)
+    assert all(isinstance(r, raw.functions.payments.GetCraftStarGifts) and r.gift_id == 2 for r in client.sent)
+    assert [r.offset for r in client.sent] == (["", "6"] if limit == 0 else [""])
+    assert client.sent[0].limit == (100 if limit == 0 else limit)
