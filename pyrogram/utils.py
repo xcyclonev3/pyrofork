@@ -341,6 +341,19 @@ def get_channel_id(peer_id: int) -> int:
     return MAX_CHANNEL_ID - peer_id
 
 
+def get_premium_duration_month_count(day_count: int) -> int:
+    """Convert a Telegram Premium duration in days to months; 0 if it isn't a whole number of months.
+
+    Mirrors TDLib (get_premium_duration_month_count/get_premium_duration_day_count in td/telegram/misc.cpp).
+    """
+    month_count = max(1, day_count // 30)
+
+    if month_count * 30 + month_count // 3 + month_count // 12 == day_count or day_count % 30 == 0:
+        return month_count
+
+    return 0
+
+
 def btoi(b: bytes) -> int:
     return int.from_bytes(b, "big")
 

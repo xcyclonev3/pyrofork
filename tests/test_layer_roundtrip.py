@@ -440,3 +440,18 @@ def test_delete_scheduled_messages(message_ids, expected):
 
     request = client.sent[-1]
     assert isinstance(request, raw.functions.messages.DeleteScheduledMessages) and request.id == ids
+
+
+@pytest.mark.parametrize("days, months", [(30, 1), (90, 3), (91, 3), (182, 6), (365, 12), (31, 0), (7, 0)])
+def test_premium_duration_month_count(days, months):
+    assert pyrogram.utils.get_premium_duration_month_count(days) == months
+
+
+def test_gift_code_parsers_read_days():
+    action = roundtrip(raw.types.MessageActionGiftCode(days=91, slug="abc", via_giveaway=True))
+    gift_code = types.GiftCode._parse(None, action, {})
+    assert (gift_code.months, gift_code.days, gift_code.slug, gift_code.is_giveaway) == (3, 91, "abc", True)
+
+    checked = roundtrip(raw.types.payments.CheckedGiftCode(date=1, days=182, chats=[], users=[]))
+    checked_gift_code = types.CheckedGiftCode._parse(None, checked, {}, {})
+    assert (checked_gift_code.months, checked_gift_code.days) == (6, 182)
