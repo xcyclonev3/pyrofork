@@ -10,6 +10,7 @@ ADMIN_RANK_INVALID	The custom administrator title is invalid or too long
 ADMIN_RIGHTS_EMPTY	The chatAdminRights constructor passed in keyboardButtonRequestPeer.peer_type.user_admin_rights has no rights set (i.e. flags is 0).
 AICOMPOSE_FLOOD_PREMIUM	You've reached the daily limit of AI text transformations, upgrade to Telegram Premium to get 50x times more AI text transformations per day!
 AICOMPOSE_TONE_INVALID	The specified tone is invalid.
+AICOMPOSE_TONE_SLUG_INVALID	The name of the text composition style is invalid
 AICOMPOSE_TONE_TITLE_INVALID	The specified tone title is invalid.
 AI_COMPOSE_TASK_MISSING	No AI task was specified. The caller must provide at least one of: proofread, translate (with a target language), tone, or emojify.
 ALBUM_PHOTOS_TOO_MANY	Too many photos were included in the album
@@ -109,6 +110,8 @@ CODE_EMPTY	The provided code is empty
 CODE_HASH_INVALID	The provided code hash invalid
 CODE_INVALID	The provided code is invalid (i.e. from email)
 COLOR_INVALID	The provided color is invalid
+COMMUNITY_PEERS_TOO_MUCH	The community already has the maximum number of chats
+COMMUNITY_REQUEST_CREATED	A request to add the chat to the community was sent to its administrators
 CONNECTION_API_ID_INVALID	The provided API id is invalid
 CONNECTION_APP_VERSION_EMPTY	App version is empty
 CONNECTION_DEVICE_MODEL_EMPTY	The device model is empty
@@ -416,8 +419,11 @@ SMS_CODE_CREATE_FAILED	An error occurred while creating the SMS code
 SRP_ID_INVALID	Invalid SRP ID provided
 SRP_PASSWORD_CHANGED	The password has changed
 STARGIFT_ALREADY_CONVERTED	The provided star gift already converted to stars
+STARGIFT_ALREADY_CRAFTED	One of the gifts was already used for crafting
 STARGIFT_ALREADY_UPGRADED	This star gift was already upgraded before
 STARGIFT_ATTRIBUTE_INVALID	One of the specified star gift attributes is invalid.
+STARGIFT_CRAFT_TOO_EARLY_X	One of the gifts can be used for crafting only in {value} seconds
+STARGIFT_CRAFT_UNAVAILABLE	One of the gifts can't be used for crafting
 STARGIFT_INVALID	The passed gift is invalid.
 STARGIFT_USAGE_LIMITED	The star gift usage is limited
 STARS_PAYMENT_REQUIRED	To import this chat invite link, you must first pay for the associated Telegram Star subscription.
@@ -470,6 +476,7 @@ TMP_PASSWORD_INVALID	The temporary password is invalid
 TODO_ITEMS_EMPTY	A checklist was specified, but no checklist items were passed.
 TODO_ITEM_DUPLICATE	Duplicate checklist items detected.
 TOKEN_INVALID	The provided token is invalid
+TONES_SAVED_TOO_MANY	The maximum number of added text composition styles has been reached
 TOPIC_CLOSED	The topic was closed
 TOPIC_DELETED	The topic was deleted
 TOPIC_CLOSE_SEPARATELY	The close flag cannot be provided together with any of the other flags.

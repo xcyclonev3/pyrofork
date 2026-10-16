@@ -48,3 +48,17 @@ def test_exported_classes_follow_the_pypi_import_order():
     assert errors.ChannelPrivate.CODE == 400
     assert errors.PeerIdInvalid.CODE == 400
     assert errors.UserRestricted.CODE == 403
+
+
+@pytest.mark.parametrize("message, cls, value", [
+    ("COMMUNITY_REQUEST_CREATED", errors.CommunityRequestCreated, None),
+    ("COMMUNITY_PEERS_TOO_MUCH", errors.CommunityPeersTooMuch, None),
+    ("STARGIFT_CRAFT_TOO_EARLY_3600", errors.StargiftCraftTooEarly, 3600),
+    ("STARGIFT_CRAFT_UNAVAILABLE", errors.StargiftCraftUnavailable, None),
+    ("STARGIFT_ALREADY_CRAFTED", errors.StargiftAlreadyCrafted, None),
+    ("TONES_SAVED_TOO_MANY", errors.TonesSavedTooMany, None),
+    ("AICOMPOSE_TONE_SLUG_INVALID", errors.AicomposeToneSlugInvalid, None),
+])
+def test_layer_230_errors(message, cls, value):
+    error = raised(400, message)
+    assert type(error) is cls and isinstance(error, errors.BadRequest) and error.value == value
