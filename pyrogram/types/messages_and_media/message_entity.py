@@ -55,6 +55,31 @@ class MessageEntity(Object):
 
         collapsed (``bool``, *optional*):
             For :obj:`~pyrogram.enums.MessageEntityType.BLOCKQUOTE` only, whether the blockquote expandable.
+
+        date (``int``, *optional*):
+            For :obj:`~pyrogram.enums.MessageEntityType.FORMATTED_DATE` only, the Unix time to show.
+
+        relative (``bool``, *optional*):
+            For :obj:`~pyrogram.enums.MessageEntityType.FORMATTED_DATE` only, show the time relative to now.
+
+        short_time (``bool``, *optional*):
+            For :obj:`~pyrogram.enums.MessageEntityType.FORMATTED_DATE` only, show the time in a short way (22:45).
+
+        long_time (``bool``, *optional*):
+            For :obj:`~pyrogram.enums.MessageEntityType.FORMATTED_DATE` only, show the time in a long way (22:45:00).
+
+        short_date (``bool``, *optional*):
+            For :obj:`~pyrogram.enums.MessageEntityType.FORMATTED_DATE` only, show the date in a short way (17.03.22).
+
+        long_date (``bool``, *optional*):
+            For :obj:`~pyrogram.enums.MessageEntityType.FORMATTED_DATE` only, show the date in a long way
+            (March 17, 2022).
+
+        day_of_week (``bool``, *optional*):
+            For :obj:`~pyrogram.enums.MessageEntityType.FORMATTED_DATE` only, show the day of the week.
+
+        old_text (``str``, *optional*):
+            For :obj:`~pyrogram.enums.MessageEntityType.DIFF_REPLACE` only, the text that was replaced.
     """
 
     def __init__(
@@ -75,7 +100,8 @@ class MessageEntity(Object):
         long_time: bool = None,
         short_date: bool = None,
         long_date: bool = None,
-        day_of_week: bool = None
+        day_of_week: bool = None,
+        old_text: str = None
     ):
         super().__init__(client)
 
@@ -94,6 +120,7 @@ class MessageEntity(Object):
         self.short_date = short_date
         self.long_date = long_date
         self.day_of_week = day_of_week
+        self.old_text = old_text
 
     @staticmethod
     def _parse(
@@ -107,7 +134,10 @@ class MessageEntity(Object):
             entity_type = enums.MessageEntityType.TEXT_MENTION
             user_id = entity.user_id.user_id
         else:
-            entity_type = enums.MessageEntityType(entity.__class__)
+            try:
+                entity_type = enums.MessageEntityType(entity.__class__)
+            except ValueError:  # An entity type introduced by a newer layer
+                entity_type = enums.MessageEntityType.UNKNOWN
             user_id = getattr(entity, "user_id", None)
 
         return MessageEntity(
@@ -126,6 +156,7 @@ class MessageEntity(Object):
             short_date=getattr(entity, "short_date", None),
             long_date=getattr(entity, "long_date", None),
             day_of_week=getattr(entity, "day_of_week", None),
+            old_text=getattr(entity, "old_text", None),
             client=client
         )
 
@@ -157,6 +188,9 @@ class MessageEntity(Object):
         if self.type != enums.MessageEntityType.FORMATTED_DATE:
             for arg in ["date", "relative", "short_time", "long_time", "short_date", "long_date", "day_of_week"]:
                 args.pop(arg)
+
+        if self.type != enums.MessageEntityType.DIFF_REPLACE:
+            args.pop("old_text")
 
         entity = self.type.value
 

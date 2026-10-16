@@ -510,3 +510,63 @@ def test_gifted_premium_reads_days(days, months):
     action = roundtrip(raw.types.MessageActionGiftPremium(currency="USD", amount=100, days=days))
     gifted = asyncio.run(types.GiftedPremium._parse(None, action, 7))
     assert (gifted.month_count, gifted.day_count, gifted.gifter_user_id) == (months, days, 7)
+
+
+def parse_message(raw_message, users=()):
+    client = pyrogram.Client("layer-roundtrip", api_id=1, api_hash="x", in_memory=True)
+    client.me = None
+    users = {u.id: u for u in (roundtrip(u) for u in users)}
+    return asyncio.run(types.Message._parse(client, roundtrip(raw_message), users, {}, replies=0))
+
+
+RAW_USER = raw.types.User(id=7, access_hash=2, first_name="A")
+ET = pyrogram.enums.MessageEntityType
+
+
+@pytest.mark.parametrize("entity, entity_type", [
+    (raw.types.MessageEntityFormattedDate(offset=0, length=4, date=1647531900,
+                                          long_date=True, long_time=True, day_of_week=True), ET.FORMATTED_DATE),
+    (raw.types.MessageEntityTonAddress(offset=0, length=4), ET.TON_ADDRESS),
+    (raw.types.MessageEntityDiffInsert(offset=0, length=4), ET.DIFF_INSERT),
+    (raw.types.MessageEntityDiffReplace(offset=0, length=4, old_text="old"), ET.DIFF_REPLACE),
+    (raw.types.MessageEntityDiffDelete(offset=0, length=4), ET.DIFF_DELETE),
+])
+def test_messages_with_layer_230_entities(entity, entity_type):
+    message = parse_message(raw.types.Message(
+        id=1, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7),
+        date=1, message="text", entities=[entity]
+    ), users=[RAW_USER])
+    [parsed] = message.entities
+    assert parsed.type == entity_type and (parsed.offset, parsed.length) == (0, 4)
+
+    # Re-sending the message (e.g. Message.copy) rebuilds the very same raw entity
+    assert call(lambda: parsed.write()).write() == entity.write()
+
+
+def test_unknown_entity_type_falls_back_to_unknown():
+    class FutureEntity(raw.types.MessageEntityBold):  # stands for a constructor of a later layer
+        pass
+
+    parsed = types.MessageEntity._parse(None, FutureEntity(offset=0, length=1), {})
+    assert parsed.type == ET.UNKNOWN
+
+
+def test_formatted_date_html_and_markdown():
+    from pyrogram.parser.html import HTML
+    from pyrogram.parser.markdown import Markdown
+
+    [entity] = asyncio.run(HTML(None).parse(
+        '<tg-time unix="1647531900" format="wDT">tomorrow</tg-time>'))["entities"]
+    assert isinstance(entity, raw.types.MessageEntityFormattedDate) and entity.date == 1647531900
+    assert entity.day_of_week and entity.long_date and entity.long_time and not entity.relative
+
+    [entity] = asyncio.run(Markdown(None).parse("[soon](tg://time?unix=1647531900&format=r)"))["entities"]
+    assert isinstance(entity, raw.types.MessageEntityFormattedDate) and entity.relative
+
+    date = types.MessageEntity(type=ET.FORMATTED_DATE, offset=0, length=8, date=1647531900,
+                               day_of_week=True, long_date=True, long_time=True)
+    assert HTML.unparse("tomorrow", [date]) == '<tg-time unix="1647531900" format="wDT">tomorrow</tg-time>'
+    assert Markdown.unparse("tomorrow", [date]) == "[tomorrow](tg://time?unix=1647531900&format=wDT)"
+
+    with pytest.raises(ValueError):
+        asyncio.run(HTML(None).parse('<tg-time unix="1647531900" format="x">bad</tg-time>'))

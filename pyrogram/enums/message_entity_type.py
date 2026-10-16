@@ -89,3 +89,15 @@ class MessageEntityType(AutoName):
 
     FORMATTED_DATE = raw.types.MessageEntityFormattedDate
     "Formatted date"
+
+    TON_ADDRESS = raw.types.MessageEntityTonAddress
+    "An address in the TON blockchain"
+
+    DIFF_INSERT = raw.types.MessageEntityDiffInsert
+    "Addition of some text, in texts changed by AI"
+
+    DIFF_REPLACE = raw.types.MessageEntityDiffReplace
+    "Change of some text, in texts changed by AI (see ``old_text``)"
+
+    DIFF_DELETE = raw.types.MessageEntityDiffDelete
+    "Removal of some text, in texts changed by AI"

@@ -34,6 +34,7 @@ log = logging.getLogger(__name__)
 
 class Parser(HTMLParser):
     MENTION_RE = re.compile(r"tg://user\?id=(\d+)")
+    FORMATTED_DATE_RE = re.compile(r"tg://time\?(.*)")
 
     def __init__(self, client: "pyrogram.Client"):
         super().__init__()
@@ -70,10 +71,15 @@ class Parser(HTMLParser):
             url = attrs.get("href", "")
 
             mention = Parser.MENTION_RE.match(url)
+            formatted_date = Parser.FORMATTED_DATE_RE.match(url)
 
             if mention:
                 entity = raw.types.InputMessageEntityMentionName
                 extra["user_id"] = int(mention.group(1))
+            elif formatted_date:
+                query = dict(p.partition("=")[::2] for p in formatted_date.group(1).split("&"))
+                entity = raw.types.MessageEntityFormattedDate
+                extra.update(utils.get_formatted_date(query.get("unix"), query.get("format")))
             else:
                 entity = raw.types.MessageEntityTextUrl
                 extra["url"] = url
@@ -81,6 +87,9 @@ class Parser(HTMLParser):
             entity = raw.types.MessageEntityCustomEmoji
             custom_emoji_id = int(attrs.get("id"))
             extra["document_id"] = custom_emoji_id
+        elif tag == "tg-time":
+            entity = raw.types.MessageEntityFormattedDate
+            extra.update(utils.get_formatted_date(attrs.get("unix"), attrs.get("format")))
         else:
             return
 
@@ -203,6 +212,10 @@ class HTML:
                 custom_emoji_id = entity.custom_emoji_id
                 start_tag = f'<emoji id="{custom_emoji_id}">'
                 end_tag = "</emoji>"
+            elif entity_type == MessageEntityType.FORMATTED_DATE:
+                date_format = utils.get_date_format(entity)
+                start_tag = f'<tg-time unix="{entity.date}"' + (f' format="{date_format}"' if date_format else "") + ">"
+                end_tag = "</tg-time>"
             else:
                 return
 

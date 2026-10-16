@@ -267,6 +267,9 @@ class Markdown:
                 elif entity.type == MessageEntityType.CUSTOM_EMOJI:
                     url = f"tg://emoji?id={entity.custom_emoji_id}"
                     is_emoji = True
+                elif entity.type == MessageEntityType.FORMATTED_DATE:
+                    date_format = utils.get_date_format(entity)
+                    url = f"tg://time?unix={entity.date}" + (f"&format={date_format}" if date_format else "")
                 if url:
                     if is_emoji:
                         insert_at.append((s, i, '!['))
