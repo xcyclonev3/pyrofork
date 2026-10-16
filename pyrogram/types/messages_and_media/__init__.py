@@ -28,6 +28,7 @@ from .contact_registered import ContactRegistered
 from .dice import Dice
 from .document import Document
 from .external_reply_info import ExternalReplyInfo
+from .formatted_text import FormattedText
 from .game import Game
 from .giveaway import Giveaway
 from .giveaway_launched import GiveawayLaunched
@@ -55,6 +56,8 @@ from .sticker import Sticker
 from .stickerset import StickerSet
 from .stories_privacy_rules import StoriesPrivacyRules
 from .stripped_thumbnail import StrippedThumbnail
+from .text_composition_style import TextCompositionStyle
+from .text_composition_style_example import TextCompositionStyleExample
 from .thumbnail import Thumbnail
 from .todo_list import TodoList
 from .todo_task import TodoTask
@@ -154,5 +157,8 @@ __all__ = [
     "TodoTasksAdded",
     "TodoTasksCompleted",
     "TodoTasksIncompleted",
-    "StakeDiceState"
+    "StakeDiceState",
+    "FormattedText",
+    "TextCompositionStyle",
+    "TextCompositionStyleExample"
 ]

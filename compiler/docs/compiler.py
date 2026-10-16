@@ -234,6 +234,14 @@ def pyrogram_api():
             read_all_chat_poll_votes
             get_stake_dice_state
             send_stake_dice
+            get_text_composition_styles
+            create_text_composition_style
+            edit_text_composition_style
+            delete_text_composition_style
+            search_text_composition_style
+            get_text_composition_style_example
+            add_text_composition_style
+            remove_text_composition_style
         """,
         chats="""
         Chats
@@ -634,6 +642,9 @@ def pyrogram_api():
             Wallpaper
             WallpaperSettings
             StakeDiceState
+            FormattedText
+            TextCompositionStyle
+            TextCompositionStyleExample
         """,
         stories="""
         Stories

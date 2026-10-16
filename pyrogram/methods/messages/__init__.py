@@ -19,12 +19,15 @@
 
 from .add_poll_option import AddPollOption
 from .add_task_to_todo import AddTaskToTodo
+from .add_text_composition_style import AddTextCompositionStyle
 from .copy_media_group import CopyMediaGroup
 from .copy_message import CopyMessage
+from .create_text_composition_style import CreateTextCompositionStyle
 from .delete_chat_history import DeleteChatHistory
 from .delete_messages import DeleteMessages
 from .delete_poll_option import DeletePollOption
 from .delete_scheduled_messages import DeleteScheduledMessages
+from .delete_text_composition_style import DeleteTextCompositionStyle
 from .download_media import DownloadMedia
 from .edit_inline_caption import EditInlineCaption
 from .edit_inline_media import EditInlineMedia
@@ -34,6 +37,7 @@ from .edit_message_caption import EditMessageCaption
 from .edit_message_media import EditMessageMedia
 from .edit_message_reply_markup import EditMessageReplyMarkup
 from .edit_message_text import EditMessageText
+from .edit_text_composition_style import EditTextCompositionStyle
 from .forward_media_group import ForwardMediaGroup
 from .forward_messages import ForwardMessages
 from .get_available_effects import GetAvailableEffects
@@ -48,9 +52,12 @@ from .get_messages import GetMessages
 from .get_message_read_participants import GetMessageReadParticipants
 from .get_scheduled_messages import GetScheduledMessages
 from .get_stake_dice_state import GetStakeDiceState
+from .get_text_composition_style_example import GetTextCompositionStyleExample
+from .get_text_composition_styles import GetTextCompositionStyles
 from .get_unread_poll_votes import GetUnreadPollVotes
 from .read_all_chat_poll_votes import ReadAllChatPollVotes
 from .read_chat_history import ReadChatHistory
+from .remove_text_composition_style import RemoveTextCompositionStyle
 from .retract_vote import RetractVote
 from .search_global import SearchGlobal
 from .search_global_count import SearchGlobalCount
@@ -58,6 +65,7 @@ from .search_global_hashtag_messages import SearchGlobalHashtagMessages
 from .search_global_hashtag_messages_count import SearchGlobalHashtagMessagesCount
 from .search_messages import SearchMessages
 from .search_messages_count import SearchMessagesCount
+from .search_text_composition_style import SearchTextCompositionStyle
 from .send_stake_dice import SendStakeDice
 from .set_todo_tasks_completion import SetTodoTasksCompletion
 from .send_animation import SendAnimation
@@ -156,6 +164,14 @@ class Messages(
     GetUnreadPollVotes,
     ReadAllChatPollVotes,
     GetStakeDiceState,
-    SendStakeDice
+    SendStakeDice,
+    GetTextCompositionStyles,
+    CreateTextCompositionStyle,
+    EditTextCompositionStyle,
+    DeleteTextCompositionStyle,
+    SearchTextCompositionStyle,
+    GetTextCompositionStyleExample,
+    AddTextCompositionStyle,
+    RemoveTextCompositionStyle
 ):
     pass
