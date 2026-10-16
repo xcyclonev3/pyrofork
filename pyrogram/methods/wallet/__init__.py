@@ -18,14 +18,21 @@
 
 from .check_wallet_bot_balance import CheckWalletBotBalance
 from .create_user_ton_wallet import CreateUserTonWallet
+from .delete_ton_wallet import DeleteTonWallet
+from .disable_ton_wallet_backup import DisableTonWalletBackup
+from .disable_ton_wallet_backup_with_proof import DisableTonWalletBackupWithProof
+from .enable_ton_wallet_backup import EnableTonWalletBackup
 from .get_address_ton_wallet import GetAddressTonWallet
+from .get_ton_wallet_backup_holder_dcs import GetTonWalletBackupHolderDcs
 from .get_ton_wallet_gasless_transfers_info import GetTonWalletGaslessTransfersInfo
 from .get_ton_wallet_nfts import GetTonWalletNfts
+from .get_ton_wallet_ownership_proof_challenge import GetTonWalletOwnershipProofChallenge
 from .get_ton_wallet_state import GetTonWalletState
 from .get_ton_wallet_transaction import GetTonWalletTransaction
 from .get_ton_wallet_transaction_by_msg_hash import GetTonWalletTransactionByMsgHash
 from .get_ton_wallet_transactions import GetTonWalletTransactions
 from .get_user_ton_wallet_addresses import GetUserTonWalletAddresses
+from .replace_ton_wallet import ReplaceTonWallet
 from .send_ton_wallet_transfer import SendTonWalletTransfer
 
 
@@ -41,5 +48,12 @@ class Wallet(
     CreateUserTonWallet,
     GetAddressTonWallet,
     SendTonWalletTransfer,
+    GetTonWalletOwnershipProofChallenge,
+    GetTonWalletBackupHolderDcs,
+    EnableTonWalletBackup,
+    DisableTonWalletBackup,
+    DisableTonWalletBackupWithProof,
+    DeleteTonWallet,
+    ReplaceTonWallet,
 ):
     pass

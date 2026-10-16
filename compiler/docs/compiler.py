@@ -544,6 +544,13 @@ def pyrogram_api():
             create_user_ton_wallet
             get_address_ton_wallet
             send_ton_wallet_transfer
+            get_ton_wallet_ownership_proof_challenge
+            get_ton_wallet_backup_holder_dcs
+            enable_ton_wallet_backup
+            disable_ton_wallet_backup
+            disable_ton_wallet_backup_with_proof
+            delete_ton_wallet
+            replace_ton_wallet
         """
     )
 
@@ -891,6 +898,9 @@ def pyrogram_api():
             WalletBotBalance
             UserTonWalletAddress
             TonWalletTransferResult
+            TonWalletOwnershipProof
+            TonWalletOwnershipProofChallenge
+            TonWalletBackupHolderDc
         """
     )
 

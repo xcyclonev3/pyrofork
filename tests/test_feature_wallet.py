@@ -22,6 +22,7 @@ from datetime import datetime
 
 import pytest
 
+import pyrogram
 from pyrogram import enums, raw, types
 from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
 
@@ -416,3 +417,137 @@ def test_send_ton_wallet_transfer_without_receiver():
 
     nothing = offline_client(PEERS, lambda q: empty_updates())
     assert call(lambda: nothing.send_ton_wallet_transfer(b"regular")) is None
+
+
+# Ownership proofs, backup, wallet deletion and replacement
+
+PASSWORD_CHECK = raw.types.InputCheckPasswordSRP(srp_id=1, A=b"a", M1=b"m")
+PROOF = types.TonWalletOwnershipProof(public_key=b"\x09" * 32, timestamp=1_700_000_000, signature=b"\x08" * 64)
+
+
+def password_client(monkeypatch, result):
+    """An offline client whose 2FA password check is replaced by PASSWORD_CHECK."""
+    monkeypatch.setattr(pyrogram.utils, "compute_password_check", lambda r, password: PASSWORD_CHECK)
+
+    def respond(query):
+        if isinstance(query, raw.functions.account.GetPassword):
+            return raw.types.account.Password(
+                new_algo=raw.types.PasswordKdfAlgoUnknown(),
+                new_secure_algo=raw.types.SecurePasswordKdfAlgoUnknown(),
+                secure_random=b"",
+            )
+        return result
+
+    return offline_client(PEERS, respond)
+
+
+def assert_proof(raw_proof):
+    assert isinstance(raw_proof, raw.types.WalletOwnershipProof)
+    assert (raw_proof.timestamp, raw_proof.signature) == (1_700_000_000, b"\x08" * 64)
+
+
+def test_ton_wallet_ownership_proof_writes_raw_proof():
+    assert_proof(roundtrip(PROOF.write()))
+
+    with pytest.raises(ValueError):
+        types.TonWalletOwnershipProof(public_key=b"short", timestamp=1, signature=b"\x08" * 64).write()
+    with pytest.raises(ValueError):
+        types.TonWalletOwnershipProof(public_key=b"\x09" * 32, timestamp=1, signature=b"short").write()
+
+
+def test_ton_wallet_ownership_proof_challenge():
+    client = offline_client(PEERS, lambda q: raw.types.wallet.ProofChallenge(
+        payload="payload", expires=1_700_000_000, domain="wallet.tg"))
+    challenge = call(lambda: client.get_ton_wallet_ownership_proof_challenge())
+
+    assert isinstance(client.sent[-1], raw.functions.wallet.GetProofChallenge)
+    assert isinstance(challenge, types.TonWalletOwnershipProofChallenge)
+    assert (challenge.payload, challenge.domain) == ("payload", "wallet.tg")
+    assert challenge.expiration_date == datetime.fromtimestamp(1_700_000_000)
+
+
+def test_ton_wallet_backup_holder_dcs():
+    holder_dc = types.TonWalletBackupHolderDc._parse(None, roundtrip(raw.types.wallet.HolderDc(dc=2, public_key=b"k2")))
+    assert (holder_dc.dc_id, holder_dc.public_key) == (2, b"k2")
+
+    client = offline_client(PEERS, lambda q: [
+        roundtrip(raw.types.wallet.HolderDc(dc=dc, public_key=b"k%d" % dc)) for dc in (1, 3, 5)
+    ])
+    dcs = call(lambda: client.get_ton_wallet_backup_holder_dcs())
+
+    assert isinstance(client.sent[-1], raw.functions.wallet.GetBackupHolderDcs)
+    assert [(dc.dc_id, dc.public_key) for dc in dcs] == [(1, b"k1"), (3, b"k3"), (5, b"k5")]
+
+
+def test_enable_ton_wallet_backup():
+    client = offline_client(PEERS, lambda q: wallet_state(backup_enabled=True))
+
+    state = call(lambda: client.enable_ton_wallet_backup([b"part1", b"part2", b"part3"], PROOF))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.EnableBackup)
+    assert request.parts == [b"part1", b"part2", b"part3"] and request.new_public_key == b"\x09" * 32
+    assert_proof(request.proof)
+    assert isinstance(state, types.TonWalletState) and state.is_backup_enabled
+
+    call(lambda: client.enable_ton_wallet_backup([b"part1", b"part2", b"part3"]))
+    assert client.sent[-1].new_public_key is None and client.sent[-1].proof is None
+
+
+def test_disable_ton_wallet_backup(monkeypatch):
+    client = password_client(monkeypatch, wallet_state())
+
+    state = call(lambda: client.disable_ton_wallet_backup("password"))
+    assert isinstance(client.sent[0], raw.functions.account.GetPassword)
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.DisableBackup)
+    assert request.password.write() == PASSWORD_CHECK.write()
+    assert request.new_public_key is None and request.proof is None
+    assert isinstance(state, types.TonWalletState) and not state.is_backup_enabled
+
+    passwordless = offline_client(PEERS, lambda q: wallet_state())
+    call(lambda: passwordless.disable_ton_wallet_backup())
+    assert len(passwordless.sent) == 1 and passwordless.sent[0].password is None
+
+
+def test_disable_ton_wallet_backup_with_proof():
+    client = offline_client(PEERS, lambda q: wallet_state())
+
+    state = call(lambda: client.disable_ton_wallet_backup_with_proof(PROOF))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.DisableBackup) and request.password is None
+    assert request.new_public_key == b"\x09" * 32
+    assert_proof(request.proof)
+    assert isinstance(state, types.TonWalletState)
+
+
+def test_delete_ton_wallet(monkeypatch):
+    client = password_client(monkeypatch, raw.types.WalletStateEmpty(creating=True))
+
+    state = call(lambda: client.delete_ton_wallet("password"))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.ReplaceWallet)
+    assert isinstance(request.wallet, raw.types.InputWalletNew)
+    assert request.password.write() == PASSWORD_CHECK.write()
+    assert state.is_being_created and state.address is None
+
+    passwordless = offline_client(PEERS, lambda q: wallet_state())
+    call(lambda: passwordless.delete_ton_wallet())
+    assert len(passwordless.sent) == 1 and passwordless.sent[0].password is None
+
+
+def test_replace_ton_wallet(monkeypatch):
+    client = password_client(monkeypatch, wallet_state())
+
+    state = call(lambda: client.replace_ton_wallet(PROOF, anchor_public_key=b"\x07" * 32, password="password"))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.ReplaceWallet)
+    assert isinstance(request.wallet, raw.types.InputWalletImported)
+    assert request.wallet.public_key == b"\x09" * 32 and request.wallet.anchor_public_key == b"\x07" * 32
+    assert_proof(request.wallet.proof)
+    assert request.password.write() == PASSWORD_CHECK.write()
+    assert isinstance(state, types.TonWalletState) and state.address == "UQme"
+
+    passwordless = offline_client(PEERS, lambda q: wallet_state())
+    call(lambda: passwordless.replace_ton_wallet(PROOF))
+    request = passwordless.sent[-1]
+    assert request.password is None and request.wallet.anchor_public_key is None
