@@ -66,7 +66,8 @@ class SendStory:
         period: int = None,
         forward_from_chat_id: Union[int, str] = None,
         forward_from_story_id: int = None,
-        media_areas: List["types.InputMediaArea"] = None
+        media_areas: List["types.InputMediaArea"] = None,
+        music: str = None
     ) -> "types.Story":
         """Send new story.
 
@@ -140,6 +141,10 @@ class SendStory:
             forward_from_story_id (``int``, *optional*):
                 Single story id.
 
+            music (``str``, *optional*):
+                Music to be attached to the story.
+                Pass the file_id of an audio file that exists on the Telegram servers.
+
         Returns:
             :obj:`~pyrogram.types.Story` a single story is returned.
 
@@ -158,6 +163,9 @@ class SendStory:
             peer = await self.resolve_peer(chat_id)
         else:
             peer = await self.resolve_peer("me")
+
+        if music is not None:
+            music = utils.get_input_media_from_file_id(music, FileType.AUDIO).id
 
         if privacy:
             privacy_rules = [types.StoriesPrivacyRules(type=privacy)]
@@ -251,7 +259,8 @@ class SendStory:
                 media_areas=[
                     await media_area.write(self)
                     for media_area in media_areas
-                ] if media_areas is not None else None
+                ] if media_areas is not None else None,
+                music=music
             )
         )
         return await types.Story._parse(self, r.updates[0].story, r.updates[0].peer)
