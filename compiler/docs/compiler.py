@@ -245,6 +245,7 @@ def pyrogram_api():
             compose_text_with_ai
             fix_text_with_ai
             summarize_message
+            listen_to_audio
         """,
         chats="""
         Chats

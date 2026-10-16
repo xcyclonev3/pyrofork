@@ -57,6 +57,7 @@ from .get_stake_dice_state import GetStakeDiceState
 from .get_text_composition_style_example import GetTextCompositionStyleExample
 from .get_text_composition_styles import GetTextCompositionStyles
 from .get_unread_poll_votes import GetUnreadPollVotes
+from .listen_to_audio import ListenToAudio
 from .read_all_chat_poll_votes import ReadAllChatPollVotes
 from .read_chat_history import ReadChatHistory
 from .remove_text_composition_style import RemoveTextCompositionStyle
@@ -178,6 +179,7 @@ class Messages(
     RemoveTextCompositionStyle,
     ComposeTextWithAi,
     FixTextWithAi,
-    SummarizeMessage
+    SummarizeMessage,
+    ListenToAudio
 ):
     pass
