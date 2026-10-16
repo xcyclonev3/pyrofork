@@ -541,3 +541,67 @@ def test_send_message_view_metrics_rejects_invalid_metrics(metrics):
     with pytest.raises(ValueError):
         call(lambda: client.send_message_view_metrics(-100123, 42, *metrics))
     assert client.sent == []
+
+
+# Firebase Phone Number Verification login, web tokens
+
+def test_firebase_pnv_intent_parsing():
+    intent = types.FirebasePnvIntent._parse(roundtrip(raw.types.auth.FirebasePnvIntent(
+        nonce="nonce", digital_credential_payload="payload"
+    )))
+    assert (intent.nonce, intent.digital_credential_payload) == ("nonce", "payload")
+
+
+def test_init_firebase_pnv_login():
+    client = offline_client(PEERS, lambda q: raw.types.auth.FirebasePnvIntent(
+        nonce="nonce", digital_credential_payload="payload"
+    ))
+    intent = call(lambda: client.init_firebase_pnv_login(except_ids=[5, 6]))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.auth.InitFirebasePnvLogin)
+    assert (request.api_id, request.api_hash, request.except_ids) == (1, "x", [5, 6])
+    assert isinstance(intent, types.FirebasePnvIntent) and intent.nonce == "nonce"
+
+    call(lambda: client.init_firebase_pnv_login())
+    assert client.sent[-1].except_ids == []  # an absent flag vector is read back as []
+
+
+def test_finish_firebase_pnv_login():
+    client = storage_client(lambda q: raw.types.auth.Authorization(user=raw_user(7)))
+    user = call(lambda: client.finish_firebase_pnv_login("google-token"))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.auth.FinishFirebasePnvLogin) and request.google_token == "google-token"
+    assert isinstance(user, types.User) and user.id == 7
+    assert call(lambda: client.storage.user_id()) == 7 and call(lambda: client.storage.is_bot()) == 0  # False
+
+
+def test_finish_firebase_pnv_login_sign_up_required():
+    terms = raw.types.help.TermsOfService(id=raw.types.DataJSON(data="tos"), text="Terms", entities=[])
+    client = storage_client(lambda q: raw.types.auth.AuthorizationSignUpRequired(terms_of_service=terms))
+    terms_of_service = call(lambda: client.finish_firebase_pnv_login("google-token"))
+    assert isinstance(terms_of_service, types.TermsOfService)
+    assert (terms_of_service.id, terms_of_service.text) == ("tos", "Terms")
+
+    client = storage_client(lambda q: raw.types.auth.AuthorizationSignUpRequired())
+    assert call(lambda: client.finish_firebase_pnv_login("google-token")) is False
+
+
+def test_firebase_pnv_sign_up():
+    client = storage_client(lambda q: raw.types.auth.Authorization(user=raw_user(8)))
+    user = call(lambda: client.firebase_pnv_sign_up("First", "Last", disable_notification=True))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.auth.FirebasePnvSignUp)
+    assert (request.first_name, request.last_name, request.no_joined_notifications) == ("First", "Last", True)
+    assert user.id == 8 and call(lambda: client.storage.user_id()) == 8
+
+
+def test_dismiss_web_token():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.dismiss_web_token("token")) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.auth.CancelWebTokenAuthorization)
+    assert request.web_auth_token == "token"

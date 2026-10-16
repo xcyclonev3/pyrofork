@@ -499,6 +499,10 @@ def pyrogram_api():
             check_oauth_request_match_code
             accept_oauth_request
             decline_oauth_request
+            init_firebase_pnv_login
+            finish_firebase_pnv_login
+            firebase_pnv_sign_up
+            dismiss_web_token
         """,
         advanced="""
         Advanced
@@ -853,6 +857,7 @@ def pyrogram_api():
             SentCode
             TermsOfService
             OauthLinkInfo
+            FirebasePnvIntent
         """
     )
 

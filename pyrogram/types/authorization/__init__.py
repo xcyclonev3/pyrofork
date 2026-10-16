@@ -19,6 +19,7 @@
 
 from .active_session import ActiveSession
 from .active_sessions import ActiveSessions
+from .firebase_pnv_intent import FirebasePnvIntent
 from .login_token import LoginToken
 from .oauth_link_info import OauthLinkInfo
 from .sent_code import SentCode
@@ -30,5 +31,6 @@ __all__ = [
     "LoginToken",
     "SentCode",
     "TermsOfService",
-    "OauthLinkInfo"
+    "OauthLinkInfo",
+    "FirebasePnvIntent"
 ]
