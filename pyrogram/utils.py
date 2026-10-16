@@ -708,6 +708,7 @@ async def get_reply_to(
     quote_entities: List["types.MessageEntity"] = None,
     quote_offset: int = None,
     parse_mode: "enums.ParseMode" = None,
+    reply_to_poll_option: bytes = None
 ):
     reply_to = None
     reply_to_chat = None
@@ -727,6 +728,7 @@ async def get_reply_to(
             quote_text=text,
             quote_entities=entities,
             quote_offset=quote_offset,
+            poll_option=reply_to_poll_option
         )
     elif reply_to_story_id:
         peer = await client.resolve_peer(chat_id)

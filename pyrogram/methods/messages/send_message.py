@@ -52,7 +52,8 @@ class SendMessage:
             "types.ReplyKeyboardMarkup",
             "types.ReplyKeyboardRemove",
             "types.ForceReply"
-        ] = None
+        ] = None,
+        reply_to_poll_option: Union[bytes, "types.PollOption"] = None
     ) -> "types.Message":
         """Send text messages.
 
@@ -133,6 +134,10 @@ class SendMessage:
                 Additional interface options. An object for an inline keyboard, custom reply keyboard,
                 instructions to remove reply keyboard or to force a reply from the user.
 
+            reply_to_poll_option (``bytes`` | :obj:`~pyrogram.types.PollOption`, *optional*):
+                The poll option to reply to, in the poll of the message *reply_to_message_id*: its data or the
+                option itself.
+
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent text message is returned.
 
@@ -183,7 +188,8 @@ class SendMessage:
             reply_to_monoforum_id=reply_to_monoforum_id,
             quote_text=quote_text,
             quote_entities=quote_entities,
-            parse_mode=parse_mode
+            parse_mode=parse_mode,
+            reply_to_poll_option=getattr(reply_to_poll_option, "data", reply_to_poll_option)
         )
 
         rpc = raw.functions.messages.SendMessage(

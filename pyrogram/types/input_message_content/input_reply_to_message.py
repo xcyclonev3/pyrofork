@@ -44,6 +44,9 @@ class InputReplyToMessage(Object):
         quote_entities (List of :obj:`~pyrogram.raw.base.MessageEntity`):
             Entities to quote.
             for reply_to_message only.
+
+        poll_option (``bytes``, *optional*):
+            Data of the poll option to reply to, in the poll of the replied message.
     """
 
     def __init__(
@@ -57,6 +60,7 @@ class InputReplyToMessage(Object):
         quote_text: str = None,
         quote_entities: List["raw.base.MessageEntity"] = None,
         quote_offset: int = None,
+        poll_option: bytes = None
     ):
         super().__init__()
 
@@ -66,6 +70,7 @@ class InputReplyToMessage(Object):
         self.quote_text = quote_text
         self.quote_entities = quote_entities
         self.quote_offset = quote_offset
+        self.poll_option = poll_option
 
     def write(self):
         reply_to_msg_id = None
@@ -86,5 +91,6 @@ class InputReplyToMessage(Object):
                 quote_text=self.quote_text,
                 quote_entities=self.quote_entities,
                 quote_offset=self.quote_offset,
+                poll_option=self.poll_option
             ).write()
         return None

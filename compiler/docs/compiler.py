@@ -340,6 +340,7 @@ def pyrogram_api():
             edit_chat_welcome_message
             delete_chat_welcome_message
             delete_all_chat_welcome_messages
+            set_chat_join_by_request
         """,
         users="""
         Users

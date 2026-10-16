@@ -489,6 +489,13 @@ class Message(Object, Update):
 
         reply_to_ephemeral_message_id (``int``, *optional*):
             The message is a reply to the ephemeral message with this identifier.
+
+        guest_bot_caller (:obj:`~pyrogram.types.User` | :obj:`~pyrogram.types.Chat`, *optional*):
+            For messages sent by a guest bot, the user or the chat that called the bot (see GuestQuery).
+
+        reply_to_poll_option_data (``bytes``, *optional*):
+            The message is a reply to the poll option with this data (see PollOption.data), in the poll of the
+            replied message.
     """
 
     # TODO: Add game missing field, Also connected_website
@@ -629,6 +636,8 @@ class Message(Object, Update):
         ton_connect_request: "types.TonConnectRequest" = None,
         rich_message: "types.RichMessage" = None,
         reply_to_ephemeral_message_id: int = None,
+        guest_bot_caller: Union["types.User", "types.Chat"] = None,
+        reply_to_poll_option_data: bytes = None,
         raw: "raw.types.Message" = None
     ):
         super().__init__(client)
@@ -760,6 +769,8 @@ class Message(Object, Update):
         self.ton_connect_request = ton_connect_request
         self.rich_message = rich_message
         self.reply_to_ephemeral_message_id = reply_to_ephemeral_message_id
+        self.guest_bot_caller = guest_bot_caller
+        self.reply_to_poll_option_data = reply_to_poll_option_data
         self.raw = raw
 
     async def wait_for_click(
@@ -1467,6 +1478,12 @@ class Message(Object, Update):
             if parsed_message.chat.type is not enums.ChatType.CHANNEL:
                 parsed_message.sender_chat = sender_chat
 
+            guestchat_via_from = getattr(message, "guestchat_via_from", None)
+            if isinstance(guestchat_via_from, raw.types.PeerUser):
+                parsed_message.guest_bot_caller = types.User._parse(client, users.get(guestchat_via_from.user_id))
+            elif guestchat_via_from is not None:
+                parsed_message.guest_bot_caller = types.Chat._parse_peer(client, guestchat_via_from, users, chats)
+
             if message.reply_to:
                 parsed_message.external_reply = await types.ExternalReplyInfo._parse(
                     client,
@@ -1501,6 +1518,7 @@ class Message(Object, Update):
                     else:
                         parsed_message.reply_to_message_id = message.reply_to.reply_to_msg_id
                         parsed_message.reply_to_top_message_id = message.reply_to.reply_to_top_id
+                    parsed_message.reply_to_poll_option_data = message.reply_to.poll_option
                     if message.reply_to.reply_to_ephemeral:
                         # The replied message is an ephemeral message, not a message of the chat
                         parsed_message.reply_to_ephemeral_message_id = parsed_message.reply_to_message_id

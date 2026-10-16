@@ -33,19 +33,30 @@ class Username(Object):
 
         active (``bool``, *optional*)
             Is the username active.
+
+        deletable (``bool``, *optional*)
+            True, if the username is a secondary username of a bot, which can be deleted with
+            :meth:`~pyrogram.Client.delete_bot_secondary_username`.
+
+        expired (``bool``, *optional*)
+            True, if the username has expired.
     """
 
     def __init__(
         self, *,
         username: str,
         editable: bool = None,
-        active: bool = None
+        active: bool = None,
+        deletable: bool = None,
+        expired: bool = None
     ):
         super().__init__()
 
         self.username = username
         self.editable = editable
         self.active = active
+        self.deletable = deletable
+        self.expired = expired
 
     @staticmethod
     def _parse(action: "raw.types.Username") -> "Username":
@@ -54,5 +65,7 @@ class Username(Object):
         return Username(
             username=getattr(action,"username", None),
             editable=getattr(action,"editable", None),
-            active=getattr(action,"active", None)
+            active=getattr(action,"active", None),
+            deletable=getattr(action, "deletable", None),
+            expired=getattr(action, "expired", None)
         )

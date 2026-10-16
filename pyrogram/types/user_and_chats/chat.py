@@ -246,6 +246,18 @@ class Chat(Object):
         has_welcome_messages (``bool``, *optional*):
             True, if the chat has welcome messages (see :meth:`~pyrogram.Client.get_chat_welcome_messages`).
             For groups, supergroups and channels. Returned only in :meth:`~pyrogram.Client.get_chat`.
+
+        guard_bot (:obj:`~pyrogram.types.User`, *optional*):
+            The guard bot of the chat, which approves the join requests of new members.
+            For supergroups. Returned only in :meth:`~pyrogram.Client.get_chat`.
+
+        uses_unofficial_app (``bool``, *optional*):
+            True, if the user uses an unofficial application that poses a security risk.
+            For private chats. Returned only in :meth:`~pyrogram.Client.get_chat`.
+
+        manager_bot (:obj:`~pyrogram.types.User`, *optional*):
+            The bot that manages the bot.
+            For bots. Returned only in :meth:`~pyrogram.Client.get_chat`.
     """
 
     def __init__(
@@ -310,7 +322,10 @@ class Chat(Object):
         administrators_count: int = None,
         banned_members_count: int = None,
         chat_requests_count: int = None,
-        has_welcome_messages: bool = None
+        has_welcome_messages: bool = None,
+        guard_bot: "types.User" = None,
+        uses_unofficial_app: bool = None,
+        manager_bot: "types.User" = None
     ):
         super().__init__(client)
 
@@ -373,6 +388,9 @@ class Chat(Object):
         self.banned_members_count = banned_members_count
         self.chat_requests_count = chat_requests_count
         self.has_welcome_messages = has_welcome_messages
+        self.guard_bot = guard_bot
+        self.uses_unofficial_app = uses_unofficial_app
+        self.manager_bot = manager_bot
 
     @property
     def full_name(self) -> str:
@@ -530,6 +548,14 @@ class Chat(Object):
         return utils.get_channel_id(community_id) if community_id else None
 
     @staticmethod
+    def _parse_user(client, user_id: Optional[int], users: Dict[int, "raw.base.User"]) -> Optional["types.User"]:
+        """The user with the given id, from *users* if it's there."""
+        if not user_id:
+            return None
+
+        return types.User._parse(client, users.get(user_id)) or types.User(id=user_id, client=client)
+
+    @staticmethod
     def _parse(
         client,
         message: Union[raw.types.Message, raw.types.MessageService],
@@ -598,6 +624,10 @@ class Chat(Object):
             parsed_chat.business_info = types.BusinessInfo._parse(client, full_user, users)
             parsed_chat.birthday = types.Birthday._parse(getattr(full_user, "birthday", None))
             parsed_chat.gifts_count = getattr(full_user, "stargifts_count", None)
+            # Like TDLib, the content is protected if any of the two users enabled the protection
+            parsed_chat.has_protected_content = full_user.noforwards_my_enabled or full_user.noforwards_peer_enabled
+            parsed_chat.uses_unofficial_app = full_user.unofficial_security_risk
+            parsed_chat.manager_bot = Chat._parse_user(client, full_user.bot_manager_id, users)
             personal_chat_id = getattr(full_user, "personal_channel_id", None)
             
             if personal_chat_id is not None:
@@ -671,6 +701,7 @@ class Chat(Object):
                 parsed_chat.administrators_count = getattr(full_chat, "admins_count", None)
                 parsed_chat.banned_members_count = getattr(full_chat, "kicked_count", None)
                 parsed_chat.has_welcome_messages = full_chat.has_welcome_messages
+                parsed_chat.guard_bot = Chat._parse_user(client, full_chat.guard_bot_id, users)
 
                 linked_chat_raw = chats.get(full_chat.linked_chat_id, None)
 
