@@ -265,7 +265,7 @@ def test_transfer_chat_ownership_uses_edit_chat_creator(monkeypatch, chat_id, pe
 
 
 RAW_CHANNEL = raw.types.Channel(id=123, access_hash=1, title="Test", photo=raw.types.ChatPhotoEmpty(), date=0)
-RAW_BOT = raw.types.User(id=99, bot=True, first_name="Guard", access_hash=3)
+RAW_BOT = raw.types.User(id=99, bot=True, bot_info_version=1, first_name="Guard", access_hash=3)
 
 
 @pytest.mark.parametrize("chat_id, request_type", [

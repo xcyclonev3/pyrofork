@@ -488,8 +488,10 @@ def start(format: bool = False):
                     read_types += "\n        "
                     read_types += f"{arg_name} = True if flags{number} & (1 << {index}) else False"
                 elif flag_type in CORE_TYPES:
+                    # A flagged field is present if and only if its bit is set, possibly by another field
+                    # sharing the same bit, so the body must follow the flags computed above.
                     write_types += "\n        "
-                    write_types += f"if self.{arg_name} is not None:\n            "
+                    write_types += f"if flags{number} & (1 << {index}):\n            "
                     write_types += f"b.write({flag_type.title()}(self.{arg_name}))\n        "
 
                     read_types += "\n        "
@@ -498,8 +500,8 @@ def start(format: bool = False):
                     sub_type = arg_type.split("<")[1][:-1]
 
                     write_types += "\n        "
-                    write_types += f"if self.{arg_name} is not None:\n            "
-                    write_types += "b.write(Vector(self.{}{}))\n        ".format(
+                    write_types += f"if flags{number} & (1 << {index}):\n            "
+                    write_types += "b.write(Vector(self.{} or []{}))\n        ".format(
                         arg_name, f", {sub_type.title()}" if sub_type in CORE_TYPES else ""
                     )
 
@@ -509,7 +511,7 @@ def start(format: bool = False):
                     )
                 else:
                     write_types += "\n        "
-                    write_types += f"if self.{arg_name} is not None:\n            "
+                    write_types += f"if flags{number} & (1 << {index}):\n            "
                     write_types += f"b.write(self.{arg_name}.write())\n        "
 
                     read_types += "\n        "
