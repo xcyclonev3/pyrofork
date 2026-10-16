@@ -22,7 +22,7 @@ guard bot answers, guest queries and business connected bots."""
 import pytest
 
 from pyrogram import enums, raw, types
-from tests.test_layer_roundtrip import offline_client, call, roundtrip, PEERS, USER
+from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS, USER, CHANNEL
 
 BOT = raw.types.InputPeerUser(user_id=99, access_hash=3)
 MANAGER_BOT = raw.types.InputPeerUser(user_id=98, access_hash=4)
@@ -170,6 +170,124 @@ def test_reply_keyboard_read_keeps_request_button_ids():
     assert user.request_user.button_id == 1
     assert group.request_chat.button_id == 2 and isinstance(group.request_chat, types.RequestPeerTypeChat)
     assert channel.request_chat.button_id == 3 and isinstance(channel.request_chat, types.RequestPeerTypeChannel)
+
+
+def test_save_prepared_keyboard_button():
+    client = offline_client(PEERS, lambda q: raw.types.bots.RequestedButton(webapp_req_id="req-1"))
+    button = types.KeyboardButton(
+        "Choose", request_user=types.RequestPeerTypeUser(button_id=1, is_bot=False, max=2),
+        style=enums.ButtonStyle.SUCCESS
+    )
+    assert call(lambda: client.save_prepared_keyboard_button(7, button)) == "req-1"
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.bots.RequestWebViewButton) and request.user_id.write() == USER.write()
+    sent = request.button
+    assert isinstance(sent, raw.types.KeyboardButton) and sent.text == "Choose" and sent.style.bg_success
+    assert isinstance(sent.type, raw.types.InputButtonTypeRequestPeer)
+    assert sent.type.button_id == 1 and sent.type.max_quantity == 2
+    assert isinstance(sent.type.peer_type, raw.types.RequestPeerTypeUser) and sent.type.peer_type.bot is False
+
+
+def test_save_prepared_keyboard_button_for_managed_bot():
+    client = offline_client(PEERS, lambda q: raw.types.bots.RequestedButton(webapp_req_id="req-3"))
+    button = types.KeyboardButton("Create", request_managed_bot=types.RequestPeerTypeManagedBot(
+        button_id=3, suggested_name="Shop", suggested_username="shop_bot"
+    ))
+    assert call(lambda: client.save_prepared_keyboard_button(7, button)) == "req-3"
+
+    peer_type = client.sent[-1].button.type.peer_type
+    assert isinstance(peer_type, raw.types.RequestPeerTypeCreateBot) and peer_type.bot_managed
+    assert peer_type.suggested_name == "Shop" and peer_type.suggested_username == "shop_bot"
+
+
+def prepared_button(text, button_type, style=None):
+    return raw.types.KeyboardButton(text=text, type=button_type, style=style)
+
+
+def test_get_prepared_keyboard_button_request_users():
+    client = offline_client(BOT_PEERS, lambda q: prepared_button("Choose", raw.types.ButtonTypeRequestPeer(
+        button_id=1, peer_type=raw.types.RequestPeerTypeUser(bot=False), max_quantity=2
+    ), raw.types.KeyboardButtonStyle(bg_success=True)))
+    button = call(lambda: client.get_prepared_keyboard_button(99, "req-1"))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.bots.GetRequestedWebViewButton)
+    assert request.bot.write() == BOT.write() and request.webapp_req_id == "req-1"
+    assert isinstance(button, types.KeyboardButton) and button.text == "Choose"
+    assert button.style == enums.ButtonStyle.SUCCESS
+    # The button identifier is needed to share the chosen users
+    assert button.request_user.button_id == 1 and button.request_user.is_bot is False
+    assert button.request_user.max == 2
+
+
+def test_get_prepared_keyboard_button_request_chat():
+    client = offline_client(BOT_PEERS, lambda q: prepared_button("Group", raw.types.ButtonTypeRequestPeer(
+        button_id=2, peer_type=raw.types.RequestPeerTypeChat(forum=True), max_quantity=1
+    )))
+    button = call(lambda: client.get_prepared_keyboard_button(99, "req-2"))
+
+    assert isinstance(button.request_chat, types.RequestPeerTypeChat)
+    assert button.request_chat.button_id == 2 and button.request_chat.is_forum is True
+
+
+def test_get_prepared_keyboard_button_request_managed_bot():
+    client = offline_client(BOT_PEERS, lambda q: prepared_button("Create", raw.types.ButtonTypeRequestPeer(
+        button_id=3, max_quantity=1,
+        peer_type=raw.types.RequestPeerTypeCreateBot(bot_managed=True, suggested_username="shop_bot")
+    )))
+    button = call(lambda: client.get_prepared_keyboard_button(99, "req-3"))
+
+    assert button.request_managed_bot.button_id == 3
+    assert button.request_managed_bot.suggested_username == "shop_bot"
+
+
+def test_get_prepared_keyboard_button_plain_text():
+    client = offline_client(BOT_PEERS, lambda q: prepared_button("Hi", raw.types.ButtonTypeDefault()))
+    button = call(lambda: client.get_prepared_keyboard_button(99, "req-4"))
+    assert isinstance(button, types.KeyboardButton) and button.text == "Hi"
+
+
+@pytest.mark.parametrize("source, msg_id, webapp_req_id", [
+    (dict(message_id=10), 10, None),
+    (dict(prepared_button_id="req-1"), None, "req-1"),
+])
+def test_share_users_with_bot(source, msg_id, webapp_req_id):
+    client = offline_client(BOT_PEERS, lambda q: empty_updates())
+    assert call(lambda: client.share_users_with_bot(99, 1, [7, 98], **source)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SendBotRequestedPeer)
+    assert request.peer.write() == BOT.write() and request.button_id == 1
+    assert request.msg_id == msg_id and request.webapp_req_id == webapp_req_id
+    assert [peer.write() for peer in request.requested_peers] == [USER.write(), MANAGER_BOT.write()]
+
+
+def test_share_users_with_bot_single_user():
+    client = offline_client(BOT_PEERS, lambda q: empty_updates())
+    assert call(lambda: client.share_users_with_bot(99, 3, 98, prepared_button_id="req-3")) is True
+    assert [peer.write() for peer in client.sent[-1].requested_peers] == [MANAGER_BOT.write()]
+
+
+def test_share_chat_with_bot():
+    client = offline_client(BOT_PEERS, lambda q: empty_updates())
+    assert call(lambda: client.share_chat_with_bot(99, 2, -100123, message_id=11)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SendBotRequestedPeer)
+    assert request.peer.write() == BOT.write() and request.button_id == 2
+    assert request.msg_id == 11 and request.webapp_req_id is None
+    assert [peer.write() for peer in request.requested_peers] == [CHANNEL.write()]
+
+
+@pytest.mark.parametrize("source", [{}, dict(message_id=10, prepared_button_id="req-1")])
+def test_share_with_bot_needs_one_button_source(source):
+    client = offline_client(BOT_PEERS, lambda q: empty_updates())
+    with pytest.raises(ValueError):
+        call(lambda: client.share_users_with_bot(99, 1, [7], **source))
+    with pytest.raises(ValueError):
+        call(lambda: client.share_chat_with_bot(99, 2, -100123, **source))
+    assert client.sent == []
 
 
 # Guard bots

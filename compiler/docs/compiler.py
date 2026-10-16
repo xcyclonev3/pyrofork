@@ -447,6 +447,10 @@ def pyrogram_api():
             add_bot_secondary_username
             delete_bot_secondary_username
             toggle_bot_username_is_active
+            save_prepared_keyboard_button
+            get_prepared_keyboard_button
+            share_users_with_bot
+            share_chat_with_bot
         """,
         business="""
         Telegram Business

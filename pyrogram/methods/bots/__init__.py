@@ -35,7 +35,9 @@ from .get_game_high_scores import GetGameHighScores
 from .get_inline_bot_results import GetInlineBotResults
 from .get_managed_bot_access_settings import GetManagedBotAccessSettings
 from .get_managed_bot_token import GetManagedBotToken
+from .get_prepared_keyboard_button import GetPreparedKeyboardButton
 from .request_callback_answer import RequestCallbackAnswer
+from .save_prepared_keyboard_button import SavePreparedKeyboardButton
 from .send_game import SendGame
 from .send_inline_bot_result import SendInlineBotResult
 from .set_bot_commands import SetBotCommands
@@ -46,6 +48,8 @@ from .set_game_score import SetGameScore
 from .get_owned_bots import GetOwnedBots
 from .get_similar_bots import GetSimilarBots
 from .set_managed_bot_access_settings import SetManagedBotAccessSettings
+from .share_chat_with_bot import ShareChatWithBot
+from .share_users_with_bot import ShareUsersWithBot
 from .toggle_bot_username_is_active import ToggleBotUsernameIsActive
 
 
@@ -80,5 +84,9 @@ class Bots(
     AddBotSecondaryUsername,
     DeleteBotSecondaryUsername,
     ToggleBotUsernameIsActive,
+    SavePreparedKeyboardButton,
+    GetPreparedKeyboardButton,
+    ShareUsersWithBot,
+    ShareChatWithBot,
 ):
     pass
