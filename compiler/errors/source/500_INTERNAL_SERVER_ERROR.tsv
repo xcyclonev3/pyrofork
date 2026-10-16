@@ -22,6 +22,7 @@ MEMBER_OCCUPY_PRIMARY_LOC_FAILED	Telegram is having internal problems. Please tr
 MEMBER_OCCUPY_USERNAME_FAILED	Failure to occupy member username due to Telegram having internal problems. Please try again later
 MSGID_DECREASE_RETRY	Telegram is having internal problems. Please try again later
 MSG_RANGE_UNSYNC	Message range unsynchronized due to Telegram having internal problems. Please try again later
+MSG_WAIT_FAILED	A waiting call returned an error.
 MT_SEND_QUEUE_TOO_LONG	The MTProto send queue has grown too much due to Telegram having internal problems. Please try again later
 NEED_CHAT_INVALID	The provided chat is invalid
 NEED_MEMBER_INVALID	The provided member is invalid or does not exist

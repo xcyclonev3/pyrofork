@@ -46,11 +46,30 @@ def get_classes_from_file(file_path):
     return classes
 
 
+# pyrogram.errors exports one class per name. When an error id exists under several codes, the class of the code
+# module imported last wins. The order used to follow os.listdir(), which differs between machines; keep the order of
+# the 2.3.69 wheel published on PyPI, so that the exported classes stay the same. Codes not listed are imported first.
+IMPORT_ORDER = [
+    "420_FLOOD", "303_SEE_OTHER", "406_NOT_ACCEPTABLE", "403_FORBIDDEN", "500_INTERNAL_SERVER_ERROR",
+    "401_UNAUTHORIZED", "400_BAD_REQUEST", "503_SERVICE_UNAVAILABLE"
+]
+
+
+def import_rank(file_name):
+    stem = file_name.rsplit(".", 1)[0]
+    return IMPORT_ORDER.index(stem) if stem in IMPORT_ORDER else -1
+
+
 def start():
     shutil.rmtree(DEST, ignore_errors=True)
     os.makedirs(DEST)
 
-    files = [i for i in os.listdir("{}/source".format(HOME))]
+    files = sorted(os.listdir("{}/source".format(HOME)), key=lambda f: (import_rank(f), f))
+
+    # Explicit class names (code, id -> name) for ids added under a second code, so that they don't take over the
+    # name of the existing class and change what an existing "except" catches.
+    with open("{}/class_names.tsv".format(HOME), encoding="utf-8") as f:
+        class_names = {(code, error_id): name for code, error_id, name in list(csv.reader(f, delimiter="\t"))[1:]}
 
     with open(NOTICE_PATH, encoding="utf-8") as f:
         notice = []
@@ -106,6 +125,7 @@ def start():
                     sub_class = caml(re.sub(r"_X", "_", error_id))
                     sub_class = re.sub(r"^2", "Two", sub_class)
                     sub_class = re.sub(r" ", "", sub_class)
+                    sub_class = class_names.get((code, error_id), sub_class)
 
                     f_all.write("        \"{}\": \"{}\",\n".format(error_id, sub_class))
 
