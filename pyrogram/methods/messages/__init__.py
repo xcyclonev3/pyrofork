@@ -53,6 +53,7 @@ from .get_custom_emoji_stickers import GetCustomEmojiStickers
 from .get_discussion_message import GetDiscussionMessage
 from .get_discussion_replies import GetDiscussionReplies
 from .get_discussion_replies_count import GetDiscussionRepliesCount
+from .get_full_rich_message import GetFullRichMessage
 from .get_media_group import GetMediaGroup
 from .get_messages import GetMessages
 from .get_message_read_participants import GetMessageReadParticipants
@@ -200,6 +201,7 @@ class Messages(
     SendMessageViewMetrics,
     SendRichMessage,
     EditMessageRichMessage,
-    EditInlineRichMessage
+    EditInlineRichMessage,
+    GetFullRichMessage
 ):
     pass

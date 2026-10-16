@@ -744,3 +744,28 @@ def test_input_rich_message_content_in_inline_results():
     received = roundtrip(raw.types.BotInlineMessageRichMessage(rich_message=raw.types.RichMessage(
         blocks=[raw.types.PageBlockParagraph(text=plain("inline"))], photos=[], documents=[])))
     assert types.RichMessage._parse(None, received.rich_message).blocks[0].text.text == "inline"
+
+
+# Full rich messages
+
+def test_get_full_rich_message():
+    full = raw.types.RichMessage(
+        blocks=[raw.types.PageBlockParagraph(text=plain("full")), raw.types.PageBlockPhoto(photo_id=PHOTO_ID,
+                                                                                          caption=empty_caption())],
+        photos=[raw_photo(PHOTO_ID)], documents=[]
+    )
+    client = rich_client(lambda q: raw.types.messages.Messages(
+        messages=[raw.types.Message(id=3, peer_id=raw.types.PeerUser(user_id=7), date=1, message="",
+                                    rich_message=full)],
+        topics=[], chats=[], users=[RAW_USER]
+    ))
+    rich = call(lambda: client.get_full_rich_message(7, 3))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.GetRichMessage) and request.id == 3
+    assert request.peer.write() == USER.write()
+    assert isinstance(rich, types.RichMessage) and rich.is_full
+    assert rich.blocks[0].text.text == "full" and isinstance(rich.blocks[1].photo, types.Photo)
+
+    client = rich_client(lambda q: raw.types.messages.Messages(messages=[], topics=[], chats=[], users=[]))
+    assert call(lambda: client.get_full_rich_message(7, 3)) is None
