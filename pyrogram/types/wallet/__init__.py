@@ -22,6 +22,7 @@ from .on_ramp_payment_method import OnRampPaymentMethod
 from .on_ramp_payment_quote import OnRampPaymentQuote
 from .on_ramp_payment_session import OnRampPaymentSession
 from .on_ramp_provider import OnRampProvider
+from .ton_center_streaming_api_url import TonCenterStreamingApiUrl
 from .ton_connect_challenge import TonConnectChallenge
 from .ton_connect_manifest import TonConnectManifest
 from .ton_connect_request import TonConnectRequest
@@ -66,5 +67,6 @@ __all__ = [
     "OnRampPaymentAvailability",
     "OnRampPaymentLimits",
     "OnRampPaymentQuote",
-    "OnRampPaymentSession"
+    "OnRampPaymentSession",
+    "TonCenterStreamingApiUrl"
 ]

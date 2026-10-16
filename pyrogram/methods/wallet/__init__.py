@@ -34,6 +34,7 @@ from .get_on_ramp_payment_limits import GetOnRampPaymentLimits
 from .get_on_ramp_payment_quote import GetOnRampPaymentQuote
 from .get_on_ramp_provider_base_currencies import GetOnRampProviderBaseCurrencies
 from .get_on_ramp_providers import GetOnRampProviders
+from .get_ton_center_streaming_api_url import GetTonCenterStreamingApiUrl
 from .get_ton_connect_dapp_pending_requests import GetTonConnectDappPendingRequests
 from .get_ton_connect_session_next_event_id import GetTonConnectSessionNextEventId
 from .get_ton_connect_session_pending_requests import GetTonConnectSessionPendingRequests
@@ -49,6 +50,7 @@ from .get_ton_wallet_transaction_by_msg_hash import GetTonWalletTransactionByMsg
 from .get_ton_wallet_transactions import GetTonWalletTransactions
 from .get_user_ton_wallet_addresses import GetUserTonWalletAddresses
 from .replace_ton_wallet import ReplaceTonWallet
+from .send_ton_center_api_request import SendTonCenterApiRequest
 from .send_ton_connect_session_connect_result import SendTonConnectSessionConnectResult
 from .send_ton_wallet_transfer import SendTonWalletTransfer
 from .set_ton_connect_session_wallet_client_id import SetTonConnectSessionWalletClientId
@@ -91,5 +93,7 @@ class Wallet(
     GetOnRampPaymentLimits,
     GetOnRampPaymentQuote,
     CreateOnRampPaymentSession,
+    SendTonCenterApiRequest,
+    GetTonCenterStreamingApiUrl,
 ):
     pass

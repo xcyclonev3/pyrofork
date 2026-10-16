@@ -19,6 +19,7 @@
 """Offline tests of the TON wallet, TON Connect, on-ramp and TON Center API (Layer 230)."""
 import asyncio
 import importlib
+import inspect
 from datetime import datetime
 
 import pytest
@@ -895,3 +896,53 @@ def test_create_on_ramp_payment_session():
     optional = ("payment_method", "base_currency", "base_amount", "memo", "theme", "success_return_url",
                 "fail_return_url", "crypto_amount")
     assert all(getattr(request, name) is None for name in optional)
+
+
+# TON Center API
+
+def raw_config(webfile_dc_id):
+    """A help.getConfig result: zeros everywhere except the fields used by the tested code."""
+    params = inspect.signature(raw.types.Config.__init__).parameters
+    values = {name: 0 for name, p in params.items() if name != "self" and p.default is inspect.Parameter.empty}
+    values.update(test_mode=False, dc_options=[], dc_txt_domain_name="", me_url_prefix="", webfile_dc_id=webfile_dc_id)
+    return raw.types.Config(**values)
+
+
+def test_send_ton_center_api_request_uses_the_webfile_dc(monkeypatch):
+    used_dcs = fake_get_session(monkeypatch, "send_ton_center_api_request")
+
+    def respond(query):
+        if isinstance(query, raw.functions.help.GetConfig):
+            return raw_config(webfile_dc_id=4)
+        return raw.types.toncenter.ApiResponse(response=raw.types.DataJSON(data='{"ok": true}'))
+
+    client = offline_client(PEERS, respond)
+
+    assert call(lambda: client.send_ton_center_api_request("/api/v3/wallet", query="address=UQme")) == '{"ok": true}'
+    get = client.sent[-1]
+    assert isinstance(get, raw.functions.toncenter.PerformApiRequest)
+    assert (get.endpoint, get.post, get.query, get.payload) == ("/api/v3/wallet", False, "address=UQme", None)
+
+    call(lambda: client.send_ton_center_api_request("/api/v3/message", payload='{"boc": "te6"}'))
+    post = client.sent[-1]
+    assert (post.endpoint, post.post, post.query, post.payload) == ("/api/v3/message", True, None, '{"boc": "te6"}')
+
+    # The webfile DC is read from the config once per client
+    assert [type(q) for q in client.sent] == [
+        raw.functions.help.GetConfig, raw.functions.toncenter.PerformApiRequest, raw.functions.toncenter.PerformApiRequest
+    ]
+    assert used_dcs == [4, 4]
+
+    with pytest.raises(ValueError):
+        call(lambda: client.send_ton_center_api_request("/api/v3/wallet", query="a", payload="b"))
+
+
+def test_get_ton_center_streaming_api_url():
+    client = offline_client(PEERS, lambda q: raw.types.toncenter.StreamingUrl(
+        url="https://streaming.toncenter.example/abc", expires=1_700_003_600))
+    streaming_url = call(lambda: client.get_ton_center_streaming_api_url())
+
+    assert isinstance(client.sent[-1], raw.functions.toncenter.GetStreamingUrl)
+    assert isinstance(streaming_url, types.TonCenterStreamingApiUrl)
+    assert streaming_url.url == "https://streaming.toncenter.example/abc"
+    assert streaming_url.expiration_date == datetime.fromtimestamp(1_700_003_600)

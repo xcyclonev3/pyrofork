@@ -569,6 +569,8 @@ def pyrogram_api():
             get_on_ramp_payment_limits
             get_on_ramp_payment_quote
             create_on_ramp_payment_session
+            send_ton_center_api_request
+            get_ton_center_streaming_api_url
         """
     )
 
@@ -931,6 +933,7 @@ def pyrogram_api():
             OnRampPaymentLimits
             OnRampPaymentQuote
             OnRampPaymentSession
+            TonCenterStreamingApiUrl
         """
     )
 
