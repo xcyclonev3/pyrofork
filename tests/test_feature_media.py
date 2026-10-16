@@ -19,10 +19,11 @@
 """Live photos, story music and audio listening reports (Layer 221-230)."""
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 
-from pyrogram import raw, types
+from pyrogram import enums, raw, types
 from pyrogram.file_id import FileId, FileType, ThumbnailSource
 from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
 
@@ -198,3 +199,102 @@ def test_story_music_must_be_an_audio(method, kwargs):
     with pytest.raises(ValueError):
         call(lambda: getattr(client, method)(music=VOICE_ID, **kwargs))
     assert client.sent == []
+
+
+# Received live photos: messageMediaPhoto.live_photo/video (TDLib messagePhoto.video, paidMediaPhoto.video)
+
+RAW_LIVE_VIDEO = raw_document(3001, "video/mp4", [
+    raw.types.DocumentAttributeVideo(duration=2.5, w=1080, h=1920),
+])
+
+
+def live_photo_media(**kwargs):
+    # live_photo and video share flags.4: the server sends both or neither
+    return raw.types.MessageMediaPhoto(photo=raw_photo(), live_photo=True, video=RAW_LIVE_VIDEO, **kwargs)
+
+
+def assert_live_video(video, ttl_seconds=None):
+    assert isinstance(video, types.Video)
+    assert decoded(video.file_id) == (FileType.VIDEO, 3001, 55, b"ref")
+    assert (video.width, video.height, video.duration, video.mime_type) == (1080, 1920, 2.5, "video/mp4")
+    assert video.ttl_seconds == ttl_seconds
+
+
+@pytest.mark.parametrize("ttl_seconds", [None, 10])
+def test_live_photo_is_parsed(ttl_seconds):
+    media = roundtrip(live_photo_media(ttl_seconds=ttl_seconds))
+    assert media.live_photo is True
+
+    photo = types.Photo._parse(None, media.photo, media.ttl_seconds, live_video=media.video)
+    assert decoded(photo.file_id) == (FileType.PHOTO, 2001, 66, b"pref")
+    assert (photo.width, photo.height, photo.ttl_seconds) == (800, 600, ttl_seconds)
+    assert_live_video(photo.live_video, ttl_seconds)
+
+
+def test_static_photo_has_no_live_video():
+    media = roundtrip(raw.types.MessageMediaPhoto(photo=raw_photo()))
+    assert not media.live_photo and media.video is None
+
+    photo = types.Photo._parse(None, media.photo, media.ttl_seconds, live_video=media.video)
+    assert photo.live_video is None
+    assert types.Photo._parse(None, raw_photo()).live_video is None  # older callers
+
+
+def test_live_photo_video_without_attributes():
+    video = roundtrip(raw_document(3002, "video/mp4", []))
+    live_video = types.Photo._parse(None, raw_photo(), live_video=video).live_video
+    assert decoded(live_video.file_id)[:2] == (FileType.VIDEO, 3002)
+    assert (live_video.width, live_video.height, live_video.duration) == (0, 0, 0)
+    assert types.Photo._parse(None, raw_photo(), live_video=raw.types.DocumentEmpty(id=1)).live_video is None
+
+
+def test_external_reply_to_live_photo():
+    reply = roundtrip(raw.types.MessageReplyHeader(
+        reply_to_msg_id=9, reply_to_peer_id=raw.types.PeerUser(user_id=7),
+        reply_from=raw.types.MessageFwdHeader(date=1, from_name="Somebody"),
+        reply_media=live_photo_media()
+    ))
+    info = asyncio.run(types.ExternalReplyInfo._parse(None, reply, {}, {}))
+    assert info.media == enums.MessageMediaType.PHOTO
+    assert_live_video(info.photo.live_video)
+
+
+def test_paid_live_photo():
+    media = roundtrip(raw.types.MessageMediaPaidMedia(stars_amount=5, extended_media=[
+        raw.types.MessageExtendedMedia(media=live_photo_media()),
+        raw.types.MessageExtendedMedia(media=raw.types.MessageMediaPhoto(photo=raw_photo(2002))),
+    ]))
+    live, static = types.PaidMedia._parse(None, media).extended_media
+    assert_live_video(live.live_video)
+    assert static.live_video is None and decoded(static.file_id)[1] == 2002
+
+
+def test_bought_live_photo():
+    client = offline_client(PEERS, lambda q: raw.types.payments.PaymentResult(updates=empty_updates(updates=[
+        raw.types.UpdateMessageExtendedMedia(
+            peer=raw.types.PeerChannel(channel_id=123), msg_id=9,
+            extended_media=[raw.types.MessageExtendedMedia(media=live_photo_media())]
+        )
+    ])))
+
+    async def get_payment_form(**kwargs):
+        return SimpleNamespace(id=77)  # only the form id is used
+
+    client.get_payment_form = get_payment_form
+    [photo] = call(lambda: client.send_payment_form(chat_id=-100123, message_id=9))
+
+    assert sent(client, raw.functions.payments.SendStarsForm).form_id == 77
+    assert_live_video(photo.live_video)
+
+
+@pytest.mark.xfail(strict=True, reason="Message.photo gets the live video once message.py passes "
+                                       "live_video=media.video to Photo._parse (main session)")
+def test_message_with_live_photo():
+    from tests.test_layer_roundtrip import parse_message
+
+    message = parse_message(raw.types.Message(
+        id=1, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7),
+        date=1, message="", media=live_photo_media()
+    ), users=[RAW_USER])
+    assert message.photo is not None
+    assert_live_video(message.photo.live_video)

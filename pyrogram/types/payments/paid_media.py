@@ -58,7 +58,9 @@ class PaidMedia(Object):
             if isinstance(m, raw.types.MessageExtendedMediaPreview):
                 extended_media.append(types.ExtendedMediaPreview._parse(client, m))
             elif isinstance(m.media, raw.types.MessageMediaPhoto):
-                extended_media.append(types.Photo._parse(client, m.media.photo, m.media.ttl_seconds))
+                extended_media.append(
+                    types.Photo._parse(client, m.media.photo, m.media.ttl_seconds, live_video=m.media.video)
+                )
             elif isinstance(m.media, raw.types.MessageMediaDocument):
                 attributes = {type(i): i for i in m.media.document.attributes}
                 file_name = getattr(

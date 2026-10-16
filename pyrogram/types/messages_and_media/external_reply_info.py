@@ -202,7 +202,7 @@ class ExternalReplyInfo(Object):
 
         if media:
             if isinstance(media, raw.types.MessageMediaPhoto):
-                photo = types.Photo._parse(client, media.photo, media.ttl_seconds)
+                photo = types.Photo._parse(client, media.photo, media.ttl_seconds, live_video=media.video)
                 media_type = enums.MessageMediaType.PHOTO
                 has_media_spoiler = media.spoiler
             elif isinstance(media, raw.types.MessageMediaGeo):
