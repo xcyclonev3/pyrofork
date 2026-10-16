@@ -250,3 +250,21 @@ def test_craft_gift_other_errors_are_raised(monkeypatch, tmp_path):
     client = offline_client(PEERS, respond)
     with pytest.raises(errors.StargiftInvalid):
         call(lambda: client.craft_gift(["123"]))
+
+
+def test_currency_exchange_rate_type():
+    rate = types.CurrencyExchangeRate._parse(None, roundtrip(raw.types.CurrencyRate(currency="EUR", rate=1.25)))
+    assert isinstance(rate, types.CurrencyExchangeRate) and (rate.currency, rate.rate) == ("EUR", 1.25)
+
+
+def test_get_currency_exchange_rates():
+    client = offline_client(PEERS, lambda q: raw.types.payments.CurrencyRates(rates=[
+        raw.types.CurrencyRate(currency="EUR", rate=1.25),
+        raw.types.CurrencyRate(currency="TON", rate=3.5),
+    ]))
+    rates = call(lambda: client.get_currency_exchange_rates())
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.payments.GetCurrencyRates)
+    assert all(isinstance(r, types.CurrencyExchangeRate) for r in rates)
+    assert [(r.currency, r.rate) for r in rates] == [("EUR", 1.25), ("TON", 3.5)]

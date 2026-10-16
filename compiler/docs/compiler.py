@@ -390,6 +390,7 @@ def pyrogram_api():
             get_stars_balance
             get_gifts_for_crafting
             craft_gift
+            get_currency_exchange_rates
         """,
         phone="""
         Phone
@@ -645,6 +646,7 @@ def pyrogram_api():
             StarsTransaction
             SuccessfulPayment
             CraftGiftResult
+            CurrencyExchangeRate
         """,
         pyromod="""
         Pyromod

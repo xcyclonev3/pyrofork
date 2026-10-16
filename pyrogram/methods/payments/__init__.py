@@ -22,6 +22,7 @@ from .check_giftcode import CheckGiftCode
 from .convert_gift import ConvertGift
 from .craft_gift import CraftGift
 from .create_invoice_link import CreateInvoiceLink
+from .get_currency_exchange_rates import GetCurrencyExchangeRates
 from .get_gifts_for_crafting import GetGiftsForCrafting
 from .get_payment_form import GetPaymentForm
 from .get_stars_balance import GetStarsBalance
@@ -74,6 +75,7 @@ class Payments(
     TransferGift,
     UpgradeGift,
     GetGiftsForCrafting,
-    CraftGift
+    CraftGift,
+    GetCurrencyExchangeRates
 ):
     pass

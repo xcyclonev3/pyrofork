@@ -18,6 +18,7 @@
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
 from .craft_gift_result import CraftGiftResult
+from .currency_exchange_rate import CurrencyExchangeRate
 from .extended_media_preview import ExtendedMediaPreview
 from .checked_gift_code import CheckedGiftCode
 from .gift import Gift
@@ -56,5 +57,6 @@ __all__ = [
     "StarsStatus",
     "StarsTransaction",
     "SuccessfulPayment",
-    "CraftGiftResult"
+    "CraftGiftResult",
+    "CurrencyExchangeRate"
 ]
