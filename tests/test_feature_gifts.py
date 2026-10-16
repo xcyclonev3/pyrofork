@@ -129,3 +129,27 @@ def test_upgraded_gift_action_is_not_crafted():
     ))
     gift = asyncio.run(types.Gift._parse_action(None, message, {}, {}))
     assert gift.is_crafted is False and gift.is_upgraded is True and gift.can_craft_at is None
+
+
+def collect(make_generator):
+    async def main():
+        return [item async for item in make_generator()]
+    return asyncio.run(main())
+
+
+@pytest.mark.parametrize("kwargs, for_craft, stars_only", [
+    ({}, False, False),
+    ({"for_crafting": True}, True, False),
+    ({"for_stars": True}, False, True),
+    ({"for_crafting": True, "for_stars": True}, True, True),
+])
+def test_search_gifts_for_resale_crafting_filters(kwargs, for_craft, stars_only):
+    client = offline_client(PEERS, lambda q: raw.types.payments.ResaleStarGifts(
+        count=1, gifts=[unique_gift(craft_chance_permille=250)], chats=[], users=[]
+    ))
+    gifts = collect(lambda: client.search_gifts_for_resale(2, **kwargs))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.payments.GetResaleStarGifts) and request.gift_id == 2
+    assert (request.for_craft, request.stars_only) == (for_craft, stars_only)
+    assert [g.name for g in gifts] == ["Helmet-1"] and gifts[0].craft_probability_per_mille == 250
