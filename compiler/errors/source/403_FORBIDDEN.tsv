@@ -6,7 +6,7 @@ CHANNEL_PUBLIC_GROUP_NA	The channel/supergroup is not available
 CHAT_ADMIN_INVITE_REQUIRED	You don't have rights to invite other users
 CHAT_ADMIN_REQUIRED	The method requires chat admin privileges
 CHAT_FORBIDDEN	You cannot write in this chat
-CHAT_GUEST_SEND_FORBIDDEN	You need to join the discussion group before commentingr
+CHAT_GUEST_SEND_FORBIDDEN	You need to join the discussion group before commenting
 CHAT_SEND_WEBPAGE_FORBIDDEN	You can't send webpage previews to this chat.
 EDIT_BOT_INVITE_FORBIDDEN	Bots' chat invite links can't be edited
 INLINE_BOT_REQUIRED	The action must be performed through an inline bot callback
@@ -46,6 +46,5 @@ CHAT_WRITE_FORBIDDEN	You can't write in this chat
 GROUPCALL_ALREADY_STARTED	The groupcall has already started, you can join directly using phone.joinGroupCall
 GROUPCALL_FORBIDDEN	The group call has already ended
 LIVE_DISABLED	Story is disabled server-side
-CHAT_GUEST_SEND_FORBIDDEN	You need to join the discussion group before commenting
 ALLOW_PAYMENT_REQUIRED_X	Payment of {value} stars is required to perform this action
 VOICE_MESSAGES_FORBIDDEN	This user's privacy settings forbid you from sending voice messages.

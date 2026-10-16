@@ -35,6 +35,8 @@ def raised(code, message):
     (406, "TOPIC_CLOSED", errors.TopicClosed406, errors.NotAcceptable),
     (403, "VOICE_MESSAGES_FORBIDDEN", errors.VoiceMessagesForbidden403, errors.Forbidden),
     (500, "MSG_WAIT_FAILED", errors.MsgWaitFailed500, errors.InternalServerError),
+    (400, "JOIN_GUARD_TIMEOUT", errors.JoinGuardTimeout, errors.BadRequest),
+    (400, "INVITE_REQUEST_DECLINED", errors.InviteRequestDeclined, errors.BadRequest),
 ])
 def test_errors_sharing_an_id_keep_their_own_class(code, message, cls, base):
     error = raised(code, message)

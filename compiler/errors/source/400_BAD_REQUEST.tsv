@@ -234,12 +234,14 @@ INVITE_FORBIDDEN_WITH_JOINAS	If the user has anonymously joined a group call as 
 INVITE_HASH_EMPTY	The invite hash is empty
 INVITE_HASH_EXPIRED	The chat invite link is no longer valid
 INVITE_HASH_INVALID	The invite link hash is invalid
+INVITE_REQUEST_DECLINED	The guard bot of the chat declined the join request
 INVITE_REQUEST_SENT	The request to join this chat or channel has been successfully sent
 INVITE_REVOKED_MISSING	The action required a chat invite link to be revoked first
 INVITE_SLUG_EMPTY	The invite slug is empty
 INVITE_SLUG_EXPIRED	The invite slug is expired
 INVOICE_PAYLOAD_INVALID	The specified invoice payload is invalid
 JOIN_AS_PEER_INVALID	The specified peer cannot be used to join a group call
+JOIN_GUARD_TIMEOUT	The guard bot didn't answer in time, the join request was sent to the chat administrators
 LANG_CODE_INVALID	The specified language code is invalid
 LANG_CODE_NOT_SUPPORTED	The specified language code is not supported
 LANG_PACK_INVALID	The provided language pack is invalid
@@ -255,7 +257,6 @@ MAX_QTS_INVALID	The provided QTS is invalid
 MD5_CHECKSUM_INVALID	The file's checksum did not match the md5_checksum parameter
 MEDIA_CAPTION_TOO_LONG	The media caption is too long
 MEDIA_EMPTY	The media you tried to send is invalid
-MEDIA_FILE_INVALID	The provided media file is invalid
 MEDIA_GROUPED_INVALID	You tried to send media of different types in an album
 MEDIA_INVALID	The media is invalid
 MEDIA_NEW_INVALID	The new media to edit the message with is invalid
@@ -450,7 +451,6 @@ STORY_PERIOD_INVALID	The specified story period is invalid for this account.
 STORIES_TOO_MUCH	Too many stories in the current account
 STORY_SEND_FLOOD_WEEKLY_X	You've hit the weekly story limit, wait for the specified number of seconds before posting a new story.
 STORY_SEND_FLOOD_MONTHLY_X	You've hit the monthly story limit, wait for the specified number of seconds before posting a new story.
-STORY_PERIOD_INVALID	The story period is invalid
 SUBSCRIPTION_PERIOD_INVALID	The subscription period is invalid.
 SUGGESTED_POST_AMOUNT_INVALID	The specified price for the suggested post is invalid.
 SUGGESTED_POST_PEER_INVALID	You cannot send suggested posts to non-monoforum peers.
