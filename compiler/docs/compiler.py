@@ -246,6 +246,7 @@ def pyrogram_api():
             fix_text_with_ai
             summarize_message
             listen_to_audio
+            get_personal_chat_history
         """,
         chats="""
         Chats

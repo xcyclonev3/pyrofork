@@ -52,6 +52,7 @@ from .get_discussion_replies_count import GetDiscussionRepliesCount
 from .get_media_group import GetMediaGroup
 from .get_messages import GetMessages
 from .get_message_read_participants import GetMessageReadParticipants
+from .get_personal_chat_history import GetPersonalChatHistory
 from .get_scheduled_messages import GetScheduledMessages
 from .get_stake_dice_state import GetStakeDiceState
 from .get_text_composition_style_example import GetTextCompositionStyleExample
@@ -180,6 +181,7 @@ class Messages(
     ComposeTextWithAi,
     FixTextWithAi,
     SummarizeMessage,
-    ListenToAudio
+    ListenToAudio,
+    GetPersonalChatHistory
 ):
     pass

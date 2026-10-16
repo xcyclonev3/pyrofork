@@ -20,7 +20,7 @@
 
 import pytest
 
-from pyrogram import raw, types
+from pyrogram import raw, types, utils
 from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
 
 CHANNEL = PEERS[-100123]
@@ -62,3 +62,33 @@ def test_get_chat_owner_after_leaving_rejects_private_chats():
     with pytest.raises(ValueError):
         call(lambda: client.get_chat_owner_after_leaving(7))
     assert client.sent == []
+
+
+# get_personal_chat_history
+
+RAW_CHANNEL = raw.types.Channel(id=123, access_hash=1, title="Personal", photo=raw.types.ChatPhotoEmpty(), date=0,
+                                broadcast=True)
+
+
+def channel_post(message_id, text):
+    return raw.types.Message(id=message_id, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message=text)
+
+
+def test_get_personal_chat_history():
+    client = offline_client(PEERS, lambda q: raw.types.messages.Messages(
+        messages=[channel_post(11, "new"), channel_post(10, "old")], topics=[], chats=[RAW_CHANNEL], users=[]
+    ))
+    messages = call(lambda: client.get_personal_chat_history(7, limit=2))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.GetPersonalChannelHistory)
+    assert request.user_id.write() == USER.write()
+    assert (request.limit, request.max_id, request.min_id, request.hash) == (2, (1 << 31) - 1, 0, 0)
+    assert [(m.id, m.text) for m in messages] == [(11, "new"), (10, "old")]
+    assert all(m.chat.id == utils.get_channel_id(123) and m.chat.title == "Personal" for m in messages)
+
+
+def test_get_personal_chat_history_rejects_non_positive_limit():
+    client = offline_client(PEERS, lambda q: None)
+    with pytest.raises(ValueError):
+        call(lambda: client.get_personal_chat_history(7, limit=0))
