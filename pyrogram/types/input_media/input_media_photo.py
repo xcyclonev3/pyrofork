@@ -51,7 +51,7 @@ class InputMediaPhoto(InputMedia):
             Pass True if the photo needs to be covered with a spoiler animation.
 
         live_video (``str`` | ``BinaryIO``, *optional*):
-            Video of the live photo, to send the photo as a live photo.
+            Short video clip captured alongside the photo, to send it as a live photo.
             Pass a file_id as string to send a video that exists on the Telegram servers,
             pass an HTTP URL as a string for Telegram to get a video from the Internet,
             pass a file path as string to upload a new video that exists on your local machine, or

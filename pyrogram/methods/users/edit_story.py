@@ -102,7 +102,7 @@ class EditStory:
                 List of media area object to be included in story.
 
             music (``str``, *optional*):
-                New music of the story.
+                New audio track to play as background music for the story.
                 Pass the file_id of an audio file that exists on the Telegram servers.
 
         Returns:

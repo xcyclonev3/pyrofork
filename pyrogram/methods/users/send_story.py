@@ -142,7 +142,7 @@ class SendStory:
                 Single story id.
 
             music (``str``, *optional*):
-                Music to be attached to the story.
+                Audio track to play as background music for the story.
                 Pass the file_id of an audio file that exists on the Telegram servers.
 
         Returns:

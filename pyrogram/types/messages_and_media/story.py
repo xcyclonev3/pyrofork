@@ -107,7 +107,7 @@ class Story(Object, Update):
             The raw story object, as received from the Telegram API.
 
         music (:obj:`~pyrogram.types.Audio`, *optional*):
-            Music (audio file) attached to the story.
+            Audio track played as background music for the story.
     """
 
     # TODO: fix Allowed Chats
@@ -933,7 +933,7 @@ class Story(Object, Update):
                 object or a Client instance in order to edit the message with the updated progress status.
 
             live_video (``str`` | ``BinaryIO``, *optional*):
-                Video of the live photo, to send the photo as a live photo.
+                Short video clip captured alongside the photo, to send it as a live photo.
                 Pass a file_id as string to send a video that exists on the Telegram servers,
                 pass an HTTP URL as a string for Telegram to get a video from the Internet,
                 pass a file path as string to upload a new video that exists on your local machine, or
@@ -1591,7 +1591,7 @@ class Story(Object, Update):
                 List of media area object to be included in story.
 
             music (``str``, *optional*):
-                New music of the story.
+                New audio track to play as background music for the story.
                 Pass the file_id of an audio file that exists on the Telegram servers.
 
         Returns:
