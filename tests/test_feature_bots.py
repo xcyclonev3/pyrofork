@@ -93,6 +93,64 @@ def test_set_managed_bot_access_settings(is_restricted, user_ids):
     assert [user.write() for user in request.add_users] == [USER.write() for _ in user_ids or []]
 
 
+# Bot usernames
+
+@pytest.mark.parametrize("is_secondary", [False, True])
+def test_check_bot_username(is_secondary):
+    client = offline_client(BOT_PEERS, lambda q: False)
+    assert call(lambda: client.check_bot_username("my_managed_bot", is_secondary=is_secondary)) is False
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.bots.CheckUsername)
+    assert request.username == "my_managed_bot" and request.additional is is_secondary
+
+
+def test_add_bot_secondary_username():
+    client = offline_client(BOT_PEERS, lambda q: True)
+    assert call(lambda: client.add_bot_secondary_username(99, "my_shop")) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.bots.AddUsername)
+    assert request.bot.write() == BOT.write() and request.username == "my_shop"
+
+
+def raw_bot_with_usernames(*usernames):
+    return roundtrip(raw.types.User(
+        id=99, bot=True, bot_info_version=1, first_name="My Bot", access_hash=3, usernames=list(usernames)
+    ))
+
+
+def test_delete_bot_secondary_username():
+    bot = raw_bot_with_usernames(
+        raw.types.Username(username="my_managed_bot", editable=True, active=True),
+        raw.types.Username(username="my_shop", active=True, deletable=True),
+    )
+    client = offline_client(BOT_PEERS, lambda q: [bot] if isinstance(q, raw.functions.users.GetUsers) else True)
+    assert call(lambda: client.delete_bot_secondary_username(99)) is True
+
+    get_users, remove = client.sent
+    assert isinstance(get_users, raw.functions.users.GetUsers) and get_users.id[0].write() == BOT.write()
+    assert isinstance(remove, raw.functions.bots.RemoveUsername)
+    assert remove.bot.write() == BOT.write() and remove.username == "my_shop"
+
+
+def test_delete_bot_secondary_username_without_one():
+    bot = raw_bot_with_usernames(raw.types.Username(username="my_managed_bot", editable=True, active=True))
+    client = offline_client(BOT_PEERS, lambda q: [bot])
+    assert call(lambda: client.delete_bot_secondary_username(99)) is True
+    assert [type(query) for query in client.sent] == [raw.functions.users.GetUsers]
+
+
+@pytest.mark.parametrize("is_active", [True, False])
+def test_toggle_bot_username_is_active(is_active):
+    client = offline_client(BOT_PEERS, lambda q: True)
+    assert call(lambda: client.toggle_bot_username_is_active(99, "my_name", is_active)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.bots.ToggleUsername)
+    assert request.bot.write() == BOT.write() and request.username == "my_name" and request.active is is_active
+
+
 # Guard bots
 
 @pytest.mark.parametrize("result, url, expected", [

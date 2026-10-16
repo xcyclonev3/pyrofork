@@ -443,6 +443,10 @@ def pyrogram_api():
             get_managed_bot_token
             get_managed_bot_access_settings
             set_managed_bot_access_settings
+            check_bot_username
+            add_bot_secondary_username
+            delete_bot_secondary_username
+            toggle_bot_username_is_active
         """,
         business="""
         Telegram Business

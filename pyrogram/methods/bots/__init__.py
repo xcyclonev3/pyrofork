@@ -17,12 +17,15 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from .add_bot_secondary_username import AddBotSecondaryUsername
 from .answer_callback_query import AnswerCallbackQuery
 from .answer_chat_join_request_query import AnswerChatJoinRequestQuery
 from .answer_inline_query import AnswerInlineQuery
 from .answer_web_app_query import AnswerWebAppQuery
+from .check_bot_username import CheckBotUsername
 from .create_bot import CreateBot
 from .delete_bot_commands import DeleteBotCommands
+from .delete_bot_secondary_username import DeleteBotSecondaryUsername
 from .get_bot_commands import GetBotCommands
 from .get_bot_default_privileges import GetBotDefaultPrivileges
 from .get_bot_info import GetBotInfo
@@ -43,6 +46,7 @@ from .set_game_score import SetGameScore
 from .get_owned_bots import GetOwnedBots
 from .get_similar_bots import GetSimilarBots
 from .set_managed_bot_access_settings import SetManagedBotAccessSettings
+from .toggle_bot_username_is_active import ToggleBotUsernameIsActive
 
 
 class Bots(
@@ -72,5 +76,9 @@ class Bots(
     GetManagedBotToken,
     GetManagedBotAccessSettings,
     SetManagedBotAccessSettings,
+    CheckBotUsername,
+    AddBotSecondaryUsername,
+    DeleteBotSecondaryUsername,
+    ToggleBotUsernameIsActive,
 ):
     pass
