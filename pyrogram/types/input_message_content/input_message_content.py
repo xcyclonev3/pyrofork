@@ -25,9 +25,10 @@ from ..object import Object
 class InputMessageContent(Object):
     """Content of a message to be sent as a result of an inline query.
 
-    Telegram clients currently support the following 5 types:
+    Telegram clients currently support the following 6 types:
 
     - :obj:`~pyrogram.types.InputTextMessageContent`
+    - :obj:`~pyrogram.types.InputRichMessageContent`
     - :obj:`~pyrogram.types.InputLocationMessageContent`
     - :obj:`~pyrogram.types.InputVenueMessageContent`
     - :obj:`~pyrogram.types.InputContactMessageContent`

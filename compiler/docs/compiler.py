@@ -899,6 +899,7 @@ def pyrogram_api():
             InputContactMessageContent
             InputInvoiceMessageContent
             InputTodoTask
+            InputRichMessageContent
         """,
         authorization="""
         Authorization

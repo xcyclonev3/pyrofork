@@ -717,3 +717,30 @@ def test_edit_inline_rich_message(monkeypatch):
     assert isinstance(request, raw.functions.messages.EditInlineBotMessage)
     assert same(request.id, raw.types.InputBotInlineMessageID(dc_id=4, id=5, access_hash=6))
     assert request.message is None and request.rich_message.html == "<b>x</b>"
+
+
+# Inline mode
+
+def test_input_rich_message_content_in_inline_results():
+    client = rich_client()
+    result = types.InlineQueryResultArticle(
+        "Report",
+        types.InputRichMessageContent(types.InputRichMessage(types.RichMessageSourceBlocks([
+            types.InputPageBlockPhoto(PHOTO_FILE_ID, caption="chart"),
+        ]))),
+        id="1",
+        reply_markup=types.InlineKeyboardMarkup([[types.InlineKeyboardButton("ok", callback_data="ok")]])
+    )
+    written = roundtrip(call(lambda: result.write(client)))
+
+    send_message = written.send_message
+    assert isinstance(send_message, raw.types.InputBotInlineMessageRichMessage)
+    assert isinstance(send_message.reply_markup, raw.types.ReplyInlineMarkup)
+    rich = send_message.rich_message
+    assert same(rich.blocks, [raw.types.PageBlockPhoto(photo_id=PHOTO_ID, caption=caption("chart"))])
+    assert [photo.id for photo in rich.photos] == [PHOTO_ID] and client.sent == []  # a file id: nothing uploaded
+
+    # Users get such results as botInlineMessageRichMessage
+    received = roundtrip(raw.types.BotInlineMessageRichMessage(rich_message=raw.types.RichMessage(
+        blocks=[raw.types.PageBlockParagraph(text=plain("inline"))], photos=[], documents=[])))
+    assert types.RichMessage._parse(None, received.rich_message).blocks[0].text.text == "inline"
