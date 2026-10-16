@@ -602,3 +602,12 @@ def test_join_chat_caches_the_joined_chat():
     chat, peer = asyncio.run(main())
     assert isinstance(client.session.sent[-1], raw.functions.messages.ImportChatInvite)
     assert isinstance(peer, raw.types.InputPeerChannel) and (peer.channel_id, peer.access_hash) == (123, 1)
+
+
+@pytest.mark.parametrize("title, rank", [(None, None), ("", None), ("Boss", "Boss")])
+def test_promote_chat_member_keeps_rank_unless_title_given(title, rank):
+    client = offline_client(PEERS, lambda q: empty_updates())
+    assert call(lambda: client.promote_chat_member(-100123, 7, title=title)) is True
+
+    [request] = client.sent  # no channels.getParticipant round trip any more
+    assert isinstance(request, raw.functions.channels.EditAdmin) and request.rank == rank

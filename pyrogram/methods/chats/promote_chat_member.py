@@ -20,7 +20,7 @@
 from typing import Union, Optional
 
 import pyrogram
-from pyrogram import raw, types, errors
+from pyrogram import raw, types
 
 
 class PromoteChatMember:
@@ -72,21 +72,6 @@ class PromoteChatMember:
         if privileges is None:
             privileges = types.ChatPrivileges()
 
-        try:
-            raw_chat_member = (await self.invoke(
-                raw.functions.channels.GetParticipant(
-                    channel=chat_id,
-                    participant=user_id
-                )
-            )).participant
-        except errors.RPCError:
-            raw_chat_member = None
-
-        if not title and isinstance(raw_chat_member, raw.types.ChannelParticipantAdmin):
-            rank = raw_chat_member.rank
-        else:
-            rank = title
-
         await self.invoke(
             raw.functions.channels.EditAdmin(
                 channel=chat_id,
@@ -108,7 +93,8 @@ class PromoteChatMember:
                     delete_stories=privileges.can_delete_stories,
                     other=privileges.can_manage_chat
                 ),
-                rank=rank or ""
+                # An unset rank leaves the current one (admin title or member tag) unchanged
+                rank=title or None
             )
         )
 
