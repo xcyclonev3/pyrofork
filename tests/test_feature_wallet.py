@@ -18,6 +18,7 @@
 
 """Offline tests of the TON wallet, TON Connect, on-ramp and TON Center API (Layer 230)."""
 import asyncio
+import importlib
 from datetime import datetime
 
 import pytest
@@ -551,3 +552,45 @@ def test_replace_ton_wallet(monkeypatch):
     call(lambda: passwordless.replace_ton_wallet(PROOF))
     request = passwordless.sent[-1]
     assert request.password is None and request.wallet.anchor_public_key is None
+
+
+# Secret phrase export
+
+def fake_get_session(monkeypatch, module_name):
+    """Replace get_session() of a method module: record the requested DC and use the offline client itself."""
+    used_dcs = []
+
+    async def get_session(client, dc_id):
+        used_dcs.append(dc_id)
+        return client
+
+    monkeypatch.setattr(importlib.import_module(f"pyrogram.methods.wallet.{module_name}"), "get_session", get_session)
+    return used_dcs
+
+
+def test_export_ton_wallet_secret_phrase(monkeypatch):
+    client = password_client(monkeypatch, raw.types.wallet.SecretPhraseParts(token="token", dcs=[1, 3, 5]))
+
+    parts = call(lambda: client.export_ton_wallet_secret_phrase("password"))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.ExportSecretPhrase)
+    assert request.password.write() == PASSWORD_CHECK.write()
+    assert isinstance(parts, types.TonWalletSecretPhraseParts)
+    assert (parts.token, parts.dc_ids) == ("token", [1, 3, 5])
+
+    passwordless = offline_client(PEERS, lambda q: raw.types.wallet.SecretPhraseParts(token="t", dcs=[]))
+    assert call(lambda: passwordless.export_ton_wallet_secret_phrase()).dc_ids == []
+    assert len(passwordless.sent) == 1 and passwordless.sent[0].password is None
+
+
+def test_get_ton_wallet_encrypted_secret_phrase_part_is_sent_to_the_holder_dc(monkeypatch):
+    used_dcs = fake_get_session(monkeypatch, "get_ton_wallet_encrypted_secret_phrase_part")
+    client = offline_client(PEERS, lambda q: raw.types.wallet.EncryptedSecretPhrasePart(data=b"\x01" * 288))
+
+    data = call(lambda: client.get_ton_wallet_encrypted_secret_phrase_part("token", b"\x02" * 32, 3))
+
+    assert used_dcs == [3]
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.FetchEncryptedSecretPhrasePart)
+    assert (request.token, request.public_key) == ("token", b"\x02" * 32)
+    assert data == b"\x01" * 288

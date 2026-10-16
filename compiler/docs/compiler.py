@@ -551,6 +551,8 @@ def pyrogram_api():
             disable_ton_wallet_backup_with_proof
             delete_ton_wallet
             replace_ton_wallet
+            export_ton_wallet_secret_phrase
+            get_ton_wallet_encrypted_secret_phrase_part
         """
     )
 
@@ -901,6 +903,7 @@ def pyrogram_api():
             TonWalletOwnershipProof
             TonWalletOwnershipProofChallenge
             TonWalletBackupHolderDc
+            TonWalletSecretPhraseParts
         """
     )
 

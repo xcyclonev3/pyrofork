@@ -22,8 +22,10 @@ from .delete_ton_wallet import DeleteTonWallet
 from .disable_ton_wallet_backup import DisableTonWalletBackup
 from .disable_ton_wallet_backup_with_proof import DisableTonWalletBackupWithProof
 from .enable_ton_wallet_backup import EnableTonWalletBackup
+from .export_ton_wallet_secret_phrase import ExportTonWalletSecretPhrase
 from .get_address_ton_wallet import GetAddressTonWallet
 from .get_ton_wallet_backup_holder_dcs import GetTonWalletBackupHolderDcs
+from .get_ton_wallet_encrypted_secret_phrase_part import GetTonWalletEncryptedSecretPhrasePart
 from .get_ton_wallet_gasless_transfers_info import GetTonWalletGaslessTransfersInfo
 from .get_ton_wallet_nfts import GetTonWalletNfts
 from .get_ton_wallet_ownership_proof_challenge import GetTonWalletOwnershipProofChallenge
@@ -55,5 +57,7 @@ class Wallet(
     DisableTonWalletBackupWithProof,
     DeleteTonWallet,
     ReplaceTonWallet,
+    ExportTonWalletSecretPhrase,
+    GetTonWalletEncryptedSecretPhrasePart,
 ):
     pass

@@ -22,6 +22,7 @@ from .ton_wallet_backup_holder_dc import TonWalletBackupHolderDc
 from .ton_wallet_gasless_transfers_info import TonWalletGaslessTransfersInfo
 from .ton_wallet_ownership_proof import TonWalletOwnershipProof
 from .ton_wallet_ownership_proof_challenge import TonWalletOwnershipProofChallenge
+from .ton_wallet_secret_phrase_parts import TonWalletSecretPhraseParts
 from .ton_wallet_state import TonWalletState
 from .ton_wallet_transaction import TonWalletTransaction
 from .ton_wallet_transfer_result import TonWalletTransferResult
@@ -42,5 +43,6 @@ __all__ = [
     "TonWalletTransferResult",
     "TonWalletOwnershipProof",
     "TonWalletOwnershipProofChallenge",
-    "TonWalletBackupHolderDc"
+    "TonWalletBackupHolderDc",
+    "TonWalletSecretPhraseParts"
 ]
