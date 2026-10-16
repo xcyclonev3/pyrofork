@@ -256,6 +256,11 @@ class SendMediaGroup:
                         ),
                         spoiler=i.has_spoiler,
                     )
+
+                if i.live_video is not None:
+                    media = await utils.add_live_photo_video(
+                        self, await self.resolve_peer(chat_id), media, i.live_video, business_connection_id
+                    )
             elif (
                 isinstance(i, types.InputMediaVideo)
                 or

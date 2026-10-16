@@ -104,6 +104,8 @@ class EditMessageMedia:
             message, entities = (await utils.parse_text_entities(self, caption, parse_mode, caption_entities)).values()
 
         if isinstance(media, types.InputMediaPhoto):
+            live_video = media.live_video
+
             if isinstance(media.media, io.BytesIO) or os.path.isfile(media.media):
                 uploaded_media = await self.invoke(
                     raw.functions.messages.UploadMedia(
@@ -130,6 +132,11 @@ class EditMessageMedia:
                 )
             else:
                 media = utils.get_input_media_from_file_id(media.media, FileType.PHOTO)
+
+            if live_video is not None:
+                media = await utils.add_live_photo_video(
+                    self, await self.resolve_peer(chat_id), media, live_video, business_connection_id
+                )
         elif isinstance(media, types.InputMediaVideo):
             if isinstance(media.media, io.BytesIO) or os.path.isfile(media.media):
                 uploaded_media = await self.invoke(

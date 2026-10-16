@@ -99,6 +99,73 @@ def get_input_media_from_file_id(
     raise ValueError(f"Unknown file id: {file_id}")
 
 
+async def add_live_photo_video(
+    client: "pyrogram.Client",
+    peer: "raw.base.InputPeer",
+    media: Union["raw.types.InputMediaUploadedPhoto", "raw.types.InputMediaPhoto", "raw.types.InputMediaPhotoExternal"],
+    video: Union[str, "BinaryIO"],
+    business_connection_id: str = None
+) -> Union["raw.types.InputMediaUploadedPhoto", "raw.types.InputMediaPhoto"]:
+    """Make a photo input media a live photo with the given video (a file id, URL, path or file-like object).
+
+    inputMediaPhoto and inputMediaUploadedPhoto can only refer to a video that is on the Telegram servers already:
+    like TDLib does for inputPhoto.video, upload a new video first on its own with messages.uploadMedia.
+    A photo given by URL is uploaded as well, since inputMediaPhotoExternal can't carry the video.
+    """
+    if isinstance(video, str) and not os.path.isfile(video) and not re.match("^https?://", video):
+        input_video = get_input_media_from_file_id(video, FileType.VIDEO).id
+    else:
+        if isinstance(video, str) and re.match("^https?://", video):
+            video_media = raw.types.InputMediaDocumentExternal(url=video)
+        else:
+            # Like TDLib: an MPEG-4 video of unknown duration and size that must stay a video without sound too
+            video_media = raw.types.InputMediaUploadedDocument(
+                file=await client.save_file(video),
+                mime_type="video/mp4",
+                attributes=[raw.types.DocumentAttributeVideo(duration=0, w=0, h=0)],
+                nosound_video=True
+            )
+
+        uploaded = await client.invoke(
+            raw.functions.messages.UploadMedia(
+                business_connection_id=business_connection_id,
+                peer=peer,
+                media=video_media
+            )
+        )
+
+        input_video = raw.types.InputDocument(
+            id=uploaded.document.id,
+            access_hash=uploaded.document.access_hash,
+            file_reference=uploaded.document.file_reference
+        )
+
+    if isinstance(media, raw.types.InputMediaPhotoExternal):
+        uploaded = await client.invoke(
+            raw.functions.messages.UploadMedia(
+                business_connection_id=business_connection_id,
+                peer=peer,
+                media=raw.types.InputMediaPhotoExternal(url=media.url)
+            )
+        )
+
+        media = raw.types.InputMediaPhoto(
+            id=raw.types.InputPhoto(
+                id=uploaded.photo.id,
+                access_hash=uploaded.photo.access_hash,
+                file_reference=uploaded.photo.file_reference
+            ),
+            spoiler=media.spoiler,
+            ttl_seconds=media.ttl_seconds
+        )
+
+    # live_photo and video share their flag
+    media.live_photo = True
+    media.video = input_video
+
+    return media
+
+
 async def parse_messages(
     client,
     messages: "raw.types.messages.Messages",

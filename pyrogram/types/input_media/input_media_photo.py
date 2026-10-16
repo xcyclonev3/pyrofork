@@ -49,6 +49,13 @@ class InputMediaPhoto(InputMedia):
 
         has_spoiler (``bool``, *optional*):
             Pass True if the photo needs to be covered with a spoiler animation.
+
+        live_video (``str`` | ``BinaryIO``, *optional*):
+            Video of the live photo, to send the photo as a live photo.
+            Pass a file_id as string to send a video that exists on the Telegram servers,
+            pass an HTTP URL as a string for Telegram to get a video from the Internet,
+            pass a file path as string to upload a new video that exists on your local machine, or
+            pass a binary file-like object with its attribute ".name" set for in-memory uploads.
     """
 
     def __init__(
@@ -57,8 +64,10 @@ class InputMediaPhoto(InputMedia):
         caption: str = "",
         parse_mode: Optional["enums.ParseMode"] = None,
         caption_entities: List[MessageEntity] = None,
-        has_spoiler: bool = None
+        has_spoiler: bool = None,
+        live_video: Union[str, BinaryIO] = None
     ):
         super().__init__(media, caption, parse_mode, caption_entities)
 
         self.has_spoiler = has_spoiler
+        self.live_video = live_video

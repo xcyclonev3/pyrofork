@@ -19,6 +19,7 @@
 """Live photos, story music and audio listening reports (Layer 221-230)."""
 
 import asyncio
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -208,9 +209,48 @@ RAW_LIVE_VIDEO = raw_document(3001, "video/mp4", [
 ])
 
 
+LIVE_VIDEO_ID = document_file_id(FileType.VIDEO, 3001)
+
+
 def live_photo_media(**kwargs):
     # live_photo and video share flags.4: the server sends both or neither
     return raw.types.MessageMediaPhoto(photo=raw_photo(), live_photo=True, video=RAW_LIVE_VIDEO, **kwargs)
+
+
+def assert_live_photo_media(media, media_type):
+    assert isinstance(media, media_type)
+    assert media.live_photo is True
+    assert_input_document(media.video, 3001)
+
+
+def sent_message(media):
+    # send_photo keeps sending until the answer contains the new message
+    return empty_updates(updates=[raw.types.UpdateNewMessage(
+        message=raw.types.Message(
+            id=1, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7), date=1, message="",
+            media=media
+        ),
+        pts=1, pts_count=1
+    )], users=[RAW_USER])
+
+
+def upload_respond(query):
+    if isinstance(query, raw.functions.messages.UploadMedia):
+        if isinstance(query.media, (raw.types.InputMediaUploadedDocument, raw.types.InputMediaDocumentExternal)):
+            return raw.types.MessageMediaDocument(document=RAW_LIVE_VIDEO, video=True)
+        return raw.types.MessageMediaPhoto(photo=raw_photo())
+    return sent_message(live_photo_media())
+
+
+def fake_uploads(client):
+    saved = []
+
+    async def save_file(path, *args, **kwargs):
+        saved.append(path)
+        return raw.types.InputFile(id=len(saved), parts=1, name=os.path.basename(path), md5_checksum="")
+
+    client.save_file = save_file
+    return saved
 
 
 def assert_live_video(video, ttl_seconds=None):
@@ -285,6 +325,112 @@ def test_bought_live_photo():
 
     assert sent(client, raw.functions.payments.SendStarsForm).form_id == 77
     assert_live_video(photo.live_video)
+
+
+def test_send_photo_with_live_video_file_ids():
+    client = offline_client(PEERS, upload_respond)
+    message = call(lambda: client.send_photo(7, photo_file_id(2001), has_spoiler=True, live_video=LIVE_VIDEO_ID))
+
+    [request] = client.sent  # nothing to upload
+    assert isinstance(request, raw.functions.messages.SendMedia)
+    assert_live_photo_media(request.media, raw.types.InputMediaPhoto)
+    assert request.media.id.id == 2001 and request.media.spoiler
+    assert message.id == 1 and message.photo is not None
+
+
+def test_send_photo_uploads_live_video(tmp_path):
+    photo, video = tmp_path / "photo.jpg", tmp_path / "live.mov"
+    photo.write_bytes(b"jpeg")
+    video.write_bytes(b"mov")
+    client = offline_client(PEERS, upload_respond)
+    saved = fake_uploads(client)
+    call(lambda: client.send_photo(7, str(photo), live_video=str(video), business_connection_id="bc"))
+
+    assert saved == [str(photo), str(video)]
+    upload, invoke = client.sent
+    assert isinstance(upload, raw.functions.messages.UploadMedia)
+    assert upload.business_connection_id == "bc" and upload.peer.write() == PEERS[7].write()
+    # TDLib's upload of the video of a live photo: an MPEG-4 video without size, kept as a video without sound too
+    assert isinstance(upload.media, raw.types.InputMediaUploadedDocument)
+    assert upload.media.file.name == "live.mov" and upload.media.mime_type == "video/mp4"
+    assert upload.media.nosound_video and not upload.media.force_file
+    [attribute] = upload.media.attributes
+    assert isinstance(attribute, raw.types.DocumentAttributeVideo) and (attribute.w, attribute.h) == (0, 0)
+
+    assert isinstance(invoke, raw.functions.InvokeWithBusinessConnection) and invoke.connection_id == "bc"
+    assert isinstance(invoke.query, raw.functions.messages.SendMedia)
+    assert_live_photo_media(invoke.query.media, raw.types.InputMediaUploadedPhoto)
+    assert invoke.query.media.file.name == "photo.jpg"
+
+
+def test_send_photo_by_url_with_live_video_url():
+    client = offline_client(PEERS, upload_respond)
+    call(lambda: client.send_photo(
+        7, "https://example.org/photo.jpg", ttl_seconds=10, live_video="https://example.org/live.mp4"
+    ))
+
+    video_upload, photo_upload, request = client.sent
+    assert isinstance(video_upload.media, raw.types.InputMediaDocumentExternal)
+    assert video_upload.media.url == "https://example.org/live.mp4"
+    # inputMediaPhotoExternal has no live photo fields: the photo is uploaded first too
+    assert isinstance(photo_upload.media, raw.types.InputMediaPhotoExternal)
+    assert photo_upload.media.url == "https://example.org/photo.jpg"
+    assert_live_photo_media(request.media, raw.types.InputMediaPhoto)
+    assert request.media.id.id == 2001 and request.media.ttl_seconds == 10
+
+
+def test_send_photo_without_live_video():
+    client = offline_client(PEERS, lambda q: sent_message(raw.types.MessageMediaPhoto(photo=raw_photo())))
+    call(lambda: client.send_photo(7, photo_file_id(2001)))
+
+    [request] = client.sent
+    assert not request.media.live_photo and request.media.video is None
+
+
+def test_live_video_must_be_a_video():
+    client = offline_client(PEERS, upload_respond)
+    with pytest.raises(ValueError):
+        call(lambda: client.send_photo(7, photo_file_id(2001), live_video=AUDIO_ID))
+    assert client.sent == []
+
+
+def test_send_media_group_with_live_photo():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    call(lambda: client.send_media_group(7, [
+        types.InputMediaPhoto(photo_file_id(2001), live_video=LIVE_VIDEO_ID),
+        types.InputMediaPhoto(photo_file_id(2002)),
+    ]))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.SendMultiMedia)
+    live, static = (m.media for m in request.multi_media)
+    assert_live_photo_media(live, raw.types.InputMediaPhoto)
+    assert live.id.id == 2001
+    assert static.id.id == 2002 and not static.live_photo and static.video is None
+
+
+def test_edit_message_media_with_live_photo():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    call(lambda: client.edit_message_media(
+        7, 9, types.InputMediaPhoto(photo_file_id(2001), caption="live", live_video=LIVE_VIDEO_ID)
+    ))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.EditMessage) and request.id == 9
+    assert_live_photo_media(request.media, raw.types.InputMediaPhoto)
+    assert request.message == "live"
+
+
+def test_send_paid_media_with_live_photo():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    call(lambda: client.send_paid_media(-100123, 5, [
+        types.InputMediaPhoto(photo_file_id(2001), live_video=LIVE_VIDEO_ID),
+    ]))
+
+    [request] = client.sent
+    assert isinstance(request.media, raw.types.InputMediaPaidMedia) and request.media.stars_amount == 5
+    [media] = request.media.extended_media
+    assert_live_photo_media(media, raw.types.InputMediaPhoto)
 
 
 @pytest.mark.xfail(strict=True, reason="Message.photo gets the live video once message.py passes "
