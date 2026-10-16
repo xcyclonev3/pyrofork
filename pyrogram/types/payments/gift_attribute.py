@@ -24,6 +24,9 @@ import pyrogram
 from pyrogram import enums, raw, types, utils
 from ..object import Object
 
+# Like TDLib's UpgradedGiftAttributeRarity: the rarity is either a frequency in permilles or a tier
+RARITY_TYPES = {i.value: i for i in enums.GiftAttributeRarityType}
+
 
 class GiftAttribute(Object):
     """Contains information about a star gift attribute.
@@ -38,7 +41,7 @@ class GiftAttribute(Object):
         rarity (``int``, *optional*):
             Rarity of the attribute in permilles.
             For example, 15 means 1.5%. So only 1.5% of such collectibles have this attribute.
-            None if Telegram describes the rarity only as a tier (uncommon, rare, epic or legendary).
+            None if Telegram describes the rarity only as a tier (uncommon, rare, epic or legendary), see *rarity_type*.
 
         date (:py:obj:`~datetime.datetime`, *optional*):
             Date when the gift was received.
@@ -79,7 +82,14 @@ class GiftAttribute(Object):
         sticker (:obj:`~pyrogram.types.Sticker`, *optional*):
             Information about the sticker.
 
+        rarity_type (:obj:`~pyrogram.enums.GiftAttributeRarityType`, *optional*):
+            Type of the rarity of the attribute: :obj:`~pyrogram.enums.GiftAttributeRarityType.PER_MILLE` if the
+            rarity is given in permilles in *rarity*, otherwise the rarity tier (uncommon, rare, epic or legendary).
+            Not available for the original details attribute.
 
+        is_crafted (``bool``, *optional*):
+            True, if the model can be obtained only through gift crafting.
+            Available only if the model attribute is available.
     """
 
     def __init__(
@@ -98,7 +108,9 @@ class GiftAttribute(Object):
         center_color: Optional[int] = None,
         edge_color: Optional[int] = None,
         pattern_color: Optional[int] = None,
-        text_color: Optional[int] = None
+        text_color: Optional[int] = None,
+        rarity_type: Optional["enums.GiftAttributeRarityType"] = None,
+        is_crafted: Optional[bool] = None
     ):
         super().__init__(client)
 
@@ -115,6 +127,8 @@ class GiftAttribute(Object):
         self.edge_color = edge_color
         self.pattern_color = pattern_color
         self.text_color = text_color
+        self.rarity_type = rarity_type
+        self.is_crafted = is_crafted
 
     @staticmethod
     async def _parse(
@@ -159,5 +173,7 @@ class GiftAttribute(Object):
             edge_color=getattr(attr, "edge_color", None),
             pattern_color=getattr(attr, "pattern_color", None),
             text_color=getattr(attr, "text_color", None),
+            rarity_type=RARITY_TYPES.get(type(rarity)),
+            is_crafted=getattr(attr, "crafted", None),
             client=client
     )

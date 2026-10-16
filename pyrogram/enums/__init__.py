@@ -28,6 +28,7 @@ from .chat_members_filter import ChatMembersFilter
 from .chat_type import ChatType
 from .client_platform import ClientPlatform
 from .folder_color import FolderColor
+from .gift_attribute_rarity_type import GiftAttributeRarityType
 from .gift_attribute_type import GiftAttributeType
 from .gift_for_resale_order import GiftForResaleOrder
 from .listerner_types import ListenerTypes
@@ -76,5 +77,6 @@ __all__ = [
     "StoryPrivacy",
     'UserStatus',
     'ButtonStyle',
-    'ChatJoinResultType'
+    'ChatJoinResultType',
+    'GiftAttributeRarityType'
 ]

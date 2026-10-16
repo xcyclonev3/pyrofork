@@ -40,6 +40,7 @@ to apply only a valid value among the expected ones.
     StoryPrivacy
     ButtonStyle
     ChatJoinResultType
+    GiftAttributeRarityType
 
 .. toctree::
     :hidden:
@@ -71,3 +72,4 @@ to apply only a valid value among the expected ones.
     StoryPrivacy
     ButtonStyle
     ChatJoinResultType
+    GiftAttributeRarityType
