@@ -28,6 +28,7 @@ from .contact_registered import ContactRegistered
 from .dice import Dice
 from .document import Document
 from .draft_message import DraftMessage
+from .ephemeral_message import EphemeralMessage
 from .external_reply_info import ExternalReplyInfo
 from .fixed_text import FixedText
 from .formatted_text import FormattedText
@@ -55,6 +56,8 @@ from .poll_option import PollOption
 from .poll_vote_statistics import PollVoteStatistics
 from .reaction import Reaction
 from .read_participant import ReadParticipant
+from .report_option import ReportOption
+from .report_result import ReportResult
 from .screenshot_taken import ScreenshotTaken
 from .stake_dice_state import StakeDiceState
 from .statistical_graph import StatisticalGraph
@@ -97,6 +100,7 @@ from .wallpaper_settings import WallpaperSettings
 from .transcribed_audio import TranscribedAudio
 from .translated_text import TranslatedText
 from .text_quote import TextQuote
+from .welcome_message import WelcomeMessage
 
 __all__ = [
     "AlternativeVideo",
@@ -178,5 +182,9 @@ __all__ = [
     "PollVoteStatistics",
     "PendingMessage",
     "MessageDraftStopped",
-    "DraftMessage"
+    "DraftMessage",
+    "EphemeralMessage",
+    "WelcomeMessage",
+    "ReportOption",
+    "ReportResult"
 ]

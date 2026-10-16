@@ -67,6 +67,9 @@ Index
     - :meth:`~Client.on_ton_wallet_gasless_transfers_info`
     - :meth:`~Client.on_ton_connect_session`
     - :meth:`~Client.on_ton_connect_pending_disconnect`
+    - :meth:`~Client.on_ephemeral_message`
+    - :meth:`~Client.on_edited_ephemeral_message`
+    - :meth:`~Client.on_deleted_ephemeral_messages`
 
 -----
 
@@ -106,3 +109,6 @@ Details
 .. autodecorator:: pyrogram.Client.on_ton_wallet_gasless_transfers_info()
 .. autodecorator:: pyrogram.Client.on_ton_connect_session()
 .. autodecorator:: pyrogram.Client.on_ton_connect_pending_disconnect()
+.. autodecorator:: pyrogram.Client.on_ephemeral_message()
+.. autodecorator:: pyrogram.Client.on_edited_ephemeral_message()
+.. autodecorator:: pyrogram.Client.on_deleted_ephemeral_messages()

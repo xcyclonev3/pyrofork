@@ -28,12 +28,15 @@ from .create_rich_message_with_ai import CreateRichMessageWithAi
 from .create_text_composition_style import CreateTextCompositionStyle
 from .delete_all_recent_message_reactions_from_sender import DeleteAllRecentMessageReactionsFromSender
 from .delete_chat_history import DeleteChatHistory
+from .delete_ephemeral_message import DeleteEphemeralMessage
 from .delete_message_reactions_from_sender import DeleteMessageReactionsFromSender
 from .delete_messages import DeleteMessages
 from .delete_poll_option import DeletePollOption
 from .delete_scheduled_messages import DeleteScheduledMessages
 from .delete_text_composition_style import DeleteTextCompositionStyle
 from .download_media import DownloadMedia
+from .edit_ephemeral_message import EditEphemeralMessage
+from .edit_ephemeral_message_caption import EditEphemeralMessageCaption
 from .edit_inline_caption import EditInlineCaption
 from .edit_inline_media import EditInlineMedia
 from .edit_inline_reply_markup import EditInlineReplyMarkup
@@ -71,6 +74,8 @@ from .listen_to_audio import ListenToAudio
 from .read_all_chat_poll_votes import ReadAllChatPollVotes
 from .read_chat_history import ReadChatHistory
 from .remove_text_composition_style import RemoveTextCompositionStyle
+from .report_ephemeral_message import ReportEphemeralMessage
+from .request_ephemeral_callback_answer import RequestEphemeralCallbackAnswer
 from .retract_vote import RetractVote
 from .search_global import SearchGlobal
 from .search_global_count import SearchGlobalCount
@@ -79,6 +84,7 @@ from .search_global_hashtag_messages_count import SearchGlobalHashtagMessagesCou
 from .search_messages import SearchMessages
 from .search_messages_count import SearchMessagesCount
 from .search_text_composition_style import SearchTextCompositionStyle
+from .send_ephemeral_message import SendEphemeralMessage
 from .send_message_view_metrics import SendMessageViewMetrics
 from .send_rich_message import SendRichMessage
 from .send_rich_message_draft import SendRichMessageDraft
@@ -216,6 +222,12 @@ class Messages(
     CreateRichMessageWithAi,
     FixRichMessageWithAi,
     SendRichMessageDraft,
-    SetChatDraftMessage
+    SetChatDraftMessage,
+    SendEphemeralMessage,
+    EditEphemeralMessage,
+    EditEphemeralMessageCaption,
+    DeleteEphemeralMessage,
+    RequestEphemeralCallbackAnswer,
+    ReportEphemeralMessage
 ):
     pass

@@ -26,11 +26,14 @@ from .chat_join_result_handler import ChatJoinResultHandler
 from .chat_member_updated_handler import ChatMemberUpdatedHandler
 from .conversation_handler import ConversationHandler
 from .chosen_inline_result_handler import ChosenInlineResultHandler
+from .deleted_ephemeral_messages_handler import DeletedEphemeralMessagesHandler
 from .deleted_messages_handler import DeletedMessagesHandler
 from .deleted_bot_business_messages_handler import DeletedBotBusinessMessagesHandler
 from .disconnect_handler import DisconnectHandler
+from .edited_ephemeral_message_handler import EditedEphemeralMessageHandler
 from .edited_message_handler import EditedMessageHandler
 from .edited_bot_business_message_handler import EditedBotBusinessMessageHandler
+from .ephemeral_message_handler import EphemeralMessageHandler
 from .error_handler import ErrorHandler
 from .guest_query_handler import GuestQueryHandler
 from .inline_query_handler import InlineQueryHandler
@@ -87,5 +90,8 @@ __all__ = [
     "TonWalletStateHandler",
     "TonWalletGaslessTransfersInfoHandler",
     "TonConnectSessionHandler",
-    "TonConnectPendingDisconnectHandler"
+    "TonConnectPendingDisconnectHandler",
+    "EphemeralMessageHandler",
+    "EditedEphemeralMessageHandler",
+    "DeletedEphemeralMessagesHandler"
 ]

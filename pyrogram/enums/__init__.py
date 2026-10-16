@@ -46,6 +46,7 @@ from .poll_type import PollType
 from .profile_color import ProfileColor
 from .reaction_type import ReactionType
 from .reply_color import ReplyColor
+from .report_result_type import ReportResultType
 from .sent_code_type import SentCodeType
 from .stories_privacy_rules import StoriesPrivacyRules
 from .story_privacy import StoryPrivacy
@@ -88,5 +89,6 @@ __all__ = [
     'TonWalletTransactionType',
     'TonConnectSessionState',
     'PageBlockHorizontalAlignment',
-    'PageBlockVerticalAlignment'
+    'PageBlockVerticalAlignment',
+    'ReportResultType'
 ]

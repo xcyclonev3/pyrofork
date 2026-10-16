@@ -743,3 +743,111 @@ def get_first_url(text):
     matches = re.findall(r"(https?):\/\/([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])", text)
 
     return f"{matches[0][0]}://{matches[0][1]}{matches[0][2]}" if matches else None
+
+
+MESSAGE_CONTENT_FIELDS = (
+    "text", "entities", "caption", "caption_entities", "media", "has_media_spoiler", "invert_media", "photo",
+    "video", "audio", "document", "animation", "sticker", "voice", "video_note", "location", "venue", "contact",
+    "web_page_preview", "rich_message"
+)
+
+
+async def parse_message_content(
+    client: "pyrogram.Client",
+    message: str,
+    entities: list,
+    media: "raw.base.MessageMedia",
+    rich_message: "raw.base.RichMessage",
+    reply_markup: "raw.base.ReplyMarkup",
+    invert_media: bool,
+    users: Dict[int, "raw.base.User"]
+) -> Dict[str, Any]:
+    """Parse the content of a message that isn't a regular message (ephemeral and welcome messages).
+
+    The content is parsed by Message._parse on a placeholder message in a placeholder private chat, which is then
+    dropped from the message cache, so that its identifier can't be taken for the one of a regular message.
+    Returns the content attributes and the reply markup.
+    """
+    # A user id that no real user has; the placeholder is never sent to Telegram
+    placeholder_id = -1
+    placeholder = raw.types.Message(
+        id=0, peer_id=raw.types.PeerUser(user_id=placeholder_id), date=0, message=message or "", entities=entities,
+        media=media, rich_message=rich_message, reply_markup=reply_markup, invert_media=invert_media
+    )
+    # Optional vectors read from the network are empty lists, not None
+    placeholder_user = raw.types.User(id=placeholder_id, usernames=[], restriction_reason=[])
+    parsed = await types.Message._parse(client, placeholder, {**users, placeholder_id: placeholder_user}, {}, replies=0)
+    client.message_cache.store.pop((placeholder_id, 0), None)
+
+    content = {field: getattr(parsed, field, None) for field in MESSAGE_CONTENT_FIELDS}
+    content["reply_markup"] = parsed.reply_markup
+
+    return content
+
+
+async def get_input_message_content(
+    client: "pyrogram.Client",
+    chat_id: Union[int, str],
+    text: Optional[str] = None,
+    parse_mode: Optional["enums.ParseMode"] = None,
+    entities: Optional[List["types.MessageEntity"]] = None,
+    media: Optional["types.InputMedia"] = None,
+    rich_message: Optional["types.InputRichMessage"] = None
+) -> Dict[str, Any]:
+    """The raw text, entities, media and rich message of a message given as a text, an InputMedia (with its caption)
+    or an InputRichMessage. Used by ephemeral and welcome messages, which are sent with their own methods."""
+    # Here to avoid a circular import: the rich message writer uploads media like this module does
+    from pyrogram.types.rich_messages.input_rich_message import RichMessageWriter
+
+    if sum(content is not None for content in (text, media, rich_message)) > 1:
+        raise ValueError("Pass only one of text, media and rich_message")
+
+    if rich_message is not None:
+        return dict(message="", entities=None, media=None, rich_message=await rich_message.write(client, chat_id))
+
+    if media is not None:
+        kinds = {
+            types.InputMediaPhoto: "photo",
+            types.InputMediaVideo: "video",
+            types.InputMediaAnimation: "animation",
+            types.InputMediaAudio: "audio",
+            types.InputMediaDocument: "document"
+        }
+        kind = kinds.get(type(media))
+
+        if kind is None:
+            raise ValueError(f"Unsupported media: {type(media).__name__}")
+
+        uploaded = await RichMessageWriter(client, chat_id).upload(kind, media)
+        spoiler = getattr(media, "has_spoiler", None)
+        input_media = (
+            raw.types.InputMediaPhoto(id=uploaded, spoiler=spoiler)
+            if kind == "photo"
+            else raw.types.InputMediaDocument(id=uploaded, spoiler=spoiler)
+        )
+        caption = await parse_text_entities(client, media.caption or "", media.parse_mode, media.caption_entities)
+
+        return dict(message=caption["message"], entities=caption["entities"], media=input_media, rich_message=None)
+
+    if text is None:
+        return dict(message=None, entities=None, media=None, rich_message=None)
+
+    parsed = await parse_text_entities(client, text, parse_mode, entities)
+
+    return dict(message=parsed["message"], entities=parsed["entities"], media=None, rich_message=None)
+
+
+async def parse_ephemeral_message_updates(
+    client: "pyrogram.Client",
+    updates: "raw.base.Updates",
+    update_type: type
+) -> Optional["types.EphemeralMessage"]:
+    """The ephemeral message of the first update of *update_type* in the *updates* returned by a request."""
+    users = {u.id: u for u in getattr(updates, "users", [])}
+    chats = {c.id: c for c in getattr(updates, "chats", [])}
+
+    for update in getattr(updates, "updates", []):
+        if isinstance(update, update_type):
+            return await types.EphemeralMessage._parse(client, update.message, users, chats)
+
+    return None

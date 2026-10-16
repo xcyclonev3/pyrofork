@@ -66,6 +66,9 @@ Index
     - :class:`TonWalletGaslessTransfersInfoHandler`
     - :class:`TonConnectSessionHandler`
     - :class:`TonConnectPendingDisconnectHandler`
+    - :class:`EphemeralMessageHandler`
+    - :class:`EditedEphemeralMessageHandler`
+    - :class:`DeletedEphemeralMessagesHandler`
 
 -----
 
@@ -104,3 +107,6 @@ Details
 .. autoclass:: TonWalletGaslessTransfersInfoHandler()
 .. autoclass:: TonConnectSessionHandler()
 .. autoclass:: TonConnectPendingDisconnectHandler()
+.. autoclass:: EphemeralMessageHandler()
+.. autoclass:: EditedEphemeralMessageHandler()
+.. autoclass:: DeletedEphemeralMessagesHandler()

@@ -153,6 +153,19 @@ GuestQuery
 
     {guest_query_toctree}
 
+EphemeralMessage
+----------------
+
+.. hlist::
+    :columns: 2
+
+    {ephemeral_message_hlist}
+
+.. toctree::
+    :hidden:
+
+    {ephemeral_message_toctree}
+
 Folder
 ---------------
 

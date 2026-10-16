@@ -242,6 +242,10 @@ class Chat(Object):
         chat_requests_count (``int``, *optional*):
             Number of pending requests to add chats to the community.
             For community administrators only. Returned only in :meth:`~pyrogram.Client.get_chat`.
+
+        has_welcome_messages (``bool``, *optional*):
+            True, if the chat has welcome messages (see :meth:`~pyrogram.Client.get_chat_welcome_messages`).
+            For groups, supergroups and channels. Returned only in :meth:`~pyrogram.Client.get_chat`.
     """
 
     def __init__(
@@ -305,7 +309,8 @@ class Chat(Object):
         community_chats: List["types.CommunityChat"] = None,
         administrators_count: int = None,
         banned_members_count: int = None,
-        chat_requests_count: int = None
+        chat_requests_count: int = None,
+        has_welcome_messages: bool = None
     ):
         super().__init__(client)
 
@@ -367,6 +372,7 @@ class Chat(Object):
         self.administrators_count = administrators_count
         self.banned_members_count = banned_members_count
         self.chat_requests_count = chat_requests_count
+        self.has_welcome_messages = has_welcome_messages
 
     @property
     def full_name(self) -> str:
@@ -641,6 +647,7 @@ class Chat(Object):
             if isinstance(full_chat, raw.types.ChatFull):
                 parsed_chat = Chat._parse_chat_chat(client, chat_raw)
                 parsed_chat.description = full_chat.about or None
+                parsed_chat.has_welcome_messages = full_chat.has_welcome_messages
 
                 if isinstance(full_chat.participants, raw.types.ChatParticipants):
                     parsed_chat.members_count = len(full_chat.participants.participants)
@@ -663,6 +670,7 @@ class Chat(Object):
                 parsed_chat.folder_id = getattr(full_chat, "folder_id", None)
                 parsed_chat.administrators_count = getattr(full_chat, "admins_count", None)
                 parsed_chat.banned_members_count = getattr(full_chat, "kicked_count", None)
+                parsed_chat.has_welcome_messages = full_chat.has_welcome_messages
 
                 linked_chat_raw = chats.get(full_chat.linked_chat_id, None)
 

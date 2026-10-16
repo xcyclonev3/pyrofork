@@ -39,6 +39,7 @@ class ForwardMessages:
         drop_author: bool = None,
         remove_caption: bool = None,
         new_video_start_timestamp: int = None,
+        from_ephemeral: bool = None
     ) -> Union["types.Message", List["types.Message"]]:
         """Forward messages of any kind.
 
@@ -86,6 +87,9 @@ class ForwardMessages:
             new_video_start_timestamp (``int``, *optional*):
                 The new video start timestamp. Pass time to replace video start timestamp in the forwarded message.
 
+            from_ephemeral (``bool``, *optional*):
+                Pass True if *message_ids* are identifiers of ephemeral messages.
+
         Returns:
             :obj:`~pyrogram.types.Message` | List of :obj:`~pyrogram.types.Message`: In case *message_ids* was not
             a list, a single message is returned, otherwise a list of messages is returned.
@@ -116,7 +120,8 @@ class ForwardMessages:
                 allow_paid_floodskip=allow_paid_broadcast,
                 drop_author=drop_author,
                 drop_media_captions=remove_caption,
-                video_timestamp=new_video_start_timestamp
+                video_timestamp=new_video_start_timestamp,
+                from_ephemeral=from_ephemeral
             )
         )
 

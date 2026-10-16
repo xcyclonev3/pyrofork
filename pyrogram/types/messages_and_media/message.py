@@ -486,6 +486,9 @@ class Message(Object, Update):
         rich_message (:obj:`~pyrogram.types.RichMessage`, *optional*):
             The message is a rich message: its blocks. If *rich_message.is_full* is False, get the full
             message with get_full_rich_message().
+
+        reply_to_ephemeral_message_id (``int``, *optional*):
+            The message is a reply to the ephemeral message with this identifier.
     """
 
     # TODO: Add game missing field, Also connected_website
@@ -625,6 +628,7 @@ class Message(Object, Update):
         ton_wallet_transfer: "types.TonWalletTransfer" = None,
         ton_connect_request: "types.TonConnectRequest" = None,
         rich_message: "types.RichMessage" = None,
+        reply_to_ephemeral_message_id: int = None,
         raw: "raw.types.Message" = None
     ):
         super().__init__(client)
@@ -755,6 +759,7 @@ class Message(Object, Update):
         self.ton_wallet_transfer = ton_wallet_transfer
         self.ton_connect_request = ton_connect_request
         self.rich_message = rich_message
+        self.reply_to_ephemeral_message_id = reply_to_ephemeral_message_id
         self.raw = raw
 
     async def wait_for_click(
@@ -1496,6 +1501,10 @@ class Message(Object, Update):
                     else:
                         parsed_message.reply_to_message_id = message.reply_to.reply_to_msg_id
                         parsed_message.reply_to_top_message_id = message.reply_to.reply_to_top_id
+                    if message.reply_to.reply_to_ephemeral:
+                        # The replied message is an ephemeral message, not a message of the chat
+                        parsed_message.reply_to_ephemeral_message_id = parsed_message.reply_to_message_id
+                        parsed_message.reply_to_message_id = None
                 else:
                     parsed_message.reply_to_story_id = message.reply_to.story_id
                     if isinstance(message.reply_to.peer, raw.types.PeerUser):

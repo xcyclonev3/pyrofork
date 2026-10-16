@@ -18,16 +18,20 @@
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
 from .add_chat_members import AddChatMembers
+from .add_chat_welcome_message import AddChatWelcomeMessage
 from .archive_chats import ArchiveChats
 from .ban_chat_member import BanChatMember
 from .create_channel import CreateChannel
 from .create_group import CreateGroup
 from .create_supergroup import CreateSupergroup
+from .delete_all_chat_welcome_messages import DeleteAllChatWelcomeMessages
 from .delete_channel import DeleteChannel
 from .delete_chat_photo import DeleteChatPhoto
+from .delete_chat_welcome_message import DeleteChatWelcomeMessage
 from .delete_folder import DeleteFolder
 from .delete_supergroup import DeleteSupergroup
 from .delete_user_history import DeleteUserHistory
+from .edit_chat_welcome_message import EditChatWelcomeMessage
 from .export_folder_link import ExportFolderLink
 from .get_chat import GetChat
 from .get_chat_event_log import GetChatEventLog
@@ -36,6 +40,7 @@ from .get_chat_members import GetChatMembers
 from .get_chat_members_count import GetChatMembersCount
 from .get_chat_online_count import GetChatOnlineCount
 from .get_chat_owner_after_leaving import GetChatOwnerAfterLeaving
+from .get_chat_welcome_messages import GetChatWelcomeMessages
 from .get_dialogs import GetDialogs
 from .get_dialogs_count import GetDialogsCount
 from .get_folders import GetFolders
@@ -115,6 +120,11 @@ class Chats(
     SetChatMemberTag,
     GetGuardBotWebAppUrl,
     GetChatOwnerAfterLeaving,
-    ProcessChatProtectedContentDisableRequest
+    ProcessChatProtectedContentDisableRequest,
+    GetChatWelcomeMessages,
+    AddChatWelcomeMessage,
+    EditChatWelcomeMessage,
+    DeleteChatWelcomeMessage,
+    DeleteAllChatWelcomeMessages
 ):
     pass

@@ -59,7 +59,10 @@ from pyrogram.handlers import (
   TonWalletStateHandler,
   TonWalletGaslessTransfersInfoHandler,
   TonConnectSessionHandler,
-  TonConnectPendingDisconnectHandler
+  TonConnectPendingDisconnectHandler,
+  EphemeralMessageHandler,
+  EditedEphemeralMessageHandler,
+  DeletedEphemeralMessagesHandler
 )
 from pyrogram.raw.types import (
     UpdateNewMessage, UpdateNewChannelMessage, UpdateNewScheduledMessage,
@@ -84,7 +87,11 @@ from pyrogram.raw.types import (
     UpdateWalletState,
     UpdateWalletGaslessInfo,
     UpdateWalletTonConnectSession,
-    UpdateWalletTonConnectPendingDisconnect
+    UpdateWalletTonConnectPendingDisconnect,
+    UpdateNewEphemeralMessage,
+    UpdateEditEphemeralMessage,
+    UpdateDeleteEphemeralMessages,
+    UpdateEphemeralBotCallbackQuery
 )
 
 log = logging.getLogger(__name__)
@@ -97,7 +104,10 @@ class Dispatcher:
     EDIT_BOT_BUSINESS_MESSAGE_UPDATES = (UpdateBotEditBusinessMessage,)
     DELETE_MESSAGES_UPDATES = (UpdateDeleteMessages, UpdateDeleteChannelMessages)
     DELETE_BOT_BUSINESS_MESSAGES_UPDATES = (UpdateBotDeleteBusinessMessage,)
-    CALLBACK_QUERY_UPDATES = (UpdateBotCallbackQuery, UpdateInlineBotCallbackQuery, UpdateBusinessBotCallbackQuery)
+    CALLBACK_QUERY_UPDATES = (
+        UpdateBotCallbackQuery, UpdateInlineBotCallbackQuery, UpdateBusinessBotCallbackQuery,
+        UpdateEphemeralBotCallbackQuery
+    )
     CHAT_MEMBER_UPDATES = (UpdateChatParticipant, UpdateChannelParticipant, UpdateBotStopped,)
     USER_STATUS_UPDATES = (UpdateUserStatus,)
     BOT_INLINE_QUERY_UPDATES = (UpdateBotInlineQuery,)
@@ -120,6 +130,9 @@ class Dispatcher:
     WALLET_GASLESS_INFO_UPDATES = (UpdateWalletGaslessInfo,)
     WALLET_TON_CONNECT_SESSION_UPDATES = (UpdateWalletTonConnectSession,)
     WALLET_TON_CONNECT_PENDING_DISCONNECT_UPDATES = (UpdateWalletTonConnectPendingDisconnect,)
+    NEW_EPHEMERAL_MESSAGE_UPDATES = (UpdateNewEphemeralMessage,)
+    EDIT_EPHEMERAL_MESSAGE_UPDATES = (UpdateEditEphemeralMessage,)
+    DELETE_EPHEMERAL_MESSAGES_UPDATES = (UpdateDeleteEphemeralMessages,)
 
     def __init__(self, client: "pyrogram.Client"):
         self.client = client
@@ -191,7 +204,7 @@ class Dispatcher:
 
         async def callback_query_parser(update, users, chats):
             return (
-                await pyrogram.types.CallbackQuery._parse(self.client, update, users),
+                await pyrogram.types.CallbackQuery._parse(self.client, update, users, chats),
                 CallbackQueryHandler
             )
 
@@ -333,6 +346,24 @@ class Dispatcher:
                 TonConnectPendingDisconnectHandler
             )
 
+        async def ephemeral_message_parser(update, users, chats):
+            parsed = await pyrogram.types.EphemeralMessage._parse(self.client, update.message, users, chats)
+            return (parsed, EphemeralMessageHandler) if parsed is not None else (None, type(None))
+
+        async def edited_ephemeral_message_parser(update, users, chats):
+            parsed = await pyrogram.types.EphemeralMessage._parse(self.client, update.message, users, chats)
+            return (parsed, EditedEphemeralMessageHandler) if parsed is not None else (None, type(None))
+
+        async def deleted_ephemeral_messages_parser(update, users, chats):
+            chat = pyrogram.types.EphemeralMessage._parse_chat(self.client, update.peer, users, chats)
+            return (
+                pyrogram.types.List(
+                    pyrogram.types.EphemeralMessage(id=message_id, chat=chat, client=self.client)
+                    for message_id in update.ids
+                ),
+                DeletedEphemeralMessagesHandler
+            )
+
         self.update_parsers = {
             Dispatcher.NEW_MESSAGE_UPDATES: message_parser,
             Dispatcher.NEW_BOT_BUSINESS_MESSAGE_UPDATES: bot_business_message_parser,
@@ -362,7 +393,10 @@ class Dispatcher:
             Dispatcher.WALLET_STATE_UPDATES: wallet_state_parser,
             Dispatcher.WALLET_GASLESS_INFO_UPDATES: wallet_gasless_info_parser,
             Dispatcher.WALLET_TON_CONNECT_SESSION_UPDATES: wallet_ton_connect_session_parser,
-            Dispatcher.WALLET_TON_CONNECT_PENDING_DISCONNECT_UPDATES: wallet_ton_connect_pending_disconnect_parser
+            Dispatcher.WALLET_TON_CONNECT_PENDING_DISCONNECT_UPDATES: wallet_ton_connect_pending_disconnect_parser,
+            Dispatcher.NEW_EPHEMERAL_MESSAGE_UPDATES: ephemeral_message_parser,
+            Dispatcher.EDIT_EPHEMERAL_MESSAGE_UPDATES: edited_ephemeral_message_parser,
+            Dispatcher.DELETE_EPHEMERAL_MESSAGES_UPDATES: deleted_ephemeral_messages_parser
         }
 
         self.update_parsers = {key: value for key_tuple, value in self.update_parsers.items() for key in key_tuple}

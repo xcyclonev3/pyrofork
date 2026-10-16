@@ -25,11 +25,14 @@ from .on_chat_join_request import OnChatJoinRequest
 from .on_chat_join_result import OnChatJoinResult
 from .on_chat_member_updated import OnChatMemberUpdated
 from .on_chosen_inline_result import OnChosenInlineResult
+from .on_deleted_ephemeral_messages import OnDeletedEphemeralMessages
 from .on_deleted_messages import OnDeletedMessages
 from .on_deleted_bot_business_messages import OnDeletedBotBusinessMessages
 from .on_disconnect import OnDisconnect
+from .on_edited_ephemeral_message import OnEditedEphemeralMessage
 from .on_edited_message import OnEditedMessage
 from .on_edited_bot_business_message import OnEditedBotBusinessMessage
+from .on_ephemeral_message import OnEphemeralMessage
 from .on_error import OnError
 from .on_guest_query import OnGuestQuery
 from .on_inline_query import OnInlineQuery
@@ -85,6 +88,9 @@ class Decorators(
     OnTonWalletState,
     OnTonWalletGaslessTransfersInfo,
     OnTonConnectSession,
-    OnTonConnectPendingDisconnect
+    OnTonConnectPendingDisconnect,
+    OnEphemeralMessage,
+    OnEditedEphemeralMessage,
+    OnDeletedEphemeralMessages
 ):
     pass

@@ -46,6 +46,7 @@ to apply only a valid value among the expected ones.
     TonConnectSessionState
     PageBlockHorizontalAlignment
     PageBlockVerticalAlignment
+    ReportResultType
 
 .. toctree::
     :hidden:
@@ -83,3 +84,4 @@ to apply only a valid value among the expected ones.
     TonConnectSessionState
     PageBlockHorizontalAlignment
     PageBlockVerticalAlignment
+    ReportResultType

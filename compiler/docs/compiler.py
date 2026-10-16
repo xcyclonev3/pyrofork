@@ -264,6 +264,12 @@ def pyrogram_api():
             fix_rich_message_with_ai
             send_rich_message_draft
             set_chat_draft_message
+            send_ephemeral_message
+            edit_ephemeral_message
+            edit_ephemeral_message_caption
+            delete_ephemeral_message
+            request_ephemeral_callback_answer
+            report_ephemeral_message
         """,
         chats="""
         Chats
@@ -329,6 +335,11 @@ def pyrogram_api():
             get_guard_bot_web_app_url
             get_chat_owner_after_leaving
             process_chat_protected_content_disable_request
+            get_chat_welcome_messages
+            add_chat_welcome_message
+            edit_chat_welcome_message
+            delete_chat_welcome_message
+            delete_all_chat_welcome_messages
         """,
         users="""
         Users
@@ -758,6 +769,10 @@ def pyrogram_api():
             PendingMessage
             MessageDraftStopped
             DraftMessage
+            EphemeralMessage
+            WelcomeMessage
+            ReportOption
+            ReportResult
         """,
         stories="""
         Stories
@@ -1227,6 +1242,7 @@ def pyrogram_api():
             CallbackQuery.edit_message_caption
             CallbackQuery.edit_message_media
             CallbackQuery.edit_message_reply_markup
+            CallbackQuery.reply_with_ephemeral_message
         """,
         inline_query="""
         InlineQuery
@@ -1248,6 +1264,12 @@ def pyrogram_api():
         guest_query="""
         GuestQuery
             GuestQuery.answer
+        """,
+        ephemeral_message="""
+        EphemeralMessage
+            EphemeralMessage.reply
+            EphemeralMessage.edit
+            EphemeralMessage.delete
         """
     )
 
