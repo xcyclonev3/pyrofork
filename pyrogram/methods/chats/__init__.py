@@ -35,6 +35,7 @@ from .get_chat_member import GetChatMember
 from .get_chat_members import GetChatMembers
 from .get_chat_members_count import GetChatMembersCount
 from .get_chat_online_count import GetChatOnlineCount
+from .get_chat_owner_after_leaving import GetChatOwnerAfterLeaving
 from .get_dialogs import GetDialogs
 from .get_dialogs_count import GetDialogsCount
 from .get_folders import GetFolders
@@ -111,6 +112,7 @@ class Chats(
     UpdateColor,
     UpdateFolder,
     SetChatMemberTag,
-    GetGuardBotWebAppUrl
+    GetGuardBotWebAppUrl,
+    GetChatOwnerAfterLeaving
 ):
     pass

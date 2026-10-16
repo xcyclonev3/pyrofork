@@ -309,6 +309,7 @@ def pyrogram_api():
             update_folder
             set_chat_member_tag
             get_guard_bot_web_app_url
+            get_chat_owner_after_leaving
         """,
         users="""
         Users
