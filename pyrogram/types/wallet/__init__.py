@@ -25,6 +25,7 @@ from .on_ramp_provider import OnRampProvider
 from .ton_center_streaming_api_url import TonCenterStreamingApiUrl
 from .ton_connect_challenge import TonConnectChallenge
 from .ton_connect_manifest import TonConnectManifest
+from .ton_connect_pending_disconnect import TonConnectPendingDisconnect
 from .ton_connect_request import TonConnectRequest
 from .ton_connect_requests import TonConnectRequests
 from .ton_connect_session import TonConnectSession
@@ -37,6 +38,7 @@ from .ton_wallet_ownership_proof_challenge import TonWalletOwnershipProofChallen
 from .ton_wallet_secret_phrase_parts import TonWalletSecretPhraseParts
 from .ton_wallet_state import TonWalletState
 from .ton_wallet_transaction import TonWalletTransaction
+from .ton_wallet_transfer import TonWalletTransfer
 from .ton_wallet_transfer_result import TonWalletTransferResult
 from .user_ton_wallet_address import UserTonWalletAddress
 from .wallet_bot_balance import WalletBotBalance
@@ -68,5 +70,7 @@ __all__ = [
     "OnRampPaymentLimits",
     "OnRampPaymentQuote",
     "OnRampPaymentSession",
-    "TonCenterStreamingApiUrl"
+    "TonCenterStreamingApiUrl",
+    "TonWalletTransfer",
+    "TonConnectPendingDisconnect"
 ]

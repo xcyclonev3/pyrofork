@@ -946,3 +946,47 @@ def test_get_ton_center_streaming_api_url():
     assert isinstance(streaming_url, types.TonCenterStreamingApiUrl)
     assert streaming_url.url == "https://streaming.toncenter.example/abc"
     assert streaming_url.expiration_date == datetime.fromtimestamp(1_700_003_600)
+
+
+# Service messages and updates (parsed here, wired into Message / handlers by the main session)
+
+def test_ton_wallet_transfer_service_message():
+    transfer = types.TonWalletTransfer._parse(None, roundtrip(raw.types.MessageActionGramTransfer(
+        amount=2_000_000_000, peer_address="UQpeer", transaction_id="tx5", comment="c2VjcmV0", comment_encrypted=True)))
+    assert (transfer.amount, transfer.peer_address, transfer.transaction_id) == (2_000_000_000, "UQpeer", "tx5")
+    assert transfer.comment == "c2VjcmV0" and transfer.is_comment_encrypted
+
+    not_sent = types.TonWalletTransfer._parse(None, roundtrip(raw.types.MessageActionGramTransfer(
+        amount=1, peer_address="UQpeer", transaction_id="")))
+    assert not_sent.transaction_id is None and not_sent.comment is None and not not_sent.is_comment_encrypted
+
+
+def test_update_wallet_state():
+    update = roundtrip(raw.types.UpdateWalletState(state=wallet_state(backup_enabled=True)))
+    state = types.TonWalletState._parse(None, update.state)
+    assert state.address == "UQme" and state.is_backup_enabled
+
+
+def test_update_sent_wallet_transaction():
+    update = roundtrip(raw.types.UpdateSentWalletTransaction(msg_hash="hash", gasless=True, transaction=wallet_transaction(
+        "tx7", peer=raw.types.WalletTransactionPeerUser(user_id=7, address="UQpeer"))))
+    result = types.TonWalletTransferResult._parse(None, update, {7: roundtrip(RAW_PEER_USER)})
+    assert (result.msg_hash, result.is_gasless) == ("hash", True)
+    assert result.transaction.id == "tx7" and result.transaction.peer_user.id == 7
+
+
+def test_update_wallet_gasless_info():
+    info = types.TonWalletGaslessTransfersInfo._parse(None, roundtrip(gasless_info_update(available=True)))
+    assert info.is_available and info.left_count == 3
+
+
+def test_update_wallet_ton_connect_session():
+    update = roundtrip(raw.types.UpdateWalletTonConnectSession(session=ton_connect_session(closing=True)))
+    session = types.TonConnectSession._parse(None, update.session)
+    assert session.id == 11 and session.state == TCS.CLOSING
+
+
+def test_update_wallet_ton_connect_pending_disconnect():
+    update = roundtrip(raw.types.UpdateWalletTonConnectPendingDisconnect(session_ids=[11, 12]))
+    pending = types.TonConnectPendingDisconnect._parse(None, update)
+    assert isinstance(pending, types.TonConnectPendingDisconnect) and pending.session_ids == [11, 12]

@@ -934,6 +934,8 @@ def pyrogram_api():
             OnRampPaymentQuote
             OnRampPaymentSession
             TonCenterStreamingApiUrl
+            TonWalletTransfer
+            TonConnectPendingDisconnect
         """
     )
 
