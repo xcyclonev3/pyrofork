@@ -769,3 +769,50 @@ def test_get_full_rich_message():
 
     client = rich_client(lambda q: raw.types.messages.Messages(messages=[], topics=[], chats=[], users=[]))
     assert call(lambda: client.get_full_rich_message(7, 3)) is None
+
+
+# Translation
+
+def translated(text):
+    return raw.types.messages.TranslatedRichMessage(result=[raw.types.RichMessage(
+        blocks=[raw.types.PageBlockParagraph(text=plain(text))], photos=[], documents=[])])
+
+
+def test_translate_rich_message():
+    client = rich_client(lambda q: translated("Hello everyone"))
+    rich = call(lambda: client.translate_rich_message(
+        types.InputRichMessage(types.RichMessageSourceBlocks([types.InputPageBlockParagraph("Ciao a tutti")])), "en",
+        tone="neutral"))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.TranslateRichMessage)
+    assert request.to_lang == "en" and request.tone is None and request.peer is None and not request.id
+    [text] = request.text
+    assert same(text, raw.types.InputRichMessage(noautolink=True, blocks=[
+        raw.types.PageBlockParagraph(text=plain("Ciao a tutti"))]))
+    assert isinstance(rich, types.RichMessage) and rich.blocks[0].text.text == "Hello everyone"
+
+    call(lambda: client.translate_rich_message(html_message("<p>Ciao</p>"), "en", tone="formal"))
+    assert client.sent[-1].tone == "formal"
+
+    with pytest.raises(ValueError, match="tone"):
+        call(lambda: client.translate_rich_message(html_message(), "en", tone="angry"))
+
+
+def test_translate_rich_message_with_empty_text():
+    def respond(query):
+        raise pyrogram.errors.InputTextEmpty()
+
+    rich = call(lambda: rich_client(respond).translate_rich_message(html_message(""), "en"))
+    assert isinstance(rich, types.RichMessage) and rich.blocks == [] and rich.is_full
+
+
+def test_translate_message_rich_message():
+    client = rich_client(lambda q: translated("Hello"))
+    rich = call(lambda: client.translate_message_rich_message(-100123, 3, "en", tone="casual"))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.TranslateRichMessage) and not request.text
+    assert isinstance(request.peer, raw.types.InputPeerChannel) and request.id == [3]
+    assert request.to_lang == "en" and request.tone == "casual"
+    assert rich.blocks[0].text.text == "Hello"

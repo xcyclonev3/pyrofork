@@ -106,6 +106,8 @@ from .stop_pending_message import StopPendingMessage
 from .stop_poll import StopPoll
 from .stream_media import StreamMedia
 from .summarize_message import SummarizeMessage
+from .translate_message_rich_message import TranslateMessageRichMessage
+from .translate_rich_message import TranslateRichMessage
 from .vote_poll import VotePoll
 from .transcribe_audio import TranscribeAudio
 from .translate_text import TranslateText
@@ -202,6 +204,8 @@ class Messages(
     SendRichMessage,
     EditMessageRichMessage,
     EditInlineRichMessage,
-    GetFullRichMessage
+    GetFullRichMessage,
+    TranslateRichMessage,
+    TranslateMessageRichMessage
 ):
     pass
