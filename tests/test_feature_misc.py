@@ -20,7 +20,7 @@
 
 import pytest
 
-from pyrogram import raw, types, utils
+from pyrogram import errors, raw, types, utils
 from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
 
 CHANNEL = PEERS[-100123]
@@ -92,3 +92,33 @@ def test_get_personal_chat_history_rejects_non_positive_limit():
     client = offline_client(PEERS, lambda q: None)
     with pytest.raises(ValueError):
         call(lambda: client.get_personal_chat_history(7, limit=0))
+
+
+# delete_message_reactions_from_sender / delete_all_recent_message_reactions_from_sender
+
+def test_delete_message_reactions_from_sender():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    assert call(lambda: client.delete_message_reactions_from_sender(-100123, 42, 7)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.DeleteParticipantReaction)
+    assert request.peer.write() == CHANNEL.write() and request.msg_id == 42
+    assert request.participant.write() == USER.write()
+
+
+def test_delete_message_reactions_from_sender_without_reactions():
+    def respond(query):
+        raise errors.MessageNotModified()
+
+    client = offline_client(PEERS, respond)
+    assert call(lambda: client.delete_message_reactions_from_sender(-100123, 42, 7)) is True
+
+
+def test_delete_all_recent_message_reactions_from_sender():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.delete_all_recent_message_reactions_from_sender(-45, -100123)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.DeleteParticipantReactions)
+    assert request.peer.write() == BASIC_GROUP.write()
+    assert request.participant.write() == CHANNEL.write()

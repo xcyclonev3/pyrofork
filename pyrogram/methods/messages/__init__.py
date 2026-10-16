@@ -24,7 +24,9 @@ from .compose_text_with_ai import ComposeTextWithAi
 from .copy_media_group import CopyMediaGroup
 from .copy_message import CopyMessage
 from .create_text_composition_style import CreateTextCompositionStyle
+from .delete_all_recent_message_reactions_from_sender import DeleteAllRecentMessageReactionsFromSender
 from .delete_chat_history import DeleteChatHistory
+from .delete_message_reactions_from_sender import DeleteMessageReactionsFromSender
 from .delete_messages import DeleteMessages
 from .delete_poll_option import DeletePollOption
 from .delete_scheduled_messages import DeleteScheduledMessages
@@ -182,6 +184,8 @@ class Messages(
     FixTextWithAi,
     SummarizeMessage,
     ListenToAudio,
-    GetPersonalChatHistory
+    GetPersonalChatHistory,
+    DeleteMessageReactionsFromSender,
+    DeleteAllRecentMessageReactionsFromSender
 ):
     pass

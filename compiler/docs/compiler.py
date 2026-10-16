@@ -247,6 +247,8 @@ def pyrogram_api():
             summarize_message
             listen_to_audio
             get_personal_chat_history
+            delete_message_reactions_from_sender
+            delete_all_recent_message_reactions_from_sender
         """,
         chats="""
         Chats
