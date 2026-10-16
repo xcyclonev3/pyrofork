@@ -93,6 +93,7 @@ from .send_web_page import SendWebPage
 from .start_bot import StartBot
 from .stop_poll import StopPoll
 from .stream_media import StreamMedia
+from .summarize_message import SummarizeMessage
 from .vote_poll import VotePoll
 from .transcribe_audio import TranscribeAudio
 from .translate_text import TranslateText
@@ -176,6 +177,7 @@ class Messages(
     AddTextCompositionStyle,
     RemoveTextCompositionStyle,
     ComposeTextWithAi,
-    FixTextWithAi
+    FixTextWithAi,
+    SummarizeMessage
 ):
     pass

@@ -350,3 +350,28 @@ def test_fix_text_with_ai():
     assert [e.type for e in fixed.diff_text.entities] == [
         enums.MessageEntityType.DIFF_REPLACE, enums.MessageEntityType.DIFF_DELETE, enums.MessageEntityType.DIFF_INSERT
     ]
+
+
+# Summaries
+
+@pytest.mark.parametrize("tone, sent_tone", [(None, None), ("neutral", None), ("formal", "formal")])
+def test_summarize_message(tone, sent_tone):
+    client = offline_client(PEERS, lambda q: text("Ann asks to move the call", [
+        raw.types.MessageEntityMentionName(offset=0, length=3, user_id=7),
+    ]))
+    summary = call(lambda: client.summarize_message(-100123, 55, translate_to_language_code="en", tone=tone))
+
+    request, = client.sent
+    assert isinstance(request, raw.functions.messages.SummarizeText)
+    assert request.peer.write() == PEERS[-100123].write() and request.id == 55
+    assert request.to_lang == "en" and request.tone == sent_tone
+    assert isinstance(summary, types.FormattedText) and summary.text == "Ann asks to move the call"
+    assert summary.entities[0].type == enums.MessageEntityType.TEXT_MENTION and summary.entities[0].user.id == 7
+
+
+def test_summarize_message_in_message_language():
+    client = offline_client(PEERS, lambda q: text("Summary"))
+    call(lambda: client.summarize_message(7, 3))
+
+    request, = client.sent
+    assert request.to_lang is None and request.tone is None

@@ -244,6 +244,7 @@ def pyrogram_api():
             remove_text_composition_style
             compose_text_with_ai
             fix_text_with_ai
+            summarize_message
         """,
         chats="""
         Chats
