@@ -563,6 +563,12 @@ def pyrogram_api():
             answer_ton_connect_request
             get_ton_connect_session_next_event_id
             disconnect_ton_connect_session
+            get_on_ramp_providers
+            get_on_ramp_provider_base_currencies
+            get_on_ramp_payment_availability
+            get_on_ramp_payment_limits
+            get_on_ramp_payment_quote
+            create_on_ramp_payment_session
         """
     )
 
@@ -919,6 +925,12 @@ def pyrogram_api():
             TonConnectRequest
             TonConnectRequests
             TonConnectChallenge
+            OnRampProvider
+            OnRampPaymentMethod
+            OnRampPaymentAvailability
+            OnRampPaymentLimits
+            OnRampPaymentQuote
+            OnRampPaymentSession
         """
     )
 

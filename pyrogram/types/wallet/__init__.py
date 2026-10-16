@@ -16,6 +16,12 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from .on_ramp_payment_availability import OnRampPaymentAvailability
+from .on_ramp_payment_limits import OnRampPaymentLimits
+from .on_ramp_payment_method import OnRampPaymentMethod
+from .on_ramp_payment_quote import OnRampPaymentQuote
+from .on_ramp_payment_session import OnRampPaymentSession
+from .on_ramp_provider import OnRampProvider
 from .ton_connect_challenge import TonConnectChallenge
 from .ton_connect_manifest import TonConnectManifest
 from .ton_connect_request import TonConnectRequest
@@ -54,5 +60,11 @@ __all__ = [
     "TonConnectSession",
     "TonConnectRequest",
     "TonConnectRequests",
-    "TonConnectChallenge"
+    "TonConnectChallenge",
+    "OnRampProvider",
+    "OnRampPaymentMethod",
+    "OnRampPaymentAvailability",
+    "OnRampPaymentLimits",
+    "OnRampPaymentQuote",
+    "OnRampPaymentSession"
 ]

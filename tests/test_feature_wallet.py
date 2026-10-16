@@ -774,3 +774,124 @@ def test_disconnect_ton_connect_session():
 
     call(lambda: client.disconnect_ton_connect_session(11))
     assert client.sent[-1].body is None
+
+
+# On-ramp
+
+def test_get_on_ramp_providers():
+    providers = [
+        raw.types.OnrampProviderInfo(id="ramp", name="Ramp", crypto_currencies=["TON", "USDT"],
+                                     supports_base_currencies=True, supports_quote=True),
+        raw.types.OnrampProviderInfo(id="other", name="Other", crypto_currencies=[]),
+    ]
+    client = offline_client(PEERS, lambda q: [roundtrip(p) for p in providers])
+
+    result = call(lambda: client.get_on_ramp_providers("TON"))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.payments.GetOnrampProviders) and request.crypto_currency == "TON"
+    assert all(isinstance(p, types.OnRampProvider) for p in result)
+    ramp, other = result
+    assert (ramp.id, ramp.name, ramp.cryptocurrencies) == ("ramp", "Ramp", ["TON", "USDT"])
+    assert ramp.supports_base_currencies and ramp.supports_quote and not ramp.supports_limits
+    assert other.cryptocurrencies == [] and not (other.supports_base_currencies or other.supports_quote)
+
+    call(lambda: client.get_on_ramp_providers())
+    assert client.sent[-1].crypto_currency is None
+
+
+def test_get_on_ramp_provider_base_currencies():
+    client = offline_client(PEERS, lambda q: ["USD", "EUR"])
+
+    assert call(lambda: client.get_on_ramp_provider_base_currencies("ramp", "TON")) == ["USD", "EUR"]
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.payments.GetOnrampBaseCurrencies)
+    assert (request.provider, request.crypto_currency) == ("ramp", "TON")
+
+
+def test_get_on_ramp_payment_availability():
+    client = offline_client(PEERS, lambda q: raw.types.OnrampAvailability(
+        allowed=True, country_code="US", state="CA", methods=[
+            raw.types.OnrampMethodAvailability(available=True, payment_method="card"),
+            raw.types.OnrampMethodAvailability(payment_method="bank"),
+        ]))
+
+    availability = call(lambda: client.get_on_ramp_payment_availability("ramp", "TON", "USD"))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.payments.GetOnrampAvailability)
+    assert (request.provider, request.crypto_currency, request.base_currency) == ("ramp", "TON", "USD")
+    assert isinstance(availability, types.OnRampPaymentAvailability)
+    assert availability.is_allowed and not availability.is_purchase_allowed
+    assert (availability.country_code, availability.state) == ("US", "CA")
+    assert [(m.name, m.is_available) for m in availability.methods] == [("card", True), ("bank", False)]
+
+    call(lambda: client.get_on_ramp_payment_availability("ramp", "TON"))
+    assert client.sent[-1].base_currency is None
+
+
+def test_get_on_ramp_payment_limits():
+    client = offline_client(PEERS, lambda q: raw.types.OnrampLimits(
+        base_currency="USD", base_min_amount="10", base_max_amount="1000",
+        crypto_min_amount="3", crypto_max_amount="300", payment_method="card"))
+
+    limits = call(lambda: client.get_on_ramp_payment_limits("ramp", "TON", "USD", "card"))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.payments.GetOnrampLimits)
+    assert (request.provider, request.crypto_currency, request.base_currency) == ("ramp", "TON", "USD")
+    assert request.payment_method == "card"
+    assert isinstance(limits, types.OnRampPaymentLimits)
+    assert (limits.payment_method, limits.base_currency) == ("card", "USD")
+    assert (limits.base_currency_min_amount, limits.base_currency_max_amount) == ("10", "1000")
+    assert (limits.cryptocurrency_min_amount, limits.cryptocurrency_max_amount) == ("3", "300")
+
+    call(lambda: client.get_on_ramp_payment_limits("ramp", "TON", "USD"))
+    assert client.sent[-1].payment_method is None
+
+
+def test_get_on_ramp_payment_quote():
+    client = offline_client(PEERS, lambda q: raw.types.OnrampQuote(
+        base_currency="USD", base_amount="50", crypto_currency="TON", crypto_amount="15.5", crypto_price="3.2",
+        fee_amount="1", extra_fee_amount="0.5", network_fee_amount="0.1", total_amount="51.6",
+        payment_method="card", expires_date=1_700_000_900))
+
+    quote = call(lambda: client.get_on_ramp_payment_quote("ramp", "TON", "USD", base_currency_amount="50"))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.payments.GetOnrampQuote)
+    assert (request.provider, request.crypto_currency, request.base_currency) == ("ramp", "TON", "USD")
+    assert (request.base_amount, request.crypto_amount, request.payment_method) == ("50", None, None)
+    assert isinstance(quote, types.OnRampPaymentQuote)
+    assert (quote.base_currency, quote.base_currency_amount) == ("USD", "50")
+    assert (quote.cryptocurrency, quote.cryptocurrency_amount, quote.cryptocurrency_price) == ("TON", "15.5", "3.2")
+    assert (quote.fee_amount, quote.extra_fee_amount, quote.network_fee_amount) == ("1", "0.5", "0.1")
+    assert (quote.total_amount, quote.payment_method) == ("51.6", "card")
+    assert quote.expiration_date == datetime.fromtimestamp(1_700_000_900)
+
+    call(lambda: client.get_on_ramp_payment_quote("ramp", "TON", "USD", "15.5", payment_method_name="card"))
+    request = client.sent[-1]
+    assert (request.base_amount, request.crypto_amount, request.payment_method) == (None, "15.5", "card")
+
+
+def test_create_on_ramp_payment_session():
+    client = offline_client(PEERS, lambda q: raw.types.OnrampSession(
+        provider="ramp", session_id="s1", url="https://ramp.example/s1", expires_date=1_700_000_900))
+
+    session = call(lambda: client.create_on_ramp_payment_session(
+        "ramp", "TON", "UQme", payment_method_name="card", base_currency="USD", cryptocurrency_amount="15",
+        base_currency_amount="50", memo="memo", theme="dark", success_return_url="https://ok.example",
+        fail_return_url="https://fail.example",
+    ))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.payments.CreateOnrampSession)
+    assert (request.provider, request.crypto_currency, request.address) == ("ramp", "TON", "UQme")
+    assert (request.payment_method, request.base_currency, request.crypto_amount, request.base_amount) == (
+        "card", "USD", "15", "50")
+    assert (request.memo, request.theme) == ("memo", "dark")
+    assert (request.success_return_url, request.fail_return_url) == ("https://ok.example", "https://fail.example")
+    assert isinstance(session, types.OnRampPaymentSession)
+    assert (session.provider_id, session.session_id, session.url) == ("ramp", "s1", "https://ramp.example/s1")
+    assert session.expiration_date == datetime.fromtimestamp(1_700_000_900)
+
+    call(lambda: client.create_on_ramp_payment_session("ramp", "TON", "UQme"))
+    request = client.sent[-1]
+    optional = ("payment_method", "base_currency", "base_amount", "memo", "theme", "success_return_url",
+                "fail_return_url", "crypto_amount")
+    assert all(getattr(request, name) is None for name in optional)

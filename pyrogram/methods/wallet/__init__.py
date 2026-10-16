@@ -19,6 +19,7 @@
 from .answer_ton_connect_request import AnswerTonConnectRequest
 from .check_wallet_bot_balance import CheckWalletBotBalance
 from .claim_ton_connect_request import ClaimTonConnectRequest
+from .create_on_ramp_payment_session import CreateOnRampPaymentSession
 from .create_ton_connect_session import CreateTonConnectSession
 from .create_user_ton_wallet import CreateUserTonWallet
 from .delete_ton_wallet import DeleteTonWallet
@@ -28,6 +29,11 @@ from .disconnect_ton_connect_session import DisconnectTonConnectSession
 from .enable_ton_wallet_backup import EnableTonWalletBackup
 from .export_ton_wallet_secret_phrase import ExportTonWalletSecretPhrase
 from .get_address_ton_wallet import GetAddressTonWallet
+from .get_on_ramp_payment_availability import GetOnRampPaymentAvailability
+from .get_on_ramp_payment_limits import GetOnRampPaymentLimits
+from .get_on_ramp_payment_quote import GetOnRampPaymentQuote
+from .get_on_ramp_provider_base_currencies import GetOnRampProviderBaseCurrencies
+from .get_on_ramp_providers import GetOnRampProviders
 from .get_ton_connect_dapp_pending_requests import GetTonConnectDappPendingRequests
 from .get_ton_connect_session_next_event_id import GetTonConnectSessionNextEventId
 from .get_ton_connect_session_pending_requests import GetTonConnectSessionPendingRequests
@@ -79,5 +85,11 @@ class Wallet(
     AnswerTonConnectRequest,
     GetTonConnectSessionNextEventId,
     DisconnectTonConnectSession,
+    GetOnRampProviders,
+    GetOnRampProviderBaseCurrencies,
+    GetOnRampPaymentAvailability,
+    GetOnRampPaymentLimits,
+    GetOnRampPaymentQuote,
+    CreateOnRampPaymentSession,
 ):
     pass
