@@ -19,7 +19,7 @@
 from typing import Dict, List, Optional
 
 import pyrogram
-from pyrogram import raw, types
+from pyrogram import enums, raw, types
 
 from ..object import Object
 from .message import Str
@@ -57,12 +57,19 @@ class FormattedText(Object):
         if not isinstance(text, raw.types.TextWithEntities):
             return None
 
-        entities = types.List(
-            filter(
-                lambda x: x is not None,
-                [types.MessageEntity._parse(client, entity, users or {}) for entity in text.entities]
-            )
-        )
+        entities = types.List()
+
+        for raw_entity in text.entities:
+            entity = types.MessageEntity._parse(client, raw_entity, users or {})
+
+            if entity is None:
+                continue
+
+            # Texts returned by the AI methods come without users: keep the identifier of a mentioned user
+            if entity.type == enums.MessageEntityType.TEXT_MENTION and entity.user is None:
+                entity.user = types.User(id=raw_entity.user_id, client=client)
+
+            entities.append(entity)
 
         return FormattedText(
             text=Str(text.text).init(entities),

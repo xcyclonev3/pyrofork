@@ -85,6 +85,17 @@ def test_formatted_text_parse():
     assert types.FormattedText._parse(None, None) is None
 
 
+def test_formatted_text_keeps_mentioned_users_without_users():
+    # Texts returned by the AI methods come without users
+    parsed = types.FormattedText._parse(None, roundtrip(text("Hi Bob", [
+        raw.types.MessageEntityMentionName(offset=3, length=3, user_id=42),
+    ])))
+
+    mention = parsed.entities[0]
+    assert mention.type == enums.MessageEntityType.TEXT_MENTION and mention.user.id == 42
+    assert parsed.text.html == 'Hi <a href="tg://user?id=42">Bob</a>'
+
+
 def test_text_composition_style_example_parse():
     example = types.TextCompositionStyleExample._parse(None, roundtrip(raw.types.AiComposeToneExample(
         from_peer=text("Hello"),
