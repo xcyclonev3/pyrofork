@@ -503,3 +503,10 @@ def test_unique_gift_action_message_and_hidden_name():
     assert gift.name == "Helmet-1" and gift.upgrade_message_id == 10
     assert gift.is_name_hidden is True and gift.caption == "for you"
     assert gift.attributes[0].rarity is None
+
+
+@pytest.mark.parametrize("days, months", [(365, 12), (91, 3), (7, 0)])
+def test_gifted_premium_reads_days(days, months):
+    action = roundtrip(raw.types.MessageActionGiftPremium(currency="USD", amount=100, days=days))
+    gifted = asyncio.run(types.GiftedPremium._parse(None, action, 7))
+    assert (gifted.month_count, gifted.day_count, gifted.gifter_user_id) == (months, days, 7)
