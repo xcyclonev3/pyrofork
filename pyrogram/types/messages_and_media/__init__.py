@@ -49,10 +49,15 @@ from .message_origin_user import MessageOriginUser
 from .photo import Photo
 from .poll import Poll
 from .poll_option import PollOption
+from .poll_vote_statistics import PollVoteStatistics
 from .reaction import Reaction
 from .read_participant import ReadParticipant
 from .screenshot_taken import ScreenshotTaken
 from .stake_dice_state import StakeDiceState
+from .statistical_graph import StatisticalGraph
+from .statistical_graph_async import StatisticalGraphAsync
+from .statistical_graph_data import StatisticalGraphData
+from .statistical_graph_error import StatisticalGraphError
 from .sticker import Sticker
 from .stickerset import StickerSet
 from .stories_privacy_rules import StoriesPrivacyRules
@@ -162,5 +167,10 @@ __all__ = [
     "FormattedText",
     "TextCompositionStyle",
     "TextCompositionStyleExample",
-    "FixedText"
+    "FixedText",
+    "StatisticalGraph",
+    "StatisticalGraphData",
+    "StatisticalGraphAsync",
+    "StatisticalGraphError",
+    "PollVoteStatistics"
 ]

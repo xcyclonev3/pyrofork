@@ -249,6 +249,7 @@ def pyrogram_api():
             get_personal_chat_history
             delete_message_reactions_from_sender
             delete_all_recent_message_reactions_from_sender
+            get_poll_vote_statistics
         """,
         chats="""
         Chats
@@ -677,6 +678,11 @@ def pyrogram_api():
             TextCompositionStyle
             TextCompositionStyleExample
             FixedText
+            StatisticalGraph
+            StatisticalGraphData
+            StatisticalGraphAsync
+            StatisticalGraphError
+            PollVoteStatistics
         """,
         stories="""
         Stories

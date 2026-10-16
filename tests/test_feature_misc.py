@@ -294,3 +294,34 @@ def test_decline_oauth_request():
 
     request = client.sent[-1]
     assert isinstance(request, raw.functions.messages.DeclineUrlAuth) and request.url == OAUTH_LINK
+
+
+# get_poll_vote_statistics / StatisticalGraph
+
+@pytest.mark.parametrize("graph, cls, fields", [
+    (raw.types.StatsGraph(json=raw.types.DataJSON(data='{"columns": []}'), zoom_token="zoom"),
+     types.StatisticalGraphData, {"json_data": '{"columns": []}', "zoom_token": "zoom"}),
+    (raw.types.StatsGraph(json=raw.types.DataJSON(data="{}")),
+     types.StatisticalGraphData, {"json_data": "{}", "zoom_token": None}),
+    (raw.types.StatsGraphAsync(token="async"), types.StatisticalGraphAsync, {"token": "async"}),
+    (raw.types.StatsGraphError(error="Not enough data"), types.StatisticalGraphError,
+     {"error_message": "Not enough data"}),
+])
+def test_statistical_graph(graph, cls, fields):
+    parsed = types.StatisticalGraph._parse(None, roundtrip(graph))
+    assert isinstance(parsed, cls) and isinstance(parsed, types.StatisticalGraph)
+    assert {name: getattr(parsed, name) for name in fields} == fields
+
+
+def test_get_poll_vote_statistics():
+    client = offline_client(PEERS, lambda q: raw.types.stats.PollStats(
+        votes_graph=raw.types.StatsGraph(json=raw.types.DataJSON(data='{"x": 1}'))
+    ))
+    statistics = call(lambda: client.get_poll_vote_statistics(-100123, 15, is_dark=True))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.stats.GetPollStats)
+    assert request.peer.write() == CHANNEL.write() and request.msg_id == 15 and request.dark
+    assert isinstance(statistics, types.PollVoteStatistics)
+    assert isinstance(statistics.vote_graph, types.StatisticalGraphData)
+    assert statistics.vote_graph.json_data == '{"x": 1}'
