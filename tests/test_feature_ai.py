@@ -375,3 +375,26 @@ def test_summarize_message_in_message_language():
 
     request, = client.sent
     assert request.to_lang is None and request.tone is None
+
+
+# Translation tones
+
+@pytest.mark.parametrize("tone, sent_tone", [(None, None), ("neutral", None), ("casual", "casual")])
+def test_translate_message_text_tone(tone, sent_tone):
+    client = offline_client(PEERS, lambda q: raw.types.messages.TranslateResult(result=[text("Hallo")]))
+    translated = call(lambda: client.translate_message_text("de", text="Hello", tone=tone))
+
+    request, = client.sent
+    assert isinstance(request, raw.functions.messages.TranslateText)
+    assert request.to_lang == "de" and request.text[0].text == "Hello" and request.tone == sent_tone
+    assert translated.text == "Hallo"
+
+
+def test_translate_message_text_tone_of_messages():
+    client = offline_client(PEERS, lambda q: raw.types.messages.TranslateResult(result=[text("Hallo"), text("Welt")]))
+    translated = call(lambda: client.translate_message_text("de", chat_id=7, message_ids=[1, 2], tone="formal"))
+
+    request, = client.sent
+    assert request.peer.write() == PEERS[7].write() and request.id == [1, 2]
+    assert request.tone == "formal"
+    assert [t.text for t in translated] == ["Hallo", "Welt"]

@@ -31,7 +31,8 @@ class TranslateText:
         message_ids: Optional[Union[int, List[int]]] = None,
         text: Optional[str] = None,
         parse_mode: Optional["enums.ParseMode"] = None,
-        entities: Optional[List["types.MessageEntity"]] = None
+        entities: Optional[List["types.MessageEntity"]] = None,
+        tone: Optional[str] = None
     ) -> Union["types.TranslatedText", List["types.TranslatedText"]]:
         """Translates a text or message(s) to the given language. If the current user is a Telegram Premium user, then text formatting is preserved.
 
@@ -56,6 +57,9 @@ class TranslateText:
             entities (List of :obj:`~pyrogram.types.MessageEntity`):
                 List of special entities that appear in message text, which can be specified instead of *parse_mode*.
 
+            tone (``str``, *optional*):
+                Tone of the translation, one of "formal", "neutral" and "casual". Defaults to "neutral".
+
         Example:
             .. code-block:: python
 
@@ -72,10 +76,17 @@ class TranslateText:
                 entities = [types.MessageEntityBold(offset=0, length=5)]
                 await app.translate_message_text("en", text="*Hello*, how are you?", entities=entities)
 
+                # Using a tone
+                await app.translate_message_text("de", text="Hello, how are you?", tone="formal")
+
         Returns:
             :obj:`~pyrogram.types.TranslatedText` | List of :obj:`~pyrogram.types.TranslatedText`: In case *message_ids* was not
             a list, a single result is returned, otherwise a list of results is returned.
         """
+        # Like TDLib, the neutral tone is the default one and isn't sent
+        if tone in ("", "neutral"):
+            tone = None
+
         if text is not None:
             message, entities = (
                 await utils.parse_text_entities(
@@ -94,7 +105,8 @@ class TranslateText:
                             text=message,
                             entities=entities or []
                         )
-                    ]
+                    ],
+                    tone=tone
                 )
             )
 
@@ -105,7 +117,8 @@ class TranslateText:
                 raw.functions.messages.TranslateText(
                     to_lang=to_language_code,
                     peer=await self.resolve_peer(chat_id),
-                    id=ids
+                    id=ids,
+                    tone=tone
                 )
             )
         else:
