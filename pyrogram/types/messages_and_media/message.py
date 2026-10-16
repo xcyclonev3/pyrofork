@@ -1159,7 +1159,7 @@ class Message(Object, Update):
 
             if media:
                 if isinstance(media, raw.types.MessageMediaPhoto):
-                    photo = types.Photo._parse(client, media.photo, media.ttl_seconds)
+                    photo = types.Photo._parse(client, media.photo, media.ttl_seconds, live_video=media.video)
                     media_type = enums.MessageMediaType.PHOTO
                     has_media_spoiler = media.spoiler
                 elif isinstance(media, raw.types.MessageMediaGeo):
@@ -2117,7 +2117,8 @@ class Message(Object, Update):
             "types.ReplyKeyboardMarkup",
             "types.ReplyKeyboardRemove",
             "types.ForceReply"
-        ] = None
+        ] = None,
+        live_video: str = None
     ) -> "Message":
         """Bound method *reply_cached_media* of :obj:`~pyrogram.types.Message`.
 
@@ -2181,6 +2182,10 @@ class Message(Object, Update):
                 Additional interface options. An object for an inline keyboard, custom reply keyboard,
                 instructions to remove reply keyboard or to force a reply from the user.
 
+            live_video (``str``, *optional*):
+                File identifier of the video of a live photo (see :obj:`~pyrogram.types.Photo`), to send the photo
+                of *file_id* as a live photo. For photos only.
+
         Returns:
             On success, the sent :obj:`~pyrogram.types.Message` is returned.
 
@@ -2216,7 +2221,8 @@ class Message(Object, Update):
             quote_text=quote_text,
             quote_entities=quote_entities,
             allow_paid_broadcast=allow_paid_broadcast,
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
+            live_video=live_video
         )
 
     async def reply_chat_action(
@@ -3082,7 +3088,8 @@ class Message(Object, Update):
             "types.ForceReply"
         ] = None,
         progress: Callable = None,
-        progress_args: tuple = ()
+        progress_args: tuple = (),
+        live_video: Union[str, BinaryIO] = None
     ) -> "Message":
         """Bound method *reply_photo* of :obj:`~pyrogram.types.Message`.
 
@@ -3187,6 +3194,13 @@ class Message(Object, Update):
                 You can pass anything you need to be available in the progress callback scope; for example, a Message
                 object or a Client instance in order to edit the message with the updated progress status.
 
+            live_video (``str`` | ``BinaryIO``, *optional*):
+                Short video clip captured alongside the photo, to send it as a live photo.
+                Pass a file_id as string to send a video that exists on the Telegram servers,
+                pass an HTTP URL as a string for Telegram to get a video from the Internet,
+                pass a file path as string to upload a new video that exists on your local machine, or
+                pass a binary file-like object with its attribute ".name" set for in-memory uploads.
+
         Other Parameters:
             current (``int``):
                 The amount of bytes transmitted so far.
@@ -3248,7 +3262,8 @@ class Message(Object, Update):
             invert_media=invert_media,
             reply_markup=reply_markup,
             progress=progress,
-            progress_args=progress_args
+            progress_args=progress_args,
+            live_video=live_video
         )
 
     async def reply_poll(
@@ -4983,6 +4998,8 @@ class Message(Object, Update):
 
             if self.photo:
                 file_id = self.photo.file_id
+                if self.photo.live_video:
+                    send_media = partial(send_media, live_video=self.photo.live_video.file_id)
             elif self.audio:
                 file_id = self.audio.file_id
             elif self.document:

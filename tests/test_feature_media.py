@@ -287,8 +287,6 @@ def test_bought_live_photo():
     assert_live_video(photo.live_video)
 
 
-@pytest.mark.xfail(strict=True, reason="Message.photo gets the live video once message.py passes "
-                                       "live_video=media.video to Photo._parse (main session)")
 def test_message_with_live_photo():
     from tests.test_layer_roundtrip import parse_message
 
@@ -298,6 +296,53 @@ def test_message_with_live_photo():
     ), users=[RAW_USER])
     assert message.photo is not None
     assert_live_video(message.photo.live_video)
+
+
+def live_photo_message():
+    from tests.test_layer_roundtrip import parse_message
+
+    return parse_message(raw.types.Message(
+        id=1, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7),
+        date=1, message="", media=live_photo_media()
+    ), users=[RAW_USER])
+
+
+def capture(message, method):
+    calls = []
+
+    async def fake(*args, **kwargs):
+        calls.append((args, kwargs))
+
+    setattr(message._client, method, fake)
+    return calls
+
+
+def test_message_bound_methods_pass_live_video():
+    message = live_photo_message()
+    photo_calls = capture(message, "send_photo")
+    cached_calls = capture(message, "send_cached_media")
+
+    call(lambda: message.reply_photo("photo.jpg", live_video="clip.mp4"))
+    call(lambda: message.reply_cached_media(message.photo.file_id, live_video=message.photo.live_video.file_id))
+
+    assert photo_calls[0][1]["live_video"] == "clip.mp4"
+    assert cached_calls[0][1]["live_video"] == message.photo.live_video.file_id
+
+
+def test_copy_keeps_live_photos():
+    message = live_photo_message()
+    calls = capture(message, "send_cached_media")
+
+    call(lambda: message.copy("me"))
+
+    [(args, kwargs)] = calls
+    assert kwargs["file_id"] == message.photo.file_id
+    assert kwargs["live_video"] == message.photo.live_video.file_id
+
+
+def test_poll_media_live_photo():
+    photo = asyncio.run(types.Poll._parse_media(None, roundtrip(live_photo_media())))
+    assert_live_video(photo.live_video)
 
 
 # Sending live photos: inputMediaPhoto/inputMediaUploadedPhoto.live_photo/video (TDLib inputPhoto.video)

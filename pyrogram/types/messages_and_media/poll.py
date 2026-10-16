@@ -187,7 +187,7 @@ class Poll(Object, Update):
     async def _parse_media(client, media: "raw.base.MessageMedia"):
         """The object of a media attached to a poll, to one of its options or to a quiz explanation."""
         if isinstance(media, raw.types.MessageMediaPhoto):
-            return types.Photo._parse(client, media.photo, media.ttl_seconds)
+            return types.Photo._parse(client, media.photo, media.ttl_seconds, live_video=media.video)
 
         if isinstance(media, raw.types.MessageMediaGeo):
             return types.Location._parse(client, media.geo)
