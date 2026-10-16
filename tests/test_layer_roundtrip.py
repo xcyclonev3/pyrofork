@@ -463,6 +463,8 @@ def test_gift_code_parsers_read_days():
     raw.types.ChatParticipant(user_id=7, inviter_id=7, date=1, rank="tag"),
     raw.types.ChatParticipantAdmin(user_id=7, inviter_id=7, date=1, rank="tag"),
     raw.types.ChatParticipantCreator(user_id=7, rank="tag"),
+    raw.types.ChannelParticipantBanned(peer=raw.types.PeerUser(user_id=7), kicked_by=7, date=1,
+                                       banned_rights=raw.types.ChatBannedRights(until_date=0), rank="tag"),
 ])
 def test_chat_member_rank_is_custom_title(member):
     users = {7: roundtrip(raw.types.User(id=7, access_hash=2, first_name="A"))}
@@ -727,3 +729,73 @@ def test_delete_scheduled_messages_short_update():
         date=0
     ))
     assert call(lambda: client.delete_scheduled_messages(-100123, 5)) == 5
+
+
+from types import SimpleNamespace  # noqa: E402
+
+from pyrogram.file_id import FileId, FileType, ThumbnailSource  # noqa: E402
+
+DOCUMENT_FILE_ID = FileId(file_type=FileType.DOCUMENT, dc_id=2, media_id=1, access_hash=2, file_reference=b"ref").encode()
+PHOTO_FILE_ID = FileId(
+    file_type=FileType.PHOTO, dc_id=2, media_id=3, access_hash=4, file_reference=b"ref",
+    thumbnail_source=ThumbnailSource.THUMBNAIL, thumbnail_file_type=FileType.PHOTO, thumbnail_size="y",
+    volume_id=0, local_id=0
+).encode()
+
+
+def channel_messages_updates(*ids):
+    return empty_updates(updates=[
+        raw.types.UpdateNewChannelMessage(
+            message=raw.types.Message(id=i, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message=""),
+            pts=1, pts_count=1
+        ) for i in ids
+    ], chats=[RAW_CHANNEL])
+
+
+def test_media_group_and_paid_media_parse_sent_messages():
+    client = offline_client(PEERS, lambda q: channel_messages_updates(10, 11))
+
+    messages = call(lambda: client.send_media_group(
+        -100123, [types.InputMediaDocument(DOCUMENT_FILE_ID), types.InputMediaDocument(DOCUMENT_FILE_ID)]))
+    assert isinstance(client.sent[-1], raw.functions.messages.SendMultiMedia)
+    assert [m.id for m in messages] == [10, 11]
+
+    async def get_media_group(chat_id, message_id):
+        return [types.Message(id=5, document=types.Document(file_id=DOCUMENT_FILE_ID, file_unique_id="u"))]
+
+    client.get_media_group = get_media_group
+    messages = call(lambda: client.copy_media_group(-100123, -100123, 5))
+    assert isinstance(client.sent[-1], raw.functions.messages.SendMultiMedia)
+    assert [m.id for m in messages] == [10, 11]
+
+    messages = call(lambda: client.send_paid_media(-100123, 10, [types.InputMediaPhoto(PHOTO_FILE_ID)]))
+    assert isinstance(client.sent[-1].media, raw.types.InputMediaPaidMedia)
+    assert [m.id for m in messages] == [10, 11]
+
+
+def test_gift_listings_map_exclude_limited():
+    client = offline_client(PEERS, lambda q: raw.types.payments.SavedStarGifts(count=0, gifts=[], chats=[], users=[]))
+
+    async def get_business_connection(connection_id):
+        return SimpleNamespace(user=SimpleNamespace(id=7))
+
+    client.get_business_connection = get_business_connection
+
+    async def main():
+        [g async for g in client.get_chat_gifts(-100123, exclude_limited=True)]
+        [g async for g in client.get_business_account_gifts("conn", exclude_limited=True)]
+
+    asyncio.run(main())
+    for request in client.sent:
+        assert isinstance(request, raw.functions.payments.GetSavedStarGifts)
+        assert request.exclude_upgradable and request.exclude_unupgradable
+
+
+def test_gift_parses_saved_star_gifts():
+    unique = raw.types.StarGiftUnique(
+        id=1, gift_id=2, title="Helmet", slug="Helmet-1", num=7, availability_issued=1, availability_total=10,
+        attributes=[]
+    )
+    saved = roundtrip(raw.types.SavedStarGift(date=1, gift=unique, saved_id=3))
+    gift = asyncio.run(types.Gift._parse(None, saved, {}, {}))
+    assert gift.name == "Helmet-1" and gift.collectible_id == 7
