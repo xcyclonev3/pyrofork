@@ -31,6 +31,7 @@ from .user_and_chats import *
 from .payments import *
 from .pyromod import *
 from .wallet import *
+from .rich_messages import *
 
 __all__ = [
     "List",
@@ -48,4 +49,5 @@ __all__.extend(user_and_chats.__all__)
 __all__.extend(payments.__all__)
 __all__.extend(pyromod.__all__)
 __all__.extend(wallet.__all__)
+__all__.extend(rich_messages.__all__)
 

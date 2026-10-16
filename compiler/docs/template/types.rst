@@ -60,6 +60,45 @@ Stories
 
     {stories}
 
+Rich Messages
+-------------
+
+.. autosummary::
+    :nosignatures:
+
+    {rich_messages}
+
+.. toctree::
+    :hidden:
+
+    {rich_messages}
+
+Rich Texts
+----------
+
+.. autosummary::
+    :nosignatures:
+
+    {rich_texts}
+
+.. toctree::
+    :hidden:
+
+    {rich_texts}
+
+Page Blocks
+-----------
+
+.. autosummary::
+    :nosignatures:
+
+    {page_blocks}
+
+.. toctree::
+    :hidden:
+
+    {page_blocks}
+
 Pyromod
 -------
 

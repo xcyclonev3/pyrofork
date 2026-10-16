@@ -936,6 +936,90 @@ def pyrogram_api():
             TonCenterStreamingApiUrl
             TonWalletTransfer
             TonConnectPendingDisconnect
+        """,
+        rich_messages="""
+        Rich Messages
+            RichMessage
+            InlineButton
+        """,
+        rich_texts="""
+        Rich Texts
+            RichText
+            RichTextPlain
+            RichTextBold
+            RichTextItalic
+            RichTextUnderline
+            RichTextStrikethrough
+            RichTextSpoiler
+            RichTextSubscript
+            RichTextSuperscript
+            RichTextMarked
+            RichTextDateTime
+            RichTextMention
+            RichTextHashtag
+            RichTextCashtag
+            RichTextBankCardNumber
+            RichTextTonAddress
+            RichTextBotCommand
+            RichTextFixed
+            RichTextMentionName
+            RichTextUrl
+            RichTextEmailAddress
+            RichTextPhoneNumber
+            RichTextCustomEmoji
+            RichTextIcon
+            RichTextMathematicalExpression
+            RichTextButton
+            RichTextDiff
+            RichTextReference
+            RichTextReferenceLink
+            RichTextAnchor
+            RichTextAnchorLink
+            RichTexts
+        """,
+        page_blocks="""
+        Page Blocks
+            PageBlock
+            PageBlockTitle
+            PageBlockSubtitle
+            PageBlockAuthorDate
+            PageBlockHeader
+            PageBlockSubheader
+            PageBlockSectionHeading
+            PageBlockKicker
+            PageBlockParagraph
+            PageBlockPreformatted
+            PageBlockFooter
+            PageBlockThinking
+            PageBlockDivider
+            PageBlockMathematicalExpression
+            PageBlockAnchor
+            PageBlockList
+            PageBlockBlockQuote
+            PageBlockExpandableBlockQuote
+            PageBlockPullQuote
+            PageBlockAnimation
+            PageBlockAudio
+            PageBlockDocument
+            PageBlockPhoto
+            PageBlockVideo
+            PageBlockVoiceNote
+            PageBlockCover
+            PageBlockEmbedded
+            PageBlockEmbeddedPost
+            PageBlockCollage
+            PageBlockSlideshow
+            PageBlockChatLink
+            PageBlockTable
+            PageBlockDetails
+            PageBlockRelatedArticles
+            PageBlockMap
+            PageBlockButtonRow
+            PageBlockUnsupported
+            PageBlockCaption
+            PageBlockListItem
+            PageBlockTableCell
+            PageBlockRelatedArticle
         """
     )
 
