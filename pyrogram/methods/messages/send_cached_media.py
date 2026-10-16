@@ -52,7 +52,8 @@ class SendCachedMedia:
             "types.ReplyKeyboardMarkup",
             "types.ReplyKeyboardRemove",
             "types.ForceReply"
-        ] = None
+        ] = None,
+        live_video: str = None
     ) -> Optional["types.Message"]:
         """Send any media stored on the Telegram servers using a file_id.
 
@@ -134,13 +135,23 @@ class SendCachedMedia:
                 Additional interface options. An object for an inline keyboard, custom reply keyboard,
                 instructions to remove reply keyboard or to force a reply from the user.
 
+            live_video (``str``, *optional*):
+                File identifier of the video of a live photo (see :obj:`~pyrogram.types.Photo`), to send the photo
+                of *file_id* as a live photo. For photos only.
+
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent media message is returned.
+
+        Raises:
+            ValueError: In case *live_video* is given for a media that isn't a photo.
 
         Example:
             .. code-block:: python
 
                 await app.send_cached_media("me", file_id)
+
+                # Send again a live photo
+                await app.send_cached_media("me", photo.file_id, live_video=photo.live_video.file_id)
         """
 
         reply_to = await utils.get_reply_to(
@@ -158,6 +169,12 @@ class SendCachedMedia:
 
         media = utils.get_input_media_from_file_id(file_id)
         media.spoiler = has_spoiler
+
+        if live_video is not None:
+            if not isinstance(media, raw.types.InputMediaPhoto):
+                raise ValueError("Only photos can be sent with a live video")
+
+            media = await utils.add_live_photo_video(self, await self.resolve_peer(chat_id), media, live_video)
 
         r = await self.invoke(
             raw.functions.messages.SendMedia(

@@ -481,6 +481,45 @@ def test_edit_inline_media_uploads_static_photo(tmp_path):
     assert not request.media.live_photo and request.media.video is None
 
 
+def test_send_cached_media_with_live_video():
+    client = offline_client(PEERS, upload_respond)
+    message = call(lambda: client.send_cached_media(7, photo_file_id(2001), live_video=LIVE_VIDEO_ID))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.SendMedia)
+    assert_live_photo_media(request.media, raw.types.InputMediaPhoto)
+    assert request.media.id.id == 2001 and message.id == 1
+
+
+def test_send_cached_media_live_video_needs_a_photo():
+    client = offline_client(PEERS, upload_respond)
+    with pytest.raises(ValueError):
+        call(lambda: client.send_cached_media(7, AUDIO_ID, live_video=LIVE_VIDEO_ID))
+    assert client.sent == []
+
+
+def test_copy_media_group_keeps_live_photos():
+    client = offline_client(PEERS, lambda q: empty_updates())
+
+    async def get_media_group(chat_id, message_id):
+        live = types.Photo._parse(None, roundtrip(raw_photo(2001)), live_video=roundtrip(RAW_LIVE_VIDEO))
+        static = types.Photo._parse(None, roundtrip(raw_photo(2002)))
+        return [
+            types.Message(id=1, media=enums.MessageMediaType.PHOTO, caption="live", photo=live),
+            types.Message(id=2, media=enums.MessageMediaType.PHOTO, photo=static),
+        ]
+
+    client.get_media_group = get_media_group
+    call(lambda: client.copy_media_group(7, -100123, 1))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.SendMultiMedia)
+    live, static = (m.media for m in request.multi_media)
+    assert_live_photo_media(live, raw.types.InputMediaPhoto)
+    assert live.id.id == 2001
+    assert static.id.id == 2002 and not static.live_photo and static.video is None
+
+
 def test_send_paid_media_with_live_photo():
     client = offline_client(PEERS, lambda q: empty_updates())
     call(lambda: client.send_paid_media(-100123, 5, [
