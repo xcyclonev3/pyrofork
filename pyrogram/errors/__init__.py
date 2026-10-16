@@ -77,8 +77,8 @@ class GuardBotApprovalRequired(Exception):
     """Raised by :meth:`~pyrogram.Client.join_chat` when a guard bot of the chat must approve the join first.
 
     The approval happens in a Web App of the bot: get its URL with
-    :obj:`~pyrogram.raw.functions.messages.RequestChatJoinWebView` (passing ``query_id``) and wait for
-    :obj:`~pyrogram.raw.types.UpdateJoinChatWebViewDecision` with the same ``query_id``.
+    :meth:`~pyrogram.Client.get_guard_bot_web_app_url` (passing ``query_id``) and wait for the
+    :obj:`~pyrogram.types.ChatJoinResult` with the same ``query_id`` (see :meth:`~pyrogram.Client.on_chat_join_result`).
 
     Parameters:
         bot_id (``int``):

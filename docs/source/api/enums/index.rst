@@ -39,6 +39,7 @@ to apply only a valid value among the expected ones.
     StoriesPrivacyRules
     StoryPrivacy
     ButtonStyle
+    ChatJoinResultType
 
 .. toctree::
     :hidden:
@@ -69,3 +70,4 @@ to apply only a valid value among the expected ones.
     StoriesPrivacyRules
     StoryPrivacy
     ButtonStyle
+    ChatJoinResultType

@@ -38,6 +38,7 @@ from .get_chat_online_count import GetChatOnlineCount
 from .get_dialogs import GetDialogs
 from .get_dialogs_count import GetDialogsCount
 from .get_folders import GetFolders
+from .get_guard_bot_web_app_url import GetGuardBotWebAppUrl
 from .get_send_as_chats import GetSendAsChats
 from .join_chat import JoinChat
 from .leave_chat import LeaveChat
@@ -109,6 +110,7 @@ class Chats(
     TransferChatOwnership,
     UpdateColor,
     UpdateFolder,
-    SetChatMemberTag
+    SetChatMemberTag,
+    GetGuardBotWebAppUrl
 ):
     pass

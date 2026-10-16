@@ -294,6 +294,7 @@ def pyrogram_api():
             update_color
             update_folder
             set_chat_member_tag
+            get_guard_bot_web_app_url
         """,
         users="""
         Users
@@ -532,6 +533,7 @@ def pyrogram_api():
             ChatColor
             CollectibleItemInfo
             BotVerification
+            ChatJoinResult
         """,
         messages_media="""
         Messages & Media

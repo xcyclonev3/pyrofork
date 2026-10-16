@@ -56,6 +56,7 @@ Index
     - :class:`DisconnectHandler`
     - :class:`RawUpdateHandler`
     - :class:`ErrorHandler`
+    - :class:`ChatJoinResultHandler`
 
 -----
 
@@ -84,3 +85,4 @@ Details
 .. autoclass:: DisconnectHandler()
 .. autoclass:: RawUpdateHandler()
 .. autoclass:: ErrorHandler()
+.. autoclass:: ChatJoinResultHandler()

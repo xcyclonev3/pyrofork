@@ -57,6 +57,7 @@ Index
     - :meth:`~Client.on_disconnect`
     - :meth:`~Client.on_raw_update`
     - :meth:`~Client.on_error`
+    - :meth:`~Client.on_chat_join_result`
 
 -----
 
@@ -86,3 +87,4 @@ Details
 .. autodecorator:: pyrogram.Client.on_disconnect()
 .. autodecorator:: pyrogram.Client.on_raw_update()
 .. autodecorator:: pyrogram.Client.on_error()
+.. autodecorator:: pyrogram.Client.on_chat_join_result()
