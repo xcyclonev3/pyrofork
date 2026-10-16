@@ -439,6 +439,10 @@ def pyrogram_api():
             get_owned_bots
             get_similar_bots
             answer_chat_join_request_query
+            create_bot
+            get_managed_bot_token
+            get_managed_bot_access_settings
+            set_managed_bot_access_settings
         """,
         business="""
         Telegram Business
@@ -696,6 +700,7 @@ def pyrogram_api():
             BotAllowed
             BotApp
             BotBusinessConnection
+            BotAccessSettings
         """,
         bot_keyboards="""
         Bot keyboards

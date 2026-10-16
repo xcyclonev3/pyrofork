@@ -17,6 +17,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from .bot_access_settings import BotAccessSettings
 from .bot_allowed import BotAllowed
 from .bot_app import BotApp
 from .bot_business_connection import BotBusinessConnection
@@ -96,5 +97,6 @@ __all__ = [
     "MenuButtonDefault",
     "SentWebAppMessage",
     "KeyboardButtonPollType",
-    "RequestPeerTypeManagedBot"
+    "RequestPeerTypeManagedBot",
+    "BotAccessSettings"
 ]

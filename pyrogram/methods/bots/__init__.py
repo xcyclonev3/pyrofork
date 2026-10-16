@@ -21,6 +21,7 @@ from .answer_callback_query import AnswerCallbackQuery
 from .answer_chat_join_request_query import AnswerChatJoinRequestQuery
 from .answer_inline_query import AnswerInlineQuery
 from .answer_web_app_query import AnswerWebAppQuery
+from .create_bot import CreateBot
 from .delete_bot_commands import DeleteBotCommands
 from .get_bot_commands import GetBotCommands
 from .get_bot_default_privileges import GetBotDefaultPrivileges
@@ -29,6 +30,8 @@ from .get_chat_menu_button import GetChatMenuButton
 from .get_collectible_item_info import GetCollectibleItemInfo
 from .get_game_high_scores import GetGameHighScores
 from .get_inline_bot_results import GetInlineBotResults
+from .get_managed_bot_access_settings import GetManagedBotAccessSettings
+from .get_managed_bot_token import GetManagedBotToken
 from .request_callback_answer import RequestCallbackAnswer
 from .send_game import SendGame
 from .send_inline_bot_result import SendInlineBotResult
@@ -39,6 +42,7 @@ from .set_chat_menu_button import SetChatMenuButton
 from .set_game_score import SetGameScore
 from .get_owned_bots import GetOwnedBots
 from .get_similar_bots import GetSimilarBots
+from .set_managed_bot_access_settings import SetManagedBotAccessSettings
 
 
 class Bots(
@@ -64,5 +68,9 @@ class Bots(
     GetOwnedBots,
     GetSimilarBots,
     AnswerChatJoinRequestQuery,
+    CreateBot,
+    GetManagedBotToken,
+    GetManagedBotAccessSettings,
+    SetManagedBotAccessSettings,
 ):
     pass
