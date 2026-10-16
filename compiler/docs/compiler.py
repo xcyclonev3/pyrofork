@@ -438,6 +438,7 @@ def pyrogram_api():
             get_collectible_item_info
             get_owned_bots
             get_similar_bots
+            answer_chat_join_request_query
         """,
         business="""
         Telegram Business

@@ -18,6 +18,7 @@
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
 from .answer_callback_query import AnswerCallbackQuery
+from .answer_chat_join_request_query import AnswerChatJoinRequestQuery
 from .answer_inline_query import AnswerInlineQuery
 from .answer_web_app_query import AnswerWebAppQuery
 from .delete_bot_commands import DeleteBotCommands
@@ -62,5 +63,6 @@ class Bots(
     GetCollectibleItemInfo,
     GetOwnedBots,
     GetSimilarBots,
+    AnswerChatJoinRequestQuery,
 ):
     pass
