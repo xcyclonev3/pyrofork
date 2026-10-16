@@ -437,6 +437,12 @@ class Message(Object, Update):
         chat_join_type (:obj:`~pyrogram.enums.ChatJoinType`, *optional*):
             The message is a service message of the type :obj:`~pyrogram.enums.MessageServiceType.NEW_CHAT_MEMBERS`.
             This field will contain the enumeration type of how the user had joined the chat.
+
+        poll_option_added (:obj:`~pyrogram.types.PollOption`, *optional*):
+            Service message: an answer option was added to the poll this message replies to.
+
+        poll_option_deleted (:obj:`~pyrogram.types.PollOption`, *optional*):
+            Service message: an answer option was deleted from the poll this message replies to.
     """
 
     # TODO: Add game missing field, Also connected_website
@@ -561,6 +567,8 @@ class Message(Object, Update):
         ] = None,
         reactions: List["types.Reaction"] = None,
         chat_join_type: "enums.ChatJoinType" = None,
+        poll_option_added: "types.PollOption" = None,
+        poll_option_deleted: "types.PollOption" = None,
         raw: "raw.types.Message" = None
     ):
         super().__init__(client)
@@ -676,6 +684,8 @@ class Message(Object, Update):
         self.payment_refunded = payment_refunded
         self.reactions = reactions
         self.chat_join_type = chat_join_type
+        self.poll_option_added = poll_option_added
+        self.poll_option_deleted = poll_option_deleted
         self.raw = raw
 
     async def wait_for_click(
@@ -793,6 +803,8 @@ class Message(Object, Update):
             todo_tasks_added = None
             todo_tasks_completed = None
             todo_tasks_incompleted = None
+            poll_option_added = None
+            poll_option_deleted = None
 
             service_type = None
             chat_join_type = None
@@ -917,6 +929,12 @@ class Message(Object, Update):
             elif isinstance(action, raw.types.MessageActionPaidMessagesPrice):
                 paid_message_price_changed = types.PaidMessagePriceChanged._parse(action)
                 service_type = enums.MessageServiceType.PAID_MESSAGE_PRICE_CHANGED
+            elif isinstance(action, raw.types.MessageActionPollAppendAnswer):
+                poll_option_added = await types.PollOption._parse(client, action.answer, users, chats)
+                service_type = enums.MessageServiceType.POLL_OPTION_ADDED
+            elif isinstance(action, raw.types.MessageActionPollDeleteAnswer):
+                poll_option_deleted = await types.PollOption._parse(client, action.answer, users, chats)
+                service_type = enums.MessageServiceType.POLL_OPTION_DELETED
 
 
             parsed_message = Message(
@@ -964,6 +982,8 @@ class Message(Object, Update):
                 gift_code=gift_code,
                 screenshot_taken=screenshot_taken,
                 paid_message_price_changed=paid_message_price_changed,
+                poll_option_added=poll_option_added,
+                poll_option_deleted=poll_option_deleted,
                 raw=message,
                 chat_join_type=chat_join_type,
                 client=client
@@ -971,6 +991,10 @@ class Message(Object, Update):
             )
             if parsed_message.chat.type is not enums.ChatType.CHANNEL:
                 parsed_message.sender_chat = sender_chat
+
+            if service_type in (enums.MessageServiceType.POLL_OPTION_ADDED, enums.MessageServiceType.POLL_OPTION_DELETED):
+                # The service message replies to the poll message
+                parsed_message.reply_to_message_id = getattr(message.reply_to, "reply_to_msg_id", None)
 
             if isinstance(action, raw.types.MessageActionPinMessage):
                 try:
@@ -1179,7 +1203,7 @@ class Message(Object, Update):
                     else:
                         media = None
                 elif isinstance(media, raw.types.MessageMediaPoll):
-                    poll = await types.Poll._parse(client, media, users)
+                    poll = await types.Poll._parse(client, media, users, chats)
                     media_type = enums.MessageMediaType.POLL
                 elif isinstance(media, raw.types.MessageMediaDice):
                     dice = types.Dice._parse(client, media)

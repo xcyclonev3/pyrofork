@@ -59,6 +59,30 @@ class SendPoll:
             "types.ReplyKeyboardMarkup",
             "types.ReplyKeyboardRemove",
             "types.ForceReply"
+        ] = None,
+        description: str = None,
+        description_parse_mode: Optional["enums.ParseMode"] = None,
+        description_entities: List["types.MessageEntity"] = None,
+        media: Union[
+            "types.InputMediaPhoto",
+            "types.InputMediaVideo",
+            "types.InputMediaAnimation",
+            "types.InputMediaAudio",
+            "types.InputMediaDocument"
+        ] = None,
+        allows_revoting: bool = None,
+        allow_adding_options: bool = None,
+        shuffle_options: bool = None,
+        hide_results_until_closes: bool = None,
+        members_only: bool = None,
+        country_codes: List[str] = None,
+        correct_option_ids: List[int] = None,
+        explanation_media: Union[
+            "types.InputMediaPhoto",
+            "types.InputMediaVideo",
+            "types.InputMediaAnimation",
+            "types.InputMediaAudio",
+            "types.InputMediaDocument"
         ] = None
     ) -> "types.Message":
         """Send a new poll.
@@ -170,6 +194,45 @@ class SendPoll:
                 Additional interface options. An object for an inline keyboard, custom reply keyboard,
                 instructions to remove reply keyboard or to force a reply from the user.
 
+            description (``str``, *optional*):
+                Description of the poll, shown as the caption of the poll message.
+
+            description_parse_mode (:obj:`~pyrogram.enums.ParseMode`, *optional*):
+                By default, the description is parsed using both Markdown and HTML styles.
+
+            description_entities (List of :obj:`~pyrogram.types.MessageEntity`, *optional*):
+                List of special entities that appear in the description, which can be specified instead of
+                *description_parse_mode*.
+
+            media (:obj:`~pyrogram.types.InputMediaPhoto` | :obj:`~pyrogram.types.InputMediaVideo` | :obj:`~pyrogram.types.InputMediaAnimation` | :obj:`~pyrogram.types.InputMediaAudio` | :obj:`~pyrogram.types.InputMediaDocument`, *optional*):
+                Media attached to the poll. Options can carry media too, see :obj:`~pyrogram.types.PollOption`.
+
+            allows_revoting (``bool``, *optional*):
+                Pass False to forbid changing the vote.
+
+            allow_adding_options (``bool``, *optional*):
+                Pass True to let users add answer options to a regular poll; not supported in channels and for
+                anonymous polls.
+
+            shuffle_options (``bool``, *optional*):
+                Pass True to show the options in a fixed random order.
+
+            hide_results_until_closes (``bool``, *optional*):
+                Pass True to show the results only after the poll closes.
+
+            members_only (``bool``, *optional*):
+                Pass True to let only users that are members of the chat for more than a day vote; for channels only.
+
+            country_codes (List of ``str``, *optional*):
+                Two-letter ISO 3166-1 alpha-2 codes of the countries whose users can vote; for channels only.
+
+            correct_option_ids (List of ``int``, *optional*):
+                0-based identifiers of the correct answer options of a quiz, if it has several; can be passed
+                instead of *correct_option_id*.
+
+            explanation_media (:obj:`~pyrogram.types.InputMediaPhoto` | :obj:`~pyrogram.types.InputMediaVideo` | :obj:`~pyrogram.types.InputMediaAnimation` | :obj:`~pyrogram.types.InputMediaAudio` | :obj:`~pyrogram.types.InputMediaDocument`, *optional*):
+                Media shown with the explanation of a quiz.
+
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent poll message is returned.
 
@@ -204,31 +267,53 @@ class SendPoll:
             self, explanation, explanation_parse_mode, explanation_entities
         )).values()
         q, q_entities = (await pyrogram.utils.parse_text_entities(self, question, None, question_entities)).values()
+        message, entities = (await utils.parse_text_entities(
+            self, description, description_parse_mode, description_entities
+        )).values()
+
+        peer = await self.resolve_peer(chat_id)
+
+        answers = []
+
+        for i, option in enumerate(options):
+            answer = await types.PollOption(text=option.text, entities=option.entities).write(self, i)
+            answer.media = await utils.get_input_poll_media(self, peer, option.media)
+            answers.append(answer)
+
+        if correct_option_ids is None and correct_option_id is not None:
+            correct_option_ids = [correct_option_id]
 
         rpc = raw.functions.messages.SendMedia(
-            peer=await self.resolve_peer(chat_id),
+            peer=peer,
             media=raw.types.InputMediaPoll(
                 poll=raw.types.Poll(
                     id=self.rnd_id(),
                     question=raw.types.TextWithEntities(text=q, entities=q_entities or []),
-                    answers=[
-                        await types.PollOption(text=option.text,entities=option.entities).write(self,i)
-                        for i, option in enumerate(options)
-                    ],
+                    answers=answers,
                     closed=is_closed,
                     public_voters=not is_anonymous,
                     multiple_choice=allows_multiple_answers,
                     quiz=type == enums.PollType.QUIZ or False,
+                    open_answers=allow_adding_options,
+                    revoting_disabled=True if allows_revoting is False else None,
+                    shuffle_answers=shuffle_options,
+                    hide_results_until_close=hide_results_until_closes,
+                    subscribers_only=members_only,
+                    countries_iso2=country_codes,
                     close_period=open_period,
                     close_date=utils.datetime_to_timestamp(close_date),
                     # Official clients send 0 for new polls (tdesktop PollDataToMTP, TDLib PollManager)
                     hash=0
                 ),
-                correct_answers=[correct_option_id] if correct_option_id is not None else None,
+                correct_answers=correct_option_ids,
+                attached_media=await utils.get_input_poll_media(self, peer, media),
                 solution=solution,
-                solution_entities=solution_entities or []
+                solution_entities=solution_entities or [],
+                solution_media=await utils.get_input_poll_media(self, peer, explanation_media)
             ),
-            message="",
+            # Like TDLib, the poll description is the text of the poll message
+            message=message or "",
+            entities=entities,
             silent=disable_notification,
             reply_to=reply_to,
             random_id=self.rnd_id(),

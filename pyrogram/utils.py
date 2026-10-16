@@ -341,6 +341,106 @@ def get_channel_id(peer_id: int) -> int:
     return MAX_CHANNEL_ID - peer_id
 
 
+async def get_input_poll_media(
+    client: "pyrogram.Client",
+    peer: "raw.base.InputPeer",
+    media: Union[
+        "types.InputMediaPhoto",
+        "types.InputMediaVideo",
+        "types.InputMediaAnimation",
+        "types.InputMediaAudio",
+        "types.InputMediaDocument"
+    ] = None
+) -> Optional["raw.base.InputMedia"]:
+    """The InputMedia of a media attached to a poll, to one of its options or to a quiz explanation.
+
+    As in send_media_group: file ids and URLs are sent as they are, local or in-memory files are uploaded to
+    the chat with messages.uploadMedia first.
+    """
+    if media is None:
+        return None
+
+    file_types = {
+        types.InputMediaPhoto: FileType.PHOTO,
+        types.InputMediaVideo: FileType.VIDEO,
+        types.InputMediaAnimation: FileType.ANIMATION,
+        types.InputMediaAudio: FileType.AUDIO,
+        types.InputMediaDocument: FileType.DOCUMENT
+    }
+
+    if type(media) not in file_types:
+        raise ValueError(f"Unsupported poll media: {type(media).__name__}")
+
+    is_photo = isinstance(media, types.InputMediaPhoto)
+
+    if isinstance(media.media, str) and not os.path.isfile(media.media):
+        if re.match("^https?://", media.media):
+            external = raw.types.InputMediaPhotoExternal if is_photo else raw.types.InputMediaDocumentExternal
+            return external(url=media.media)
+
+        return get_input_media_from_file_id(media.media, file_types[type(media)])
+
+    file = await client.save_file(media.media)
+
+    if is_photo:
+        uploaded = raw.types.InputMediaUploadedPhoto(file=file)
+    else:
+        file_name = getattr(media, "file_name", None) or os.path.basename(
+            media.media if isinstance(media.media, str) else getattr(media.media, "name", "file")
+        )
+        attributes = [raw.types.DocumentAttributeFilename(file_name=file_name)]
+        mime_type = client.guess_mime_type(file_name)
+
+        if isinstance(media, (types.InputMediaVideo, types.InputMediaAnimation)):
+            attributes.append(
+                raw.types.DocumentAttributeVideo(
+                    supports_streaming=getattr(media, "supports_streaming", None) or None,
+                    duration=media.duration,
+                    w=media.width,
+                    h=media.height
+                )
+            )
+            mime_type = mime_type or "video/mp4"
+
+            if isinstance(media, types.InputMediaAnimation):
+                attributes.append(raw.types.DocumentAttributeAnimated())
+        elif isinstance(media, types.InputMediaAudio):
+            attributes.append(
+                raw.types.DocumentAttributeAudio(
+                    duration=media.duration,
+                    performer=media.performer,
+                    title=media.title
+                )
+            )
+            mime_type = mime_type or "audio/mpeg"
+
+        uploaded = raw.types.InputMediaUploadedDocument(
+            file=file,
+            thumb=await client.save_file(media.thumb) if media.thumb else None,
+            mime_type=mime_type or "application/zip",
+            attributes=attributes
+        )
+
+    r = await client.invoke(raw.functions.messages.UploadMedia(peer=peer, media=uploaded))
+
+    if isinstance(r, raw.types.MessageMediaPhoto):
+        return raw.types.InputMediaPhoto(
+            id=raw.types.InputPhoto(
+                id=r.photo.id,
+                access_hash=r.photo.access_hash,
+                file_reference=r.photo.file_reference
+            )
+        )
+
+    return raw.types.InputMediaDocument(
+        id=raw.types.InputDocument(
+            id=r.document.id,
+            access_hash=r.document.access_hash,
+            file_reference=r.document.file_reference
+        )
+    )
+
+
 def parse_button_style(
     style: Optional["raw.types.KeyboardButtonStyle"]
 ) -> "tuple[Optional[enums.ButtonStyle], Optional[int]]":

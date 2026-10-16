@@ -228,6 +228,10 @@ def pyrogram_api():
             translate_message_text
             start_bot
             delete_chat_history
+            add_poll_option
+            delete_poll_option
+            get_unread_poll_votes
+            read_all_chat_poll_votes
         """,
         chats="""
         Chats

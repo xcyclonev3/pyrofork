@@ -17,11 +17,13 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from .add_poll_option import AddPollOption
 from .add_task_to_todo import AddTaskToTodo
 from .copy_media_group import CopyMediaGroup
 from .copy_message import CopyMessage
 from .delete_chat_history import DeleteChatHistory
 from .delete_messages import DeleteMessages
+from .delete_poll_option import DeletePollOption
 from .delete_scheduled_messages import DeleteScheduledMessages
 from .download_media import DownloadMedia
 from .edit_inline_caption import EditInlineCaption
@@ -45,6 +47,8 @@ from .get_media_group import GetMediaGroup
 from .get_messages import GetMessages
 from .get_message_read_participants import GetMessageReadParticipants
 from .get_scheduled_messages import GetScheduledMessages
+from .get_unread_poll_votes import GetUnreadPollVotes
+from .read_all_chat_poll_votes import ReadAllChatPollVotes
 from .read_chat_history import ReadChatHistory
 from .retract_vote import RetractVote
 from .search_global import SearchGlobal
@@ -144,6 +148,10 @@ class Messages(
     GetCustomEmojiStickers,
     TranscribeAudio,
     TranslateText,
-    StartBot
+    StartBot,
+    AddPollOption,
+    DeletePollOption,
+    GetUnreadPollVotes,
+    ReadAllChatPollVotes
 ):
     pass

@@ -45,6 +45,9 @@ class Dialog(Object):
 
         is_pinned (``bool``):
             True, if the dialog is pinned.
+
+        unread_poll_votes_count (``int``, *optional*):
+            Amount of poll messages with votes the current user didn't see yet.
     """
 
     def __init__(
@@ -56,7 +59,8 @@ class Dialog(Object):
         unread_messages_count: int,
         unread_mentions_count: int,
         unread_mark: bool,
-        is_pinned: bool
+        is_pinned: bool,
+        unread_poll_votes_count: int = None
     ):
         super().__init__(client)
 
@@ -66,6 +70,7 @@ class Dialog(Object):
         self.unread_mentions_count = unread_mentions_count
         self.unread_mark = unread_mark
         self.is_pinned = is_pinned
+        self.unread_poll_votes_count = unread_poll_votes_count
 
     @staticmethod
     def _parse(client, dialog: "raw.types.Dialog", messages, users, chats) -> "Dialog":
@@ -76,5 +81,6 @@ class Dialog(Object):
             unread_mentions_count=dialog.unread_mentions_count,
             unread_mark=dialog.unread_mark,
             is_pinned=dialog.pinned,
+            unread_poll_votes_count=getattr(dialog, "unread_poll_votes_count", None),
             client=client
         )

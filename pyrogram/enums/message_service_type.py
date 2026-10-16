@@ -141,3 +141,9 @@ class MessageServiceType(AutoName):
 
     TODO_TASKS_COMPLETION = auto()
     "To-Do tasks completion/incompletion"
+
+    POLL_OPTION_ADDED = auto()
+    "Poll option added"
+
+    POLL_OPTION_DELETED = auto()
+    "Poll option deleted"

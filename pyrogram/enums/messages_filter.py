@@ -74,3 +74,6 @@ class MessagesFilter(AutoName):
 
     PINNED = raw.types.InputMessagesFilterPinned
     "Pinned messages"
+
+    POLL = raw.types.InputMessagesFilterPoll
+    "Poll messages"
