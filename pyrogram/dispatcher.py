@@ -55,7 +55,11 @@ from pyrogram.handlers import (
   ManagedBotUpdatedHandler,
   BusinessConnectedBotHandler,
   PendingMessageHandler,
-  MessageDraftStoppedHandler
+  MessageDraftStoppedHandler,
+  TonWalletStateHandler,
+  TonWalletGaslessTransfersInfoHandler,
+  TonConnectSessionHandler,
+  TonConnectPendingDisconnectHandler
 )
 from pyrogram.raw.types import (
     UpdateNewMessage, UpdateNewChannelMessage, UpdateNewScheduledMessage,
@@ -76,7 +80,11 @@ from pyrogram.raw.types import (
     UpdateBotGuestChatQuery,
     UpdateManagedBot,
     UpdateNewBotConnection,
-    UpdateUserTyping
+    UpdateUserTyping,
+    UpdateWalletState,
+    UpdateWalletGaslessInfo,
+    UpdateWalletTonConnectSession,
+    UpdateWalletTonConnectPendingDisconnect
 )
 
 log = logging.getLogger(__name__)
@@ -108,6 +116,10 @@ class Dispatcher:
     MANAGED_BOT_UPDATES = (UpdateManagedBot,)
     NEW_BOT_CONNECTION_UPDATES = (UpdateNewBotConnection,)
     USER_TYPING_UPDATES = (UpdateUserTyping,)
+    WALLET_STATE_UPDATES = (UpdateWalletState,)
+    WALLET_GASLESS_INFO_UPDATES = (UpdateWalletGaslessInfo,)
+    WALLET_TON_CONNECT_SESSION_UPDATES = (UpdateWalletTonConnectSession,)
+    WALLET_TON_CONNECT_PENDING_DISCONNECT_UPDATES = (UpdateWalletTonConnectPendingDisconnect,)
 
     def __init__(self, client: "pyrogram.Client"):
         self.client = client
@@ -297,6 +309,30 @@ class Dispatcher:
 
             return None, type(None)
 
+        async def wallet_state_parser(update, users, chats):
+            return (
+                pyrogram.types.TonWalletState._parse(self.client, update.state),
+                TonWalletStateHandler
+            )
+
+        async def wallet_gasless_info_parser(update, users, chats):
+            return (
+                pyrogram.types.TonWalletGaslessTransfersInfo._parse(self.client, update),
+                TonWalletGaslessTransfersInfoHandler
+            )
+
+        async def wallet_ton_connect_session_parser(update, users, chats):
+            return (
+                pyrogram.types.TonConnectSession._parse(self.client, update.session),
+                TonConnectSessionHandler
+            )
+
+        async def wallet_ton_connect_pending_disconnect_parser(update, users, chats):
+            return (
+                pyrogram.types.TonConnectPendingDisconnect._parse(self.client, update),
+                TonConnectPendingDisconnectHandler
+            )
+
         self.update_parsers = {
             Dispatcher.NEW_MESSAGE_UPDATES: message_parser,
             Dispatcher.NEW_BOT_BUSINESS_MESSAGE_UPDATES: bot_business_message_parser,
@@ -322,7 +358,11 @@ class Dispatcher:
             Dispatcher.GUEST_QUERY_UPDATES: guest_query_parser,
             Dispatcher.MANAGED_BOT_UPDATES: managed_bot_parser,
             Dispatcher.NEW_BOT_CONNECTION_UPDATES: new_bot_connection_parser,
-            Dispatcher.USER_TYPING_UPDATES: user_typing_parser
+            Dispatcher.USER_TYPING_UPDATES: user_typing_parser,
+            Dispatcher.WALLET_STATE_UPDATES: wallet_state_parser,
+            Dispatcher.WALLET_GASLESS_INFO_UPDATES: wallet_gasless_info_parser,
+            Dispatcher.WALLET_TON_CONNECT_SESSION_UPDATES: wallet_ton_connect_session_parser,
+            Dispatcher.WALLET_TON_CONNECT_PENDING_DISCONNECT_UPDATES: wallet_ton_connect_pending_disconnect_parser
         }
 
         self.update_parsers = {key: value for key_tuple, value in self.update_parsers.items() for key in key_tuple}

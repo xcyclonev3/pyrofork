@@ -223,3 +223,38 @@ def test_process_chat_protected_content_disable_request(approve):
     [request] = client.sent
     assert isinstance(request, raw.functions.messages.ToggleNoForwards)
     assert request.enabled is (not approve) and request.request_msg_id == 2
+
+
+@pytest.mark.parametrize("update, handler, check", [
+    (raw.types.UpdateWalletState(state=raw.types.WalletState(
+        address="EQabc", public_key=b"k" * 32, balance=7, backup_enabled=True)),
+     handlers.TonWalletStateHandler, lambda s: s.address == "EQabc" and s.balance == 7 and s.is_backup_enabled),
+    (raw.types.UpdateWalletState(state=raw.types.WalletStateEmpty(creating=True)),
+     handlers.TonWalletStateHandler, lambda s: s.is_being_created is True),
+    (raw.types.UpdateWalletGaslessInfo(available=True, left=3, reset_at=1700000000, min_amount=10, relayer_address="EQr"),
+     handlers.TonWalletGaslessTransfersInfoHandler, lambda i: i.is_available and i.left_count == 3),
+    (raw.types.UpdateWalletTonConnectSession(session=raw.types.TonConnectSession(
+        id=5, dapp_client_id="dapp", nonce=b"n", date=1700000000, pending=True)),
+     handlers.TonConnectSessionHandler, lambda s: s.id == 5 and s.state == enums.TonConnectSessionState.PENDING),
+    (raw.types.UpdateWalletTonConnectPendingDisconnect(session_ids=[5, 6]),
+     handlers.TonConnectPendingDisconnectHandler, lambda d: d.session_ids == [5, 6]),
+])
+def test_wallet_updates(update, handler, check):
+    parsed, handler_type = dispatch(update)
+
+    assert handler_type is handler and check(parsed)
+
+
+@pytest.mark.parametrize("decorator, handler", [
+    ("on_ton_wallet_state", handlers.TonWalletStateHandler),
+    ("on_ton_wallet_gasless_transfers_info", handlers.TonWalletGaslessTransfersInfoHandler),
+    ("on_ton_connect_session", handlers.TonConnectSessionHandler),
+    ("on_ton_connect_pending_disconnect", handlers.TonConnectPendingDisconnectHandler),
+])
+def test_wallet_decorators(decorator, handler):
+    @getattr(pyrogram.Client, decorator)()
+    async def callback(_, update):
+        pass
+
+    [(registered, group)] = callback.handlers
+    assert isinstance(registered, handler) and group == 0

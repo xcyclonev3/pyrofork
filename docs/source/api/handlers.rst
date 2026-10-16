@@ -62,6 +62,10 @@ Index
     - :class:`BusinessConnectedBotHandler`
     - :class:`PendingMessageHandler`
     - :class:`MessageDraftStoppedHandler`
+    - :class:`TonWalletStateHandler`
+    - :class:`TonWalletGaslessTransfersInfoHandler`
+    - :class:`TonConnectSessionHandler`
+    - :class:`TonConnectPendingDisconnectHandler`
 
 -----
 
@@ -96,3 +100,7 @@ Details
 .. autoclass:: BusinessConnectedBotHandler()
 .. autoclass:: PendingMessageHandler()
 .. autoclass:: MessageDraftStoppedHandler()
+.. autoclass:: TonWalletStateHandler()
+.. autoclass:: TonWalletGaslessTransfersInfoHandler()
+.. autoclass:: TonConnectSessionHandler()
+.. autoclass:: TonConnectPendingDisconnectHandler()

@@ -41,6 +41,10 @@ from .pending_message_handler import PendingMessageHandler
 from .poll_handler import PollHandler
 from .purchased_paid_media_handler import PurchasedPaidMediaHandler
 from .raw_update_handler import RawUpdateHandler
+from .ton_connect_pending_disconnect_handler import TonConnectPendingDisconnectHandler
+from .ton_connect_session_handler import TonConnectSessionHandler
+from .ton_wallet_gasless_transfers_info_handler import TonWalletGaslessTransfersInfoHandler
+from .ton_wallet_state_handler import TonWalletStateHandler
 from .user_status_handler import UserStatusHandler
 from .story_handler import StoryHandler
 from .message_reaction_updated_handler import MessageReactionUpdatedHandler
@@ -79,5 +83,9 @@ __all__ = [
     "ManagedBotUpdatedHandler",
     "BusinessConnectedBotHandler",
     "PendingMessageHandler",
-    "MessageDraftStoppedHandler"
+    "MessageDraftStoppedHandler",
+    "TonWalletStateHandler",
+    "TonWalletGaslessTransfersInfoHandler",
+    "TonConnectSessionHandler",
+    "TonConnectPendingDisconnectHandler"
 ]

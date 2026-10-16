@@ -63,6 +63,10 @@ Index
     - :meth:`~Client.on_business_connected_bot`
     - :meth:`~Client.on_pending_message`
     - :meth:`~Client.on_message_draft_stopped`
+    - :meth:`~Client.on_ton_wallet_state`
+    - :meth:`~Client.on_ton_wallet_gasless_transfers_info`
+    - :meth:`~Client.on_ton_connect_session`
+    - :meth:`~Client.on_ton_connect_pending_disconnect`
 
 -----
 
@@ -98,3 +102,7 @@ Details
 .. autodecorator:: pyrogram.Client.on_business_connected_bot()
 .. autodecorator:: pyrogram.Client.on_pending_message()
 .. autodecorator:: pyrogram.Client.on_message_draft_stopped()
+.. autodecorator:: pyrogram.Client.on_ton_wallet_state()
+.. autodecorator:: pyrogram.Client.on_ton_wallet_gasless_transfers_info()
+.. autodecorator:: pyrogram.Client.on_ton_connect_session()
+.. autodecorator:: pyrogram.Client.on_ton_connect_pending_disconnect()
