@@ -140,6 +140,19 @@ ChatJoinRequest
 
     {chat_join_request_toctree}
 
+GuestQuery
+----------
+
+.. hlist::
+    :columns: 2
+
+    {guest_query_hlist}
+
+.. toctree::
+    :hidden:
+
+    {guest_query_toctree}
+
 Folder
 ---------------
 

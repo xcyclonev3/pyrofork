@@ -1039,6 +1039,10 @@ def pyrogram_api():
         ChatJoinRequest
             ChatJoinRequest.approve
             ChatJoinRequest.decline
+        """,
+        guest_query="""
+        GuestQuery
+            GuestQuery.answer
         """
     )
 

@@ -19,6 +19,7 @@
 
 from .on_bot_business_connect import OnBotBusinessConnect
 from .on_bot_business_message import OnBotBusinessMessage
+from .on_business_connected_bot import OnBusinessConnectedBot
 from .on_callback_query import OnCallbackQuery
 from .on_chat_join_request import OnChatJoinRequest
 from .on_chat_join_result import OnChatJoinResult
@@ -30,8 +31,12 @@ from .on_disconnect import OnDisconnect
 from .on_edited_message import OnEditedMessage
 from .on_edited_bot_business_message import OnEditedBotBusinessMessage
 from .on_error import OnError
+from .on_guest_query import OnGuestQuery
 from .on_inline_query import OnInlineQuery
+from .on_managed_bot_updated import OnManagedBotUpdated
 from .on_message import OnMessage
+from .on_message_draft_stopped import OnMessageDraftStopped
+from .on_pending_message import OnPendingMessage
 from .on_poll import OnPoll
 from .on_pre_checkout_query import OnPreCheckoutQuery
 from .on_purchased_paid_media import OnPurchasedPaidMedia
@@ -67,6 +72,11 @@ class Decorators(
     OnMessageReactionUpdated,
     OnMessageReactionCountUpdated,
     OnPurchasedPaidMedia,
-    OnChatJoinResult
+    OnChatJoinResult,
+    OnGuestQuery,
+    OnManagedBotUpdated,
+    OnBusinessConnectedBot,
+    OnPendingMessage,
+    OnMessageDraftStopped
 ):
     pass

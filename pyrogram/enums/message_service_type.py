@@ -153,3 +153,6 @@ class MessageServiceType(AutoName):
 
     CHAT_REMOVED_FROM_COMMUNITY = auto()
     "Chat removed from its community"
+
+    MANAGED_BOT_CREATED = auto()
+    "Managed bot created"

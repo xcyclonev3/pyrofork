@@ -50,7 +50,12 @@ from pyrogram.handlers import (
   ChatJoinRequestHandler,
   StoryHandler,
   PurchasedPaidMediaHandler,
-  ChatJoinResultHandler
+  ChatJoinResultHandler,
+  GuestQueryHandler,
+  ManagedBotUpdatedHandler,
+  BusinessConnectedBotHandler,
+  PendingMessageHandler,
+  MessageDraftStoppedHandler
 )
 from pyrogram.raw.types import (
     UpdateNewMessage, UpdateNewChannelMessage, UpdateNewScheduledMessage,
@@ -67,7 +72,11 @@ from pyrogram.raw.types import (
     UpdateBotShippingQuery,
     UpdateBusinessBotCallbackQuery,
     UpdateBotPurchasedPaidMedia,
-    UpdateJoinChatWebViewDecision
+    UpdateJoinChatWebViewDecision,
+    UpdateBotGuestChatQuery,
+    UpdateManagedBot,
+    UpdateNewBotConnection,
+    UpdateUserTyping
 )
 
 log = logging.getLogger(__name__)
@@ -95,6 +104,10 @@ class Dispatcher:
     SHIPPING_QUERY_UPDATES = (UpdateBotShippingQuery,)
     PURCHASED_PAID_MEDIA_UPDATES = (UpdateBotPurchasedPaidMedia,)
     CHAT_JOIN_RESULT_UPDATES = (UpdateJoinChatWebViewDecision,)
+    GUEST_QUERY_UPDATES = (UpdateBotGuestChatQuery,)
+    MANAGED_BOT_UPDATES = (UpdateManagedBot,)
+    NEW_BOT_CONNECTION_UPDATES = (UpdateNewBotConnection,)
+    USER_TYPING_UPDATES = (UpdateUserTyping,)
 
     def __init__(self, client: "pyrogram.Client"):
         self.client = client
@@ -254,6 +267,36 @@ class Dispatcher:
                 ChatJoinResultHandler
             )
 
+        async def guest_query_parser(update, users, chats):
+            return (
+                await pyrogram.types.GuestQuery._parse(self.client, update, users, chats),
+                GuestQueryHandler
+            )
+
+        async def managed_bot_parser(update, users, chats):
+            return (
+                pyrogram.types.ManagedBotUpdated._parse(self.client, update, users),
+                ManagedBotUpdatedHandler
+            )
+
+        async def new_bot_connection_parser(update, users, chats):
+            return (
+                pyrogram.types.BusinessConnectedBot._parse(self.client, update, users),
+                BusinessConnectedBotHandler
+            )
+
+        async def user_typing_parser(update, users, chats):
+            # Only the actions of message drafts have a high-level update; the others reach raw handlers only
+            pending_message = pyrogram.types.PendingMessage._parse(self.client, update, users)
+            if pending_message is not None:
+                return pending_message, PendingMessageHandler
+
+            draft_stopped = pyrogram.types.MessageDraftStopped._parse(self.client, update, users)
+            if draft_stopped is not None:
+                return draft_stopped, MessageDraftStoppedHandler
+
+            return None, type(None)
+
         self.update_parsers = {
             Dispatcher.NEW_MESSAGE_UPDATES: message_parser,
             Dispatcher.NEW_BOT_BUSINESS_MESSAGE_UPDATES: bot_business_message_parser,
@@ -275,7 +318,11 @@ class Dispatcher:
             Dispatcher.MESSAGE_BOT_A_REACTION_UPDATES: message_bot_a_reaction_parser,
             Dispatcher.BOT_BUSSINESS_CONNECT_UPDATES: bot_business_connect_parser,
             Dispatcher.PURCHASED_PAID_MEDIA_UPDATES: purchased_paid_media_parser,
-            Dispatcher.CHAT_JOIN_RESULT_UPDATES: chat_join_result_parser
+            Dispatcher.CHAT_JOIN_RESULT_UPDATES: chat_join_result_parser,
+            Dispatcher.GUEST_QUERY_UPDATES: guest_query_parser,
+            Dispatcher.MANAGED_BOT_UPDATES: managed_bot_parser,
+            Dispatcher.NEW_BOT_CONNECTION_UPDATES: new_bot_connection_parser,
+            Dispatcher.USER_TYPING_UPDATES: user_typing_parser
         }
 
         self.update_parsers = {key: value for key_tuple, value in self.update_parsers.items() for key in key_tuple}

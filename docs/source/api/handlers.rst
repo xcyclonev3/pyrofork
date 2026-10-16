@@ -57,6 +57,11 @@ Index
     - :class:`RawUpdateHandler`
     - :class:`ErrorHandler`
     - :class:`ChatJoinResultHandler`
+    - :class:`GuestQueryHandler`
+    - :class:`ManagedBotUpdatedHandler`
+    - :class:`BusinessConnectedBotHandler`
+    - :class:`PendingMessageHandler`
+    - :class:`MessageDraftStoppedHandler`
 
 -----
 
@@ -86,3 +91,8 @@ Details
 .. autoclass:: RawUpdateHandler()
 .. autoclass:: ErrorHandler()
 .. autoclass:: ChatJoinResultHandler()
+.. autoclass:: GuestQueryHandler()
+.. autoclass:: ManagedBotUpdatedHandler()
+.. autoclass:: BusinessConnectedBotHandler()
+.. autoclass:: PendingMessageHandler()
+.. autoclass:: MessageDraftStoppedHandler()

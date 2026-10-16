@@ -58,6 +58,11 @@ Index
     - :meth:`~Client.on_raw_update`
     - :meth:`~Client.on_error`
     - :meth:`~Client.on_chat_join_result`
+    - :meth:`~Client.on_guest_query`
+    - :meth:`~Client.on_managed_bot_updated`
+    - :meth:`~Client.on_business_connected_bot`
+    - :meth:`~Client.on_pending_message`
+    - :meth:`~Client.on_message_draft_stopped`
 
 -----
 
@@ -88,3 +93,8 @@ Details
 .. autodecorator:: pyrogram.Client.on_raw_update()
 .. autodecorator:: pyrogram.Client.on_error()
 .. autodecorator:: pyrogram.Client.on_chat_join_result()
+.. autodecorator:: pyrogram.Client.on_guest_query()
+.. autodecorator:: pyrogram.Client.on_managed_bot_updated()
+.. autodecorator:: pyrogram.Client.on_business_connected_bot()
+.. autodecorator:: pyrogram.Client.on_pending_message()
+.. autodecorator:: pyrogram.Client.on_message_draft_stopped()

@@ -19,6 +19,7 @@
 
 from .bot_business_connect_handler import BotBusinessConnectHandler
 from .bot_business_message_handler import BotBusinessMessageHandler
+from .business_connected_bot_handler import BusinessConnectedBotHandler
 from .callback_query_handler import CallbackQueryHandler
 from .chat_join_request_handler import ChatJoinRequestHandler
 from .chat_join_result_handler import ChatJoinResultHandler
@@ -31,8 +32,12 @@ from .disconnect_handler import DisconnectHandler
 from .edited_message_handler import EditedMessageHandler
 from .edited_bot_business_message_handler import EditedBotBusinessMessageHandler
 from .error_handler import ErrorHandler
+from .guest_query_handler import GuestQueryHandler
 from .inline_query_handler import InlineQueryHandler
+from .managed_bot_updated_handler import ManagedBotUpdatedHandler
+from .message_draft_stopped_handler import MessageDraftStoppedHandler
 from .message_handler import MessageHandler
+from .pending_message_handler import PendingMessageHandler
 from .poll_handler import PollHandler
 from .purchased_paid_media_handler import PurchasedPaidMediaHandler
 from .raw_update_handler import RawUpdateHandler
@@ -69,5 +74,10 @@ __all__ = [
     "MessageReactionCountUpdatedHandler",
     "PreCheckoutQueryHandler",
     "ShippingQueryHandler",
-    "ChatJoinResultHandler"
+    "ChatJoinResultHandler",
+    "GuestQueryHandler",
+    "ManagedBotUpdatedHandler",
+    "BusinessConnectedBotHandler",
+    "PendingMessageHandler",
+    "MessageDraftStoppedHandler"
 ]

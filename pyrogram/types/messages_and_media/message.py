@@ -460,6 +460,9 @@ class Message(Object, Update):
 
         chat_joined_from_community (:obj:`~pyrogram.types.Chat`, *optional*):
             Service message: the members in *new_chat_members* joined the chat from this community.
+
+        managed_bot_created (:obj:`~pyrogram.types.ManagedBotCreated`, *optional*):
+            Service message: a bot managed by the bot of this private chat was created.
     """
 
     # TODO: Add game missing field, Also connected_website
@@ -591,6 +594,7 @@ class Message(Object, Update):
         chat_added_to_community: "types.Chat" = None,
         chat_removed_from_community: bool = None,
         chat_joined_from_community: "types.Chat" = None,
+        managed_bot_created: "types.ManagedBotCreated" = None,
         raw: "raw.types.Message" = None
     ):
         super().__init__(client)
@@ -713,6 +717,7 @@ class Message(Object, Update):
         self.chat_added_to_community = chat_added_to_community
         self.chat_removed_from_community = chat_removed_from_community
         self.chat_joined_from_community = chat_joined_from_community
+        self.managed_bot_created = managed_bot_created
         self.raw = raw
 
     async def wait_for_click(
@@ -835,6 +840,7 @@ class Message(Object, Update):
             chat_added_to_community = None
             chat_removed_from_community = None
             chat_joined_from_community = None
+            managed_bot_created = None
 
             service_type = None
             chat_join_type = None
@@ -977,6 +983,15 @@ class Message(Object, Update):
                 chat_joined_from_community = types.Chat._parse_community(client, action.community_id, chats)
                 service_type = enums.MessageServiceType.NEW_CHAT_MEMBERS
                 chat_join_type = enums.ChatJoinType.BY_COMMUNITY
+            elif isinstance(action, raw.types.MessageActionManagedBotCreated):
+                # As in TDLib, the manager bot is the bot of the private chat: the chat partner for messages
+                # sent by the user, the current bot for messages it receives
+                manager_bot = (
+                    types.User._parse(client, users.get(utils.get_raw_peer_id(message.peer_id)))
+                    if message.out else client.me
+                )
+                managed_bot_created = types.ManagedBotCreated._parse(client, action, users, manager_bot=manager_bot)
+                service_type = enums.MessageServiceType.MANAGED_BOT_CREATED
 
 
             parsed_message = Message(
@@ -1029,6 +1044,7 @@ class Message(Object, Update):
                 chat_added_to_community=chat_added_to_community,
                 chat_removed_from_community=chat_removed_from_community,
                 chat_joined_from_community=chat_joined_from_community,
+                managed_bot_created=managed_bot_created,
                 raw=message,
                 chat_join_type=chat_join_type,
                 client=client
