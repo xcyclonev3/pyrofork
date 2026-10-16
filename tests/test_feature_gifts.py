@@ -23,7 +23,7 @@ import pytest
 
 import pyrogram
 from pyrogram import enums, errors, raw, types
-from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
+from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS, RAW_USER, parse_message
 
 STICKER = raw.types.Document(
     id=11, access_hash=12, file_reference=b"ref", date=1, mime_type="application/x-tgsticker", size=10, dc_id=2,
@@ -299,3 +299,50 @@ def test_get_stake_dice_state():
     [request] = client.sent
     assert isinstance(request, raw.functions.messages.GetEmojiGameInfo)
     assert state.state_hash == "hash" and state.prize_per_mille == PRIZES[:6] and state.plays_left is None
+
+
+def stake_dice_media(value=5):
+    return raw.types.MessageMediaDice(value=value, emoticon="🎲", game_outcome=raw.types.messages.EmojiGameOutcome(
+        seed=b"s" * 32, stake_ton_amount=100000000, ton_amount=150000000
+    ))
+
+
+def test_dice_stake_outcome():
+    dice = types.Dice._parse(None, roundtrip(stake_dice_media()))
+    assert (dice.emoji, dice.value) == ("🎲", 5)
+    assert (dice.stake_gram_amount, dice.prize_gram_amount) == (100000000, 150000000)
+
+    dice = types.Dice._parse(None, roundtrip(raw.types.MessageMediaDice(value=3, emoticon="🎯")))
+    assert (dice.emoji, dice.value, dice.stake_gram_amount, dice.prize_gram_amount) == ("🎯", 3, None, None)
+
+
+def stake_dice_message():
+    return raw.types.Message(id=10, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7),
+                             date=1, message="", media=stake_dice_media())
+
+
+def test_message_with_stake_dice():
+    message = parse_message(stake_dice_message(), users=[RAW_USER])
+    assert message.media == enums.MessageMediaType.DICE
+    assert (message.dice.value, message.dice.prize_gram_amount) == (5, 150000000)
+
+
+def test_send_stake_dice():
+    client = offline_client(PEERS, lambda q: empty_updates(
+        updates=[raw.types.UpdateNewMessage(message=stake_dice_message(), pts=1, pts_count=1)], users=[RAW_USER]
+    ))
+    message = call(lambda: client.send_stake_dice(7, "hash", 100000000, reply_to_message_id=3,
+                                                  disable_notification=True))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.SendMedia) and request.peer.write() == PEERS[7].write()
+    assert request.silent and request.reply_to.reply_to_msg_id == 3 and request.message == ""
+    media = request.media
+    assert isinstance(media, raw.types.InputMediaStakeDice)
+    assert (media.game_hash, media.ton_amount, len(media.client_seed)) == ("hash", 100000000, 32)
+
+    assert isinstance(message, types.Message) and message.id == 10
+    assert (message.dice.stake_gram_amount, message.dice.prize_gram_amount) == (100000000, 150000000)
+
+    call(lambda: client.send_stake_dice(7, "hash", 100000000))
+    assert client.sent[1].media.client_seed != media.client_seed  # a new random seed for every roll

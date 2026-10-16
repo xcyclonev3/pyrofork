@@ -31,18 +31,41 @@ class Dice(Object):
 
         value (``int``):
             Value of the dice, 1-6 for currently supported base emoji.
+
+        stake_gram_amount (``int``, *optional*):
+            The TON Gram amount that was staked; in the smallest units of the currency.
+            For stake dice only, see :meth:`~pyrogram.Client.send_stake_dice`.
+
+        prize_gram_amount (``int``, *optional*):
+            The TON Gram amount that was gained from the roll; in the smallest units of the currency.
+            For stake dice only.
     """
 
-    def __init__(self, *, client: "pyrogram.Client" = None, emoji: str, value: int):
+    def __init__(
+        self,
+        *,
+        client: "pyrogram.Client" = None,
+        emoji: str,
+        value: int,
+        stake_gram_amount: int = None,
+        prize_gram_amount: int = None
+    ):
         super().__init__(client)
 
         self.emoji = emoji
         self.value = value
+        self.stake_gram_amount = stake_gram_amount
+        self.prize_gram_amount = prize_gram_amount
 
     @staticmethod
     def _parse(client, dice: "raw.types.MessageMediaDice") -> "Dice":
+        # A stake dice carries the outcome of the game (TDLib: messageStakeDice)
+        game_outcome = getattr(dice, "game_outcome", None)
+
         return Dice(
             emoji=dice.emoticon,
             value=dice.value,
+            stake_gram_amount=game_outcome.stake_ton_amount if game_outcome else None,
+            prize_gram_amount=game_outcome.ton_amount if game_outcome else None,
             client=client
         )

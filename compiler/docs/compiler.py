@@ -233,6 +233,7 @@ def pyrogram_api():
             get_unread_poll_votes
             read_all_chat_poll_votes
             get_stake_dice_state
+            send_stake_dice
         """,
         chats="""
         Chats

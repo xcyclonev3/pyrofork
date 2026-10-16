@@ -58,6 +58,7 @@ from .search_global_hashtag_messages import SearchGlobalHashtagMessages
 from .search_global_hashtag_messages_count import SearchGlobalHashtagMessagesCount
 from .search_messages import SearchMessages
 from .search_messages_count import SearchMessagesCount
+from .send_stake_dice import SendStakeDice
 from .set_todo_tasks_completion import SetTodoTasksCompletion
 from .send_animation import SendAnimation
 from .send_audio import SendAudio
@@ -154,6 +155,7 @@ class Messages(
     DeletePollOption,
     GetUnreadPollVotes,
     ReadAllChatPollVotes,
-    GetStakeDiceState
+    GetStakeDiceState,
+    SendStakeDice
 ):
     pass
