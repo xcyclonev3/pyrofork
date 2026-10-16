@@ -38,6 +38,7 @@ class GiftAttribute(Object):
         rarity (``int``, *optional*):
             Rarity of the attribute in permilles.
             For example, 15 means 1.5%. So only 1.5% of such collectibles have this attribute.
+            None if Telegram describes the rarity only as a tier (uncommon, rare, epic or legendary).
 
         date (:py:obj:`~datetime.datetime`, *optional*):
             Date when the gift was received.
@@ -132,6 +133,8 @@ class GiftAttribute(Object):
             attributes = {type(i): i for i in doc.attributes}
             sticker = await types.Sticker._parse(client, doc, attributes)
 
+        rarity = getattr(attr, "rarity", None)
+
         if isinstance(attr, raw.types.StarGiftAttributeOriginalDetails):
             caption, caption_entities = (utils.parse_text_with_entities(
                 client, attr.message, users
@@ -145,7 +148,7 @@ class GiftAttribute(Object):
         return GiftAttribute(
             name=getattr(attr, "name", None),
             type=enums.GiftAttributeType(type(attr)),
-            rarity=getattr(attr, "rarity_permille", None),
+            rarity=rarity.permille if isinstance(rarity, raw.types.StarGiftAttributeRarity) else None,
             date=utils.timestamp_to_datetime(getattr(attr, "date", None)),
             caption=caption,
             caption_entities=caption_entities,

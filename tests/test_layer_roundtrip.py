@@ -352,3 +352,17 @@ def test_poll_update_without_voters():
     update = roundtrip(raw.types.UpdateMessagePoll(poll_id=1, results=poll_results(None, 2)))
     poll = asyncio.run(types.Poll._parse_update(None, update, {}))
     assert [o.voter_count for o in poll.options] == [0, 2]
+
+
+@pytest.mark.parametrize("rarity, expected", [
+    (raw.types.StarGiftAttributeRarity(permille=15), 15),
+    (raw.types.StarGiftAttributeRarityLegendary(), None),
+])
+def test_gift_attribute_rarity(rarity, expected):
+    attr = roundtrip(raw.types.StarGiftAttributeBackdrop(
+        name="Night", backdrop_id=1, center_color=1, edge_color=2, pattern_color=3, text_color=4, rarity=rarity
+    ))
+    parsed = asyncio.run(types.GiftAttribute._parse(None, attr, {}))
+    assert parsed.type == pyrogram.enums.GiftAttributeType.BACKDROP
+    assert parsed.name == "Night" and parsed.center_color == 1
+    assert parsed.rarity == expected
