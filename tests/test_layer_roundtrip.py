@@ -719,3 +719,11 @@ def test_poll_results_are_matched_by_option():
 
     assert [(o.text, o.voter_count) for o in poll.options] == [("a", 2), ("b", 5), ("c", 0)]
     assert (poll.chosen_option_id, poll.correct_option_id) == (1, 0)
+
+
+def test_delete_scheduled_messages_short_update():
+    client = offline_client(PEERS, lambda q: raw.types.UpdateShort(
+        update=raw.types.UpdateDeleteScheduledMessages(peer=raw.types.PeerChannel(channel_id=123), messages=[5]),
+        date=0
+    ))
+    assert call(lambda: client.delete_scheduled_messages(-100123, 5)) == 5

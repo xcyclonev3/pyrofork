@@ -66,9 +66,11 @@ class DeleteScheduledMessages:
             )
         )
 
+        updates = r.updates if isinstance(r, (raw.types.Updates, raw.types.UpdatesCombined)) else [r.update]
+
         deleted_ids = [
             i
-            for update in r.updates
+            for update in updates
             if isinstance(update, raw.types.UpdateDeleteScheduledMessages)
             for i in update.messages
         ]
