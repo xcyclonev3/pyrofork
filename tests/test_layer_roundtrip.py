@@ -481,3 +481,25 @@ def test_gift_listing_upgradable_filters(kwargs, upgradable, unupgradable):
 
     request = client.sent[-1]
     assert (request.exclude_upgradable, request.exclude_unupgradable) == (upgradable, unupgradable)
+
+
+def test_unique_gift_action_message_and_hidden_name():
+    unique = raw.types.StarGiftUnique(
+        id=1, gift_id=2, title="Helmet", slug="Helmet-1", num=1, availability_issued=1, availability_total=10,
+        attributes=[raw.types.StarGiftAttributeBackdrop(
+            name="Night", backdrop_id=1, center_color=1, edge_color=2, pattern_color=3, text_color=4,
+            rarity=raw.types.StarGiftAttributeRarityRare()
+        )]
+    )
+    message = roundtrip(raw.types.MessageService(
+        id=10, peer_id=raw.types.PeerUser(user_id=7), date=1,
+        action=raw.types.MessageActionStarGiftUnique(
+            gift=unique, name_hidden=True,
+            message=raw.types.TextWithEntities(text="for you", entities=[])
+        )
+    ))
+    gift = asyncio.run(types.Gift._parse_action(None, message, {}, {}))
+
+    assert gift.name == "Helmet-1" and gift.upgrade_message_id == 10
+    assert gift.is_name_hidden is True and gift.caption == "for you"
+    assert gift.attributes[0].rarity is None

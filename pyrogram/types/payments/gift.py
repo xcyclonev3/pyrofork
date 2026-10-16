@@ -372,6 +372,15 @@ class Gift(Object):
         elif isinstance(action, raw.types.MessageActionStarGiftUnique):
             parsed_gift = await Gift._parse_unique(client, action.gift, users, chats)
 
+            caption, caption_entities = (
+                utils.parse_text_with_entities(
+                    client, getattr(action, "message", None), users
+                )
+            ).values()
+
+            parsed_gift.is_name_hidden = getattr(action, "name_hidden", None)
+            parsed_gift.caption = caption
+            parsed_gift.caption_entities = caption_entities
             parsed_gift.is_upgraded = getattr(action, "upgrade", None)
             parsed_gift.is_transferred = getattr(action, "transferred", None)
             parsed_gift.is_saved = getattr(action, "saved", None)
