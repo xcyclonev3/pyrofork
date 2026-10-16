@@ -35,10 +35,12 @@ from .download_media import DownloadMedia
 from .edit_inline_caption import EditInlineCaption
 from .edit_inline_media import EditInlineMedia
 from .edit_inline_reply_markup import EditInlineReplyMarkup
+from .edit_inline_rich_message import EditInlineRichMessage
 from .edit_inline_text import EditInlineText
 from .edit_message_caption import EditMessageCaption
 from .edit_message_media import EditMessageMedia
 from .edit_message_reply_markup import EditMessageReplyMarkup
+from .edit_message_rich_message import EditMessageRichMessage
 from .edit_message_text import EditMessageText
 from .edit_text_composition_style import EditTextCompositionStyle
 from .fix_text_with_ai import FixTextWithAi
@@ -196,6 +198,8 @@ class Messages(
     SendTextMessageDraft,
     StopPendingMessage,
     SendMessageViewMetrics,
-    SendRichMessage
+    SendRichMessage,
+    EditMessageRichMessage,
+    EditInlineRichMessage
 ):
     pass

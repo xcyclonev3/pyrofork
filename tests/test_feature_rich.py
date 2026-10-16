@@ -674,3 +674,46 @@ def test_invalid_rich_messages_are_rejected(source, error):
     with pytest.raises(ValueError, match=error):
         call(lambda: client.send_rich_message(7, types.InputRichMessage(source)))
     assert requests_of(client, raw.functions.messages.SendMessage) == []
+
+
+# Editing
+
+def html_message(text="<p>edited</p>"):
+    return types.InputRichMessage(types.RichMessageSourceHtml(text))
+
+
+def test_edit_message_rich_message():
+    client = rich_client(lambda q: sent_message_updates(message_id=3, update_type=raw.types.UpdateEditMessage))
+    message = call(lambda: client.edit_message_rich_message(
+        7, 3, html_message(),
+        reply_markup=types.InlineKeyboardMarkup([[types.InlineKeyboardButton("ok", callback_data="ok")]])
+    ))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.EditMessage) and request.id == 3
+    assert request.peer.write() == USER.write() and request.message is None and not request.entities
+    assert same(request.rich_message, raw.types.InputRichMessageHTML(noautolink=True, html="<p>edited</p>"))
+    assert isinstance(request.reply_markup, raw.types.ReplyInlineMarkup)
+    assert isinstance(message, types.Message) and message.id == 3
+
+    call(lambda: client.edit_message_rich_message(7, 3, html_message(), business_connection_id="biz"))
+    assert isinstance(client.sent[-1], raw.functions.InvokeWithBusinessConnection)
+    assert isinstance(client.sent[-1].query, raw.functions.messages.EditMessage)
+
+
+def test_edit_inline_rich_message(monkeypatch):
+    async def get_session(client, dc_id):
+        assert dc_id == 4
+        return client
+
+    monkeypatch.setattr("pyrogram.methods.messages.edit_inline_rich_message.get_session", get_session)
+    client = rich_client(lambda q: True)
+    inline_message_id = pyrogram.utils.pack_inline_message_id(
+        raw.types.InputBotInlineMessageID(dc_id=4, id=5, access_hash=6))
+
+    assert call(lambda: client.edit_inline_rich_message(inline_message_id, html_message("<b>x</b>"))) is True
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.EditInlineBotMessage)
+    assert same(request.id, raw.types.InputBotInlineMessageID(dc_id=4, id=5, access_hash=6))
+    assert request.message is None and request.rich_message.html == "<b>x</b>"

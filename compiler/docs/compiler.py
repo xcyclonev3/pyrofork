@@ -254,6 +254,8 @@ def pyrogram_api():
             stop_pending_message
             send_message_view_metrics
             send_rich_message
+            edit_message_rich_message
+            edit_inline_rich_message
         """,
         chats="""
         Chats
