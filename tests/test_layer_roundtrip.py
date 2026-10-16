@@ -261,3 +261,32 @@ def test_transfer_chat_ownership_uses_edit_chat_creator(monkeypatch, chat_id, pe
     assert request.peer.write() == peer.write()
     assert request.user_id.write() == USER.write()
     assert request.password.write() == password_check.write()
+
+
+RAW_CHANNEL = raw.types.Channel(id=123, access_hash=1, title="Test", photo=raw.types.ChatPhotoEmpty(), date=0)
+RAW_BOT = raw.types.User(id=99, bot=True, first_name="Guard", access_hash=3)
+
+
+@pytest.mark.parametrize("chat_id, request_type", [
+    ("https://t.me/+AbCdEf0123456789", raw.functions.messages.ImportChatInvite),
+    (-100123, raw.functions.channels.JoinChannel),
+])
+def test_join_chat_unwraps_chat_invite_join_result(chat_id, request_type):
+    client = offline_client(PEERS, lambda q: raw.types.messages.ChatInviteJoinResultOk(
+        updates=empty_updates(chats=[RAW_CHANNEL])
+    ))
+    chat = call(lambda: client.join_chat(chat_id))
+
+    assert isinstance(client.sent[-1], request_type)
+    assert isinstance(chat, types.Chat) and chat.id == pyrogram.utils.get_channel_id(123) and chat.title == "Test"
+
+
+def test_join_chat_guard_bot_web_view_raises():
+    client = offline_client(PEERS, lambda q: raw.types.messages.ChatInviteJoinResultWebView(
+        bot_id=99, query_id=555, users=[RAW_BOT]
+    ))
+    with pytest.raises(pyrogram.errors.GuardBotApprovalRequired) as e:
+        call(lambda: client.join_chat("https://t.me/+AbCdEf0123456789"))
+
+    assert e.value.bot_id == 99 and e.value.query_id == 555
+    assert isinstance(e.value.bot, types.User) and e.value.bot.id == 99 and e.value.bot.is_bot

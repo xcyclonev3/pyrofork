@@ -20,8 +20,25 @@
 from typing import Union
 
 import pyrogram
+from pyrogram import errors
 from pyrogram import raw
 from pyrogram import types
+
+
+def get_join_updates(
+    client: "pyrogram.Client",
+    result: "raw.base.messages.ChatInviteJoinResult"
+) -> "raw.base.Updates":
+    if isinstance(result, raw.types.messages.ChatInviteJoinResultWebView):
+        users = {i.id: i for i in result.users}
+
+        raise errors.GuardBotApprovalRequired(
+            bot_id=result.bot_id,
+            query_id=result.query_id,
+            bot=types.User._parse(client, users.get(result.bot_id))
+        )
+
+    return result.updates
 
 
 class JoinChat:
@@ -41,6 +58,10 @@ class JoinChat:
         Returns:
             :obj:`~pyrogram.types.Chat`: On success, a chat object is returned.
 
+        Raises:
+            GuardBotApprovalRequired: In case a guard bot of the chat must approve the join request in its Web App;
+                the exception carries ``bot_id``, ``query_id`` and ``bot``.
+
         Example:
             .. code-block:: python
 
@@ -56,9 +77,12 @@ class JoinChat:
         match = self.INVITE_LINK_RE.match(str(chat_id))
 
         if match:
-            chat = await self.invoke(
-                raw.functions.messages.ImportChatInvite(
-                    hash=match.group(1)
+            chat = get_join_updates(
+                self,
+                await self.invoke(
+                    raw.functions.messages.ImportChatInvite(
+                        hash=match.group(1)
+                    )
                 )
             )
             if isinstance(chat.chats[0], raw.types.Chat):
@@ -66,9 +90,12 @@ class JoinChat:
             elif isinstance(chat.chats[0], raw.types.Channel):
                 return types.Chat._parse_channel_chat(self, chat.chats[0])
         else:
-            chat = await self.invoke(
-                raw.functions.channels.JoinChannel(
-                    channel=await self.resolve_peer(chat_id)
+            chat = get_join_updates(
+                self,
+                await self.invoke(
+                    raw.functions.channels.JoinChannel(
+                        channel=await self.resolve_peer(chat_id)
+                    )
                 )
             )
 
