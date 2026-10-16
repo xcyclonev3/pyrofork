@@ -17,12 +17,16 @@
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
 from .check_wallet_bot_balance import CheckWalletBotBalance
+from .create_user_ton_wallet import CreateUserTonWallet
+from .get_address_ton_wallet import GetAddressTonWallet
 from .get_ton_wallet_gasless_transfers_info import GetTonWalletGaslessTransfersInfo
 from .get_ton_wallet_nfts import GetTonWalletNfts
 from .get_ton_wallet_state import GetTonWalletState
 from .get_ton_wallet_transaction import GetTonWalletTransaction
 from .get_ton_wallet_transaction_by_msg_hash import GetTonWalletTransactionByMsgHash
 from .get_ton_wallet_transactions import GetTonWalletTransactions
+from .get_user_ton_wallet_addresses import GetUserTonWalletAddresses
+from .send_ton_wallet_transfer import SendTonWalletTransfer
 
 
 class Wallet(
@@ -33,5 +37,9 @@ class Wallet(
     GetTonWalletTransactionByMsgHash,
     GetTonWalletGaslessTransfersInfo,
     CheckWalletBotBalance,
+    GetUserTonWalletAddresses,
+    CreateUserTonWallet,
+    GetAddressTonWallet,
+    SendTonWalletTransfer,
 ):
     pass

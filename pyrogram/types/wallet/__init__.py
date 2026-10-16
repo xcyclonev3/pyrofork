@@ -21,6 +21,8 @@ from .ton_nft_attribute import TonNftAttribute
 from .ton_wallet_gasless_transfers_info import TonWalletGaslessTransfersInfo
 from .ton_wallet_state import TonWalletState
 from .ton_wallet_transaction import TonWalletTransaction
+from .ton_wallet_transfer_result import TonWalletTransferResult
+from .user_ton_wallet_address import UserTonWalletAddress
 from .wallet_bot_balance import WalletBotBalance
 from .web_document import WebDocument
 
@@ -32,5 +34,7 @@ __all__ = [
     "TonWalletState",
     "TonWalletTransaction",
     "TonWalletGaslessTransfersInfo",
-    "WalletBotBalance"
+    "WalletBotBalance",
+    "UserTonWalletAddress",
+    "TonWalletTransferResult"
 ]

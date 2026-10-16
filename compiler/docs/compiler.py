@@ -540,6 +540,10 @@ def pyrogram_api():
             get_ton_wallet_transaction_by_msg_hash
             get_ton_wallet_gasless_transfers_info
             check_wallet_bot_balance
+            get_user_ton_wallet_addresses
+            create_user_ton_wallet
+            get_address_ton_wallet
+            send_ton_wallet_transfer
         """
     )
 
@@ -885,6 +889,8 @@ def pyrogram_api():
             TonWalletTransaction
             TonWalletGaslessTransfersInfo
             WalletBotBalance
+            UserTonWalletAddress
+            TonWalletTransferResult
         """
     )
 

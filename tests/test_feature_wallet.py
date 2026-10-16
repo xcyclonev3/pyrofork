@@ -309,3 +309,110 @@ def test_check_wallet_bot_balance():
 
     assert isinstance(client.sent[-1], raw.functions.wallet.GetExistingWaltBalance)
     assert isinstance(balance, types.WalletBotBalance) and balance.has_balance and balance.url == "https://t.me/walt"
+
+
+# Wallet addresses and transfers
+
+USER = PEERS[7]
+
+
+def user_addresses(*addresses, users=(RAW_PEER_USER,)):
+    return raw.types.wallet.UserAddresses(addresses=list(addresses), users=list(users))
+
+
+def test_user_ton_wallet_address():
+    users = {7: roundtrip(RAW_PEER_USER)}
+    known = types.UserTonWalletAddress._parse(
+        None, roundtrip(raw.types.WalletUserAddress(user_id=7, address="UQpeer", public_key=b"\x02" * 32)), users)
+    assert (known.wallet_address, known.public_key, known.user.id) == ("UQpeer", b"\x02" * 32, 7)
+
+    no_owner = roundtrip(raw.types.WalletUserAddress(address="UQx", public_key=b"\x03" * 32))
+    assert types.UserTonWalletAddress._parse(None, no_owner, users).user is None
+    assert types.UserTonWalletAddress._parse(None, no_owner, users, 7).user.id == 7
+
+
+def test_get_user_ton_wallet_addresses():
+    client = offline_client(PEERS, lambda q: user_addresses(
+        raw.types.WalletUserAddress(user_id=7, address="UQpeer", public_key=b"\x02" * 32)))
+
+    address = call(lambda: client.get_user_ton_wallet_addresses(7))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.GetUserAddresses)
+    assert [p.write() for p in request.id] == [USER.write()] and request.addresses == [] and not request.force
+    assert isinstance(address, types.UserTonWalletAddress) and address.user.first_name == "Peer"
+
+    addresses = call(lambda: client.get_user_ton_wallet_addresses([7, "me"]))
+    assert [p.write() for p in client.sent[-1].id] == [USER.write(), PEERS["me"].write()]
+    assert isinstance(addresses, list) and [a.wallet_address for a in addresses] == ["UQpeer"]
+
+
+def test_get_user_ton_wallet_addresses_skips_users_without_wallet():
+    client = offline_client(PEERS, lambda q: user_addresses())
+    assert call(lambda: client.get_user_ton_wallet_addresses(7)) is None
+    assert call(lambda: client.get_user_ton_wallet_addresses([7])) == []
+
+
+def test_create_user_ton_wallet():
+    client = offline_client(PEERS, lambda q: user_addresses(
+        raw.types.WalletUserAddress(address="UQnew", public_key=b"\x04" * 32)))
+
+    address = call(lambda: client.create_user_ton_wallet(7))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.GetUserAddresses) and request.force
+    assert [p.write() for p in request.id] == [USER.write()] and request.addresses == []
+    # The owner is the requested user even when the result doesn't repeat its id, as in TDLib
+    assert address.wallet_address == "UQnew" and address.user.id == 7
+
+    empty = offline_client(PEERS, lambda q: user_addresses())
+    assert call(lambda: empty.create_user_ton_wallet(7)) is None
+
+
+def test_get_address_ton_wallet():
+    client = offline_client(PEERS, lambda q: user_addresses(
+        raw.types.WalletUserAddress(address="UQx", public_key=b"\x05" * 32), users=()))
+
+    wallet = call(lambda: client.get_address_ton_wallet("UQx"))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.GetUserAddresses)
+    assert request.id == [] and request.addresses == ["UQx"] and not request.force
+    assert (wallet.wallet_address, wallet.public_key, wallet.user) == ("UQx", b"\x05" * 32, None)
+
+    missing = offline_client(PEERS, lambda q: user_addresses(users=()))
+    assert call(lambda: missing.get_address_ton_wallet("UQmissing")) is None
+
+
+def test_ton_wallet_transfer_result():
+    sent = types.TonWalletTransferResult._parse(None, roundtrip(raw.types.UpdateSentWalletTransaction(
+        msg_hash="hash", gasless=True, transaction=wallet_transaction("tx9"))))
+    assert (sent.msg_hash, sent.is_gasless, sent.transaction.id) == ("hash", True, "tx9")
+    assert sent.transaction.amount == -1_500_000_000
+
+    pending = types.TonWalletTransferResult._parse(None, roundtrip(raw.types.UpdateSentWalletTransaction(msg_hash="h2")))
+    assert (pending.msg_hash, pending.is_gasless, pending.transaction) == ("h2", False, None)
+
+
+def test_send_ton_wallet_transfer_to_user():
+    update = raw.types.UpdateSentWalletTransaction(msg_hash="hash", gasless=True, transaction=wallet_transaction(
+        "tx9", peer=raw.types.WalletTransactionPeerUser(user_id=7, address="UQpeer")))
+    client = offline_client(PEERS, lambda q: empty_updates([update], users=[RAW_PEER_USER]))
+
+    result = call(lambda: client.send_ton_wallet_transfer(b"regular", b"gasless", user_id=7))
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.wallet.SendTransfer)
+    assert (request.data_normal, request.data_gasless) == (b"regular", b"gasless")
+    assert request.user_id.write() == USER.write() and isinstance(request.random_id, int)
+    assert isinstance(result, types.TonWalletTransferResult) and result.is_gasless and result.msg_hash == "hash"
+    assert result.transaction.peer_user.first_name == "Peer"
+
+
+def test_send_ton_wallet_transfer_without_receiver():
+    client = offline_client(PEERS, lambda q: raw.types.UpdateShort(
+        update=raw.types.UpdateSentWalletTransaction(msg_hash="hash"), date=0))
+
+    result = call(lambda: client.send_ton_wallet_transfer(b"regular"))
+    request = client.sent[-1]
+    assert request.data_gasless is None and isinstance(request.user_id, raw.types.InputUserEmpty)
+    assert result.msg_hash == "hash" and not result.is_gasless and result.transaction is None
+
+    nothing = offline_client(PEERS, lambda q: empty_updates())
+    assert call(lambda: nothing.send_ton_wallet_transfer(b"regular")) is None
