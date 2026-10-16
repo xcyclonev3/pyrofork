@@ -146,6 +146,30 @@ class Gift(Object):
         is_birthday (``bool``, *optional*):
             True, if the gift is a birthday gift.
 
+        regular_gift_id (``int``, *optional*):
+            Identifier of the regular gift from which the gift was upgraded.
+            Can be used in :meth:`~pyrogram.Client.get_gifts_for_crafting` and
+            :meth:`~pyrogram.Client.search_gifts_for_resale`.
+            For unique gifts only.
+
+        is_burned (``bool``, *optional*):
+            True, if the gift was used to craft another gift.
+            For unique gifts only.
+
+        is_crafted (``bool``, *optional*):
+            True, if the gift was crafted from other gifts.
+            For unique gifts only.
+
+        craft_probability_per_mille (``int``, *optional*):
+            Probability that the gift adds to the chance of successful crafting of a new gift, in permilles.
+            The chances of all gifts used for crafting are summed up.
+            None if the gift can't be used for crafting.
+            For unique gifts only.
+
+        can_craft_at (:py:obj:`~datetime.datetime`, *optional*):
+            Date when the gift can be used to craft another gift; can be in the past.
+            For unique gifts only.
+
         raw (:obj:`~pyrogram.raw.base.StarGift`, *optional*):
             The raw object as received from the server.
 
@@ -194,7 +218,12 @@ class Gift(Object):
         is_refunded: Optional[bool] = None,
         is_transferred: Optional[bool] = None,
         is_birthday: Optional[bool] = None,
-        raw: Optional["raw.base.StarGift"] = None
+        raw: Optional["raw.base.StarGift"] = None,
+        regular_gift_id: Optional[int] = None,
+        is_burned: Optional[bool] = None,
+        is_crafted: Optional[bool] = None,
+        craft_probability_per_mille: Optional[int] = None,
+        can_craft_at: Optional[datetime] = None
     ):
         super().__init__(client)
 
@@ -235,6 +264,11 @@ class Gift(Object):
         self.is_transferred = is_transferred
         self.is_birthday = is_birthday
         self.raw = raw
+        self.regular_gift_id = regular_gift_id
+        self.is_burned = is_burned
+        self.is_crafted = is_crafted
+        self.craft_probability_per_mille = craft_probability_per_mille
+        self.can_craft_at = can_craft_at
 
     @staticmethod
     async def _parse(client, gift, users=None, chats=None):
@@ -301,6 +335,10 @@ class Gift(Object):
             ton_address=getattr(star_gift, "gift_address", None),
             is_upgraded=True,
             raw=star_gift,
+            regular_gift_id=star_gift.gift_id,
+            is_burned=getattr(star_gift, "burned", None),
+            is_crafted=getattr(star_gift, "crafted", None),
+            craft_probability_per_mille=getattr(star_gift, "craft_chance_permille", None),
             client=client
         )
 
@@ -335,6 +373,7 @@ class Gift(Object):
         parsed_gift.upgrade_price = getattr(saved_gift, "upgrade_stars", None)
         parsed_gift.transfer_price = getattr(saved_gift, "transfer_stars", None)
         parsed_gift.can_export_at = utils.timestamp_to_datetime(getattr(saved_gift, "can_export_at", None))
+        parsed_gift.can_craft_at = utils.timestamp_to_datetime(getattr(saved_gift, "can_craft_at", None))
 
         return parsed_gift
 
@@ -386,9 +425,13 @@ class Gift(Object):
             parsed_gift.is_saved = getattr(action, "saved", None)
             parsed_gift.is_refunded = getattr(action, "refunded", None)
             parsed_gift.can_export_at = utils.timestamp_to_datetime(getattr(action, "can_export_at", None))
+            parsed_gift.can_craft_at = utils.timestamp_to_datetime(getattr(action, "can_craft_at", None))
             parsed_gift.transfer_price = getattr(action, "transfer_stars", None)
             parsed_gift.message_id = getattr(action, "saved_id", None)
             parsed_gift.upgrade_message_id = message.id
+
+            if getattr(action, "craft", None):  # the gift was obtained by crafting
+                parsed_gift.is_crafted = True
 
         parsed_gift.date = utils.timestamp_to_datetime(message.date)
 

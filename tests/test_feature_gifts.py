@@ -21,6 +21,7 @@ import asyncio
 
 import pytest
 
+import pyrogram
 from pyrogram import enums, raw, types
 from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
 
@@ -73,3 +74,58 @@ def test_gift_attribute_original_details_has_no_rarity():
     ))
     assert parsed.type == enums.GiftAttributeType.ORIGINAL_DETAILS
     assert parsed.rarity is None and parsed.rarity_type is None and parsed.is_crafted is None
+
+
+def unique_gift(**kwargs):
+    return raw.types.StarGiftUnique(
+        id=1, gift_id=2, title="Helmet", slug="Helmet-1", num=7, availability_issued=1, availability_total=10,
+        attributes=[raw.types.StarGiftAttributeModel(
+            name="Gold", document=STICKER, rarity=raw.types.StarGiftAttributeRarityLegendary(), crafted=True
+        )],
+        **kwargs
+    )
+
+
+def test_unique_gift_crafting_fields():
+    gift = asyncio.run(types.Gift._parse(None, roundtrip(unique_gift(burned=True, craft_chance_permille=125)), {}, {}))
+    assert gift.name == "Helmet-1" and gift.regular_gift_id == 2
+    assert gift.is_burned is True and gift.is_crafted is False and gift.craft_probability_per_mille == 125
+    assert gift.attributes[0].is_crafted and gift.attributes[0].rarity_type == RT.LEGENDARY
+
+    gift = asyncio.run(types.Gift._parse(None, roundtrip(unique_gift(crafted=True)), {}, {}))
+    assert gift.is_crafted is True and gift.is_burned is False and gift.craft_probability_per_mille is None
+
+
+def test_saved_gift_can_craft_at():
+    saved = roundtrip(raw.types.SavedStarGift(date=1, gift=unique_gift(craft_chance_permille=80), msg_id=5,
+                                              can_craft_at=1700000000))
+    gift = asyncio.run(types.Gift._parse(None, saved, {}, {}))
+    assert gift.can_craft_at == pyrogram.utils.timestamp_to_datetime(1700000000)
+    assert gift.message_id == 5 and gift.craft_probability_per_mille == 80
+
+    saved = roundtrip(raw.types.SavedStarGift(date=1, gift=unique_gift(), msg_id=5))
+    assert asyncio.run(types.Gift._parse(None, saved, {}, {})).can_craft_at is None
+
+
+def craft_message(message_id=10, gift_crafted=True, **kwargs):
+    return raw.types.MessageService(
+        id=message_id, peer_id=raw.types.PeerUser(user_id=7), date=1,
+        action=raw.types.MessageActionStarGiftUnique(gift=unique_gift(crafted=gift_crafted), **kwargs)
+    )
+
+
+@pytest.mark.parametrize("craft, gift_crafted", [(True, True), (True, None), (None, True)])
+def test_unique_gift_action_crafting_fields(craft, gift_crafted):
+    message = roundtrip(craft_message(gift_crafted=gift_crafted, craft=craft, can_craft_at=1700000000))
+    gift = asyncio.run(types.Gift._parse_action(None, message, {}, {}))
+    assert gift.is_crafted is True and gift.upgrade_message_id == 10
+    assert gift.can_craft_at == pyrogram.utils.timestamp_to_datetime(1700000000)
+
+
+def test_upgraded_gift_action_is_not_crafted():
+    message = roundtrip(raw.types.MessageService(
+        id=10, peer_id=raw.types.PeerUser(user_id=7), date=1,
+        action=raw.types.MessageActionStarGiftUnique(gift=unique_gift(), upgrade=True)
+    ))
+    gift = asyncio.run(types.Gift._parse_action(None, message, {}, {}))
+    assert gift.is_crafted is False and gift.is_upgraded is True and gift.can_craft_at is None
