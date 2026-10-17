@@ -176,32 +176,20 @@ class TCP:
         """Read up to n bytes, or None after TIMEOUT seconds without data or on errors.
 
         It is asyncio.wait_for(reader.read(n), TIMEOUT) without a new task for every read, which cost more than
-        receiving a small packet.
+        receiving a small packet. The timeout fails the reader instead of cancelling the task, so a cancellation from
+        outside is never taken for it, even in the same iteration of the event loop. Callers drop the connection when
+        a read gives None.
         """
-        task = asyncio.current_task()
-        timed_out = False
-
-        def time_out():
-            nonlocal timed_out
-            timed_out = True
-            task.cancel()
-
-        handle = task.get_loop().call_later(TCP.TIMEOUT, time_out)
+        reader = self.reader
+        handle = asyncio.get_running_loop().call_later(TCP.TIMEOUT, TCP._time_out, reader)
 
         try:
-            return await self.reader.read(n)
-        except asyncio.CancelledError:
-            if not timed_out:
-                raise
-
-            # The cancellation came from the timeout and ends here (Python 3.11+ counts cancellations)
-            uncancel = getattr(task, "uncancel", None)
-
-            if uncancel is not None:
-                uncancel()
-
-            return None
-        except OSError:
+            return await reader.read(n)
+        except OSError:  # The TimeoutError of _time_out too
             return None
         finally:
             handle.cancel()
+
+    @staticmethod
+    def _time_out(reader: asyncio.StreamReader):
+        reader.set_exception(TimeoutError(f"No data received for {TCP.TIMEOUT} seconds"))

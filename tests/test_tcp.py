@@ -158,6 +158,40 @@ def test_recv_cancelled_from_outside(monkeypatch):
     assert asyncio.run(main()).cancelled()
 
 
+def test_recv_cancelled_from_outside_while_timing_out(monkeypatch):
+    monkeypatch.setattr(TCP, "TIMEOUT", 0.2)
+
+    async def main():
+        server, port = await serve(Stalling(b""))
+        tcp = TCPIntermediate(ipv6=False, proxy=None)
+        await tcp.connect(("127.0.0.1", port))
+        loop = asyncio.get_running_loop()
+        call_later = loop.call_later
+        task = None
+
+        def call_later_and_cancel(delay, callback, *args):
+            def time_out_and_cancel():
+                callback(*args)
+                task.cancel()  # From outside, in the same iteration of the loop as the timeout
+
+            return call_later(delay, time_out_and_cancel)
+
+        loop.call_later = call_later_and_cancel
+        try:
+            task = loop.create_task(tcp.recv())
+            await asyncio.sleep(0)  # The read starts and sets its timeout
+        finally:
+            del loop.call_later
+
+        await asyncio.gather(task, return_exceptions=True)
+        await tcp.close()
+        server.close()
+        return task
+
+    # The cancellation isn't taken for the timeout (the read would give None)
+    assert asyncio.run(main()).cancelled()
+
+
 def test_recv_end_of_stream_in_a_packet():
     async def main():
         async def handler(reader, writer):
