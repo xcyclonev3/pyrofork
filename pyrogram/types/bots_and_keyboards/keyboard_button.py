@@ -19,7 +19,7 @@
 
 from pyrogram import enums, raw, types, utils
 from ..object import Object
-from typing import Union
+from typing import Optional, Union
 
 class KeyboardButton(Object):
     """One button of the reply keyboard.
@@ -94,6 +94,37 @@ class KeyboardButton(Object):
         self.icon_custom_emoji_id = icon_custom_emoji_id
 
     @staticmethod
+    def _write_privileges(privileges: Optional["types.ChatPrivileges"]) -> Optional["raw.types.ChatAdminRights"]:
+        if not privileges:
+            return None
+
+        return raw.types.ChatAdminRights(
+            change_info=privileges.can_change_info,
+            post_messages=privileges.can_post_messages,
+            post_stories=privileges.can_post_stories,
+            edit_messages=privileges.can_edit_messages,
+            edit_stories=privileges.can_edit_stories,
+            delete_messages=privileges.can_delete_messages,
+            delete_stories=privileges.can_delete_stories,
+            ban_users=privileges.can_restrict_members,
+            invite_users=privileges.can_invite_users,
+            pin_messages=privileges.can_pin_messages,
+            add_admins=privileges.can_promote_members,
+            anonymous=privileges.is_anonymous,
+            manage_call=privileges.can_manage_video_chats,
+            other=privileges.can_manage_chat,
+            manage_topics=getattr(privileges, "can_manage_topics", None),
+            manage_direct_messages=getattr(privileges, "can_manage_direct_messages", None),
+            manage_ranks=getattr(privileges, "can_manage_tags", None),
+            manage_linked_peers=getattr(privileges, "can_edit_chat_list", None),
+            manage_welcome_messages=getattr(privileges, "can_send_welcome_messages", None)
+        )
+
+    @staticmethod
+    def _parse_privileges(admin_rights: "raw.base.ChatAdminRights") -> Optional["types.ChatPrivileges"]:
+        return types.ChatPrivileges._parse(admin_rights) if isinstance(admin_rights, raw.types.ChatAdminRights) else None
+
+    @staticmethod
     def read(b: "raw.base.KeyboardButton"):
         style, icon_custom_emoji_id = utils.parse_button_style(b.style)
 
@@ -145,8 +176,12 @@ class KeyboardButton(Object):
 
         if isinstance(button_type, raw.types.ButtonTypeRequestPeer):
             if isinstance(button_type.peer_type, raw.types.RequestPeerTypeBroadcast):
-                user_privileges = getattr(button_type.peer_type, "user_admin_rights", None)
-                bot_privileges = getattr(button_type.peer_type, "bot_admin_rights", None)
+                user_privileges = KeyboardButton._parse_privileges(
+                    getattr(button_type.peer_type, "user_admin_rights", None)
+                )
+                bot_privileges = KeyboardButton._parse_privileges(
+                    getattr(button_type.peer_type, "bot_admin_rights", None)
+                )
                 return KeyboardButton(
                     text=b.text,
                     request_chat=types.RequestPeerTypeChannel(
@@ -159,8 +194,12 @@ class KeyboardButton(Object):
                     )
                 )
             if isinstance(button_type.peer_type, raw.types.RequestPeerTypeChat):
-                user_privileges = getattr(button_type.peer_type, "user_admin_rights", None)
-                bot_privileges = getattr(button_type.peer_type, "bot_admin_rights", None)
+                user_privileges = KeyboardButton._parse_privileges(
+                    getattr(button_type.peer_type, "user_admin_rights", None)
+                )
+                bot_privileges = KeyboardButton._parse_privileges(
+                    getattr(button_type.peer_type, "bot_admin_rights", None)
+                )
                 return KeyboardButton(
                     text=b.text,
                     request_chat=types.RequestPeerTypeChat(
@@ -212,43 +251,8 @@ class KeyboardButton(Object):
             user_privileges = self.request_chat.user_privileges
             bot_privileges = self.request_chat.bot_privileges
 
-            user_admin_rights = raw.types.ChatAdminRights(
-                    change_info=user_privileges.can_change_info,
-                    post_messages=user_privileges.can_post_messages,
-                    post_stories=user_privileges.can_post_stories,
-                    edit_messages=user_privileges.can_edit_messages,
-                    edit_stories=user_privileges.can_post_stories,
-                    delete_messages=user_privileges.can_delete_messages,
-                    delete_stories=user_privileges.can_delete_stories,
-                    ban_users=user_privileges.can_restrict_members,
-                    invite_users=user_privileges.can_invite_users,
-                    pin_messages=user_privileges.can_pin_messages,
-                    add_admins=user_privileges.can_promote_members,
-                    anonymous=user_privileges.is_anonymous,
-                    manage_call=user_privileges.can_manage_video_chats,
-                    other=user_privileges.can_manage_chat,
-                    manage_ranks=getattr(user_privileges, "can_manage_tags", None),
-                    manage_welcome_messages=getattr(user_privileges, "can_send_welcome_messages", None)
-            ) if user_privileges else None
-
-            bot_admin_rights = raw.types.ChatAdminRights(
-                    change_info=bot_privileges.can_change_info,
-                    post_messages=bot_privileges.can_post_messages,
-                    post_stories=bot_privileges.can_post_stories,
-                    edit_messages=bot_privileges.can_edit_messages,
-                    edit_stories=bot_privileges.can_post_stories,
-                    delete_messages=bot_privileges.can_delete_messages,
-                    delete_stories=bot_privileges.can_delete_stories,
-                    ban_users=bot_privileges.can_restrict_members,
-                    invite_users=bot_privileges.can_invite_users,
-                    pin_messages=bot_privileges.can_pin_messages,
-                    add_admins=bot_privileges.can_promote_members,
-                    anonymous=bot_privileges.is_anonymous,
-                    manage_call=bot_privileges.can_manage_video_chats,
-                    other=bot_privileges.can_manage_chat,
-                    manage_ranks=getattr(bot_privileges, "can_manage_tags", None),
-                    manage_welcome_messages=getattr(bot_privileges, "can_send_welcome_messages", None)
-            ) if bot_privileges else None
+            user_admin_rights = KeyboardButton._write_privileges(user_privileges)
+            bot_admin_rights = KeyboardButton._write_privileges(bot_privileges)
 
             if isinstance(self.request_chat, types.RequestPeerTypeChannel):
                 return raw.types.InputButtonTypeRequestPeer(

@@ -48,6 +48,8 @@ class CraftGift:
 
         Returns:
             :obj:`~pyrogram.types.CraftGiftResult`: On success, the result of the crafting is returned.
+            None is returned if the answer of the server contains neither the crafted gift nor the failure; check
+            the gifts of the account before trying again.
 
         Example:
             .. code-block:: python

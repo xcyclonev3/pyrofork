@@ -74,7 +74,7 @@ class BusinessConnectedBot(Object, Update):
         users: Dict[int, "raw.types.User"]
     ) -> "BusinessConnectedBot":
         return BusinessConnectedBot(
-            bot=types.User._parse(client, users.get(update.bot_id)),
+            bot=types.User._parse(client, users.get(update.bot_id)) or types.User(id=update.bot_id, client=client),
             is_confirmed=update.confirmed,
             connection_date=utils.timestamp_to_datetime(update.date),
             device_model=update.device,

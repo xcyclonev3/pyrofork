@@ -19,7 +19,7 @@
 from typing import Dict, List
 
 import pyrogram
-from pyrogram import raw, types
+from pyrogram import raw, types, utils
 
 from ..object import Object
 from ..update import Update
@@ -66,16 +66,38 @@ class GuestQuery(Object, Update):
         # The bot isn't necessarily a member of the chat: replied messages come as reference messages
         # and are not fetched.
         reference_messages = types.List([
-            await types.Message._parse(client, message, users, chats, replies=0)
+            await GuestQuery._parse_message(client, message, users, chats)
             for message in update.reference_messages or []
         ])
 
         return GuestQuery(
             id=str(update.query_id),
-            message=await types.Message._parse(client, update.message, users, chats, replies=0),
+            message=await GuestQuery._parse_message(client, update.message, users, chats),
             reference_messages=reference_messages or None,
             client=client
         )
+
+    @staticmethod
+    async def _parse_message(
+        client: "pyrogram.Client",
+        message: "raw.base.Message",
+        users: Dict[int, "raw.types.User"],
+        chats: Dict[int, "raw.types.Chat"]
+    ) -> "types.Message":
+        # Guest messages come from chats the bot isn't in, e.g. private chats of other users, whose message ids are
+        # unrelated to the ones of the bot. Like TDLib, keep them out of the message cache.
+        key = (utils.get_peer_id(message.peer_id), message.id) if getattr(message, "peer_id", None) else None
+        cached = client.message_cache[key] if key else None
+
+        parsed = await types.Message._parse(client, message, users, chats, replies=0)
+
+        if key:
+            if cached is None:
+                client.message_cache.store.pop(key, None)
+            else:
+                client.message_cache[key] = cached
+
+        return parsed
 
     async def answer(self, result: "types.InlineQueryResult") -> str:
         """Bound method *answer* of :obj:`~pyrogram.types.GuestQuery`.

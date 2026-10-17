@@ -57,8 +57,9 @@ class FixTextWithAi:
                 fixed = await app.fix_text_with_ai("This sentense has a fiew mistakes")
                 print(fixed.text.text)
 
-                for entity in fixed.diff_text.entities:
-                    print(entity.type, entity.offset, entity.length, entity.old_text)
+                if fixed.diff_text and fixed.diff_text.entities:
+                    for entity in fixed.diff_text.entities:
+                        print(entity.type, entity.offset, entity.length, entity.old_text)
         """
         message, entities = (await utils.parse_text_entities(self, text, parse_mode, entities)).values()
 

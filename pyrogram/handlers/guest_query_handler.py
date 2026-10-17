@@ -36,6 +36,8 @@ class GuestQueryHandler(Handler):
 
         filters (:obj:`Filters`):
             Pass one or more filters to allow only a subset of updates to be passed in your callback function.
+            The filters receive the :obj:`~pyrogram.types.GuestQuery`: custom filters can look at its *message*,
+            while message filters such as ``filters.text`` or ``filters.regex`` don't apply to it.
 
     Other parameters:
         client (:obj:`~pyrogram.Client`):

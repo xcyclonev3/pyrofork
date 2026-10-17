@@ -17,7 +17,7 @@
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
 import pyrogram
-from pyrogram import raw
+from pyrogram import errors, raw
 
 
 class CheckBotUsername:
@@ -41,7 +41,8 @@ class CheckBotUsername:
                 Defaults to False.
 
         Returns:
-            ``bool``: True if the username can be used, False if it is occupied.
+            ``bool``: True if the username can be used, False if it is occupied or can only be bought on
+            fragment.com.
 
         Raises:
             RPCError: In case the username is invalid, e.g. ``USERNAME_INVALID`` or ``USERNAME_SUFFIX_MISSING``
@@ -53,9 +54,13 @@ class CheckBotUsername:
                 if await app.check_bot_username("my_managed_bot"):
                     bot = await app.create_bot("ManagerBot", "My Bot", "my_managed_bot")
         """
-        return await self.invoke(
-            raw.functions.bots.CheckUsername(
-                username=username,
-                additional=is_secondary or None
+        try:
+            return await self.invoke(
+                raw.functions.bots.CheckUsername(
+                    username=username,
+                    additional=is_secondary or None
+                )
             )
-        )
+        except (errors.UsernameOccupied, errors.UsernamePurchaseAvailable):
+            # Like TDLib, which returns them as results of the check
+            return False

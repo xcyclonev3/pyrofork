@@ -25,7 +25,7 @@ from datetime import datetime
 import pytest
 
 import pyrogram
-from pyrogram import enums, raw, types
+from pyrogram import enums, errors, raw, types
 from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS, USER, CHANNEL
 
 BOT = raw.types.InputPeerUser(user_id=99, access_hash=3)
@@ -440,3 +440,73 @@ def test_answer_chat_join_request_query_checks_url(result, url):
     with pytest.raises(ValueError):
         call(lambda: client.answer_chat_join_request_query(555, result, url=url))
     assert client.sent == []
+
+
+# Review fixes
+
+@pytest.mark.parametrize("error", [errors.UsernameOccupied, errors.UsernamePurchaseAvailable])
+def test_check_bot_username_taken(error):
+    def respond(query):
+        raise error()
+
+    client = offline_client(PEERS, respond)
+    assert call(lambda: client.check_bot_username("taken_bot")) is False
+
+
+def test_check_bot_username_invalid_raises():
+    def respond(query):
+        raise errors.UsernameInvalid()
+
+    client = offline_client(PEERS, respond)
+    with pytest.raises(errors.UsernameInvalid):
+        call(lambda: client.check_bot_username("x"))
+
+
+def test_request_chat_buttons_read_privileges():
+    rights = raw.types.ChatAdminRights(change_info=True, invite_users=True)
+    button = roundtrip(raw.types.KeyboardButton(text="pick", type=raw.types.ButtonTypeRequestPeer(
+        button_id=3, max_quantity=1, peer_type=raw.types.RequestPeerTypeChat(
+            user_admin_rights=rights, bot_admin_rights=rights))))
+    parsed = types.KeyboardButton.read(button)
+
+    privileges = parsed.request_chat.user_privileges
+    assert isinstance(privileges, types.ChatPrivileges) and privileges.can_change_info and privileges.can_invite_users
+    # A button read back can be sent again
+    written = roundtrip(parsed.write())
+    assert written.type.peer_type.user_admin_rights.change_info is True
+
+
+def test_bot_updates_without_users():
+    managed = types.ManagedBotUpdated._parse(None, roundtrip(raw.types.UpdateManagedBot(user_id=7, bot_id=98, qts=1)), {})
+    connected = types.BusinessConnectedBot._parse(None, roundtrip(raw.types.UpdateNewBotConnection(bot_id=98)), {})
+
+    assert (managed.user.id, managed.bot.id, connected.bot.id) == (7, 98, 98)
+
+
+def test_guest_query_messages_stay_out_of_the_cache():
+    import asyncio
+
+    client = pyrogram.Client("bots", api_id=1, api_hash="x", in_memory=True)
+    client.me = None
+    own = types.Message(id=5, client=client)
+    client.message_cache[(7, 5)] = own
+
+    update = roundtrip(raw.types.UpdateBotGuestChatQuery(query_id=1, qts=1, message=raw.types.Message(
+        id=5, peer_id=raw.types.PeerUser(user_id=7), from_id=raw.types.PeerUser(user_id=7), date=1, message="@bot hi"),
+        reference_messages=[raw.types.Message(id=4, peer_id=raw.types.PeerUser(user_id=7), date=1, message="ref")]))
+    query = asyncio.run(types.GuestQuery._parse(client, update, {7: roundtrip(RAW_USER)}, {}))
+
+    assert query.message.text == "@bot hi" and query.reference_messages[0].text == "ref"
+    assert client.message_cache[(7, 5)] is own and client.message_cache[(7, 4)] is None
+
+
+def test_request_chat_buttons_write_every_privilege():
+    privileges = types.ChatPrivileges(
+        can_edit_stories=True, can_post_stories=False, can_manage_topics=True, can_manage_direct_messages=True,
+        can_manage_tags=True, can_send_welcome_messages=True)
+    button = types.KeyboardButton("pick", request_chat=types.RequestPeerTypeChat(
+        button_id=1, user_privileges=privileges, bot_privileges=privileges))
+    rights = roundtrip(button.write()).type.peer_type.user_admin_rights
+
+    assert rights.edit_stories is True and rights.post_stories is False
+    assert rights.manage_topics and rights.manage_direct_messages and rights.manage_ranks and rights.manage_welcome_messages

@@ -57,7 +57,7 @@ class ManagedBotUpdated(Object, Update):
         users: Dict[int, "raw.types.User"]
     ) -> "ManagedBotUpdated":
         return ManagedBotUpdated(
-            user=types.User._parse(client, users.get(update.user_id)),
-            bot=types.User._parse(client, users.get(update.bot_id)),
+            user=types.User._parse(client, users.get(update.user_id)) or types.User(id=update.user_id, client=client),
+            bot=types.User._parse(client, users.get(update.bot_id)) or types.User(id=update.bot_id, client=client),
             client=client
         )
