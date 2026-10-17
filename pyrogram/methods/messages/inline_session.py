@@ -95,7 +95,11 @@ async def get_media_session(client: "pyrogram.Client", dc_id: int) -> Session:
             await client.storage.test_mode(), is_media=True
         )
 
-        await session.start()
+        try:
+            await session.start()
+        except BaseException:  # e.g. the transfer was cancelled: don't leave the connection open
+            await session.stop()
+            raise
 
         client.media_sessions[dc_id] = session
 

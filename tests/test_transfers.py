@@ -78,6 +78,8 @@ class FakeServer:
         self.requested = []  # (media_id, offset) in request order
         self.parts = {}  # file_part -> (request type, bytes)
         self.upload_delay = 0
+        self.start_delay = 0
+        self.sessions = []
         self.starts = 0
         self.auth_keys = 0
         self.in_flight = 0
@@ -91,9 +93,11 @@ class FakeSession:
     def __init__(self, client, dc_id, auth_key, test_mode, is_media=False, is_cdn=False):
         self.dc_id, self.is_media = dc_id, is_media
         self.stopped = False
+        SERVER.sessions.append(self)
 
     async def start(self):
         SERVER.starts += 1
+        await asyncio.sleep(SERVER.start_delay)
 
     async def stop(self):
         self.stopped = True
@@ -202,6 +206,24 @@ def test_uploads_reuse_the_media_session(transfer_client):
 
     asyncio.run(main())
     assert SERVER.starts == 1
+
+
+def test_transfer_cancelled_while_its_session_starts(transfer_client):
+    async def main():
+        client = transfer_client()
+        await open_storage(client)
+        SERVER.files[1] = os.urandom(1000)
+        SERVER.start_delay = 10
+        task = asyncio.get_running_loop().create_task(download(client, document(1), 1000))
+        await asyncio.sleep(0.05)
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        return client.media_sessions
+
+    # The half started session is stopped, and not kept for the next transfers
+    assert asyncio.run(main()) == {}
+    [session] = SERVER.sessions
+    assert session.stopped
 
 
 def test_transfer_sessions_are_stopped_on_terminate(transfer_client):
