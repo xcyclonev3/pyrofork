@@ -135,7 +135,8 @@ class SaveFile:
 
             file_total_parts = int(math.ceil(file_size / part_size))
             is_big = file_size > 10 * 1024 * 1024
-            workers_count = 4 if is_big else 1
+            # Parts can be sent in any order, small files' too: up to UPLOAD_PARTS_IN_FLIGHT at a time
+            workers_count = self.UPLOAD_PARTS_IN_FLIGHT
             is_missing_part = file_id is not None
             file_id = file_id or self.rnd_id()
             md5_sum = md5() if not is_big and not is_missing_part else None

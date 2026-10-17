@@ -247,6 +247,8 @@ class Client(Methods):
 
     # Parts of 1 MiB a download requests ahead while it hands out the current one
     DOWNLOAD_PARTS_IN_FLIGHT = 4
+    # Parts of 512 KiB an upload sends at the same time
+    UPLOAD_PARTS_IN_FLIGHT = 4
 
     mimetypes = MimeTypes()
     mimetypes.readfp(StringIO(mime_types))

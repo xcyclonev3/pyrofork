@@ -76,7 +76,8 @@ class FakeServer:
         self.failures = {}  # (media_id, offset) -> exception to raise
         self.delays = {}  # offset -> seconds before answering
         self.requested = []  # (media_id, offset) in request order
-        self.parts = {}  # file_part -> bytes
+        self.parts = {}  # file_part -> (request type, bytes)
+        self.upload_delay = 0
         self.starts = 0
         self.auth_keys = 0
         self.in_flight = 0
@@ -111,7 +112,8 @@ class FakeSession:
                 data = SERVER.files[query.location.id][query.offset:query.offset + query.limit]
                 return raw.types.upload.File(type=raw.types.storage.FilePartial(), mtime=0, bytes=data)
             if isinstance(query, (raw.functions.upload.SaveFilePart, raw.functions.upload.SaveBigFilePart)):
-                SERVER.parts[query.file_part] = query.bytes
+                await asyncio.sleep(SERVER.upload_delay)
+                SERVER.parts[query.file_part] = (type(query), query.bytes)
                 return True
             return True
         finally:
@@ -350,3 +352,44 @@ def test_download_stop_transmission(transfer_client):
         assert [t for t in asyncio.all_tasks() if t is not asyncio.current_task()] == []
 
     asyncio.run(main())
+
+
+# Uploads send several parts at the same time, small files included
+
+from hashlib import md5  # noqa: E402
+
+PART = 512 * 1024
+
+
+@pytest.mark.parametrize("size, big", [(1000, False), (3 * PART + 7, False), (6 * PART, False), (21 * PART + 1, True)])
+def test_upload_sends_parts_at_the_same_time(transfer_client, size, big):
+    data = os.urandom(size)
+
+    async def main():
+        client = transfer_client()
+        await open_storage(client)
+        SERVER.upload_delay = 0.01
+        progress = []
+
+        async def on_progress(current, total):
+            progress.append((current, total))
+
+        uploaded = await client.save_file(io.BytesIO(data), progress=on_progress)
+        await asyncio.sleep(0)
+        assert [t for t in asyncio.all_tasks() if t is not asyncio.current_task()] == []
+        return uploaded, progress
+
+    uploaded, progress = asyncio.run(main())
+    parts = (size + PART - 1) // PART
+    assert sorted(SERVER.parts) == list(range(parts))
+    assert b"".join(SERVER.parts[i][1] for i in range(parts)) == data
+    request = raw.functions.upload.SaveBigFilePart if big else raw.functions.upload.SaveFilePart
+    assert {t for t, _ in SERVER.parts.values()} == {request}
+    assert SERVER.max_in_flight == min(parts, pyrogram.Client.UPLOAD_PARTS_IN_FLIGHT)
+    if big:
+        assert isinstance(uploaded, raw.types.InputFileBig) and uploaded.parts == parts
+    else:
+        assert isinstance(uploaded, raw.types.InputFile) and uploaded.parts == parts
+        assert uploaded.md5_checksum == md5(data).hexdigest()
+    # The same progress as the part by part upload: after each part is read, in order
+    assert progress == [(min((i + 1) * PART, size), size) for i in range(parts)]
