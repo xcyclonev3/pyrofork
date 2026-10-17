@@ -109,6 +109,7 @@ class Session:
         self.recv_task = None
 
         self.is_started = asyncio.Event()
+        self.is_restarting = False
 
         self.loop = asyncio.get_event_loop()
 
@@ -195,8 +196,19 @@ class Session:
         log.info("Session stopped")
 
     async def restart(self):
-        await self.stop()
-        await self.start()
+        # A broken connection can ask for a restart more than once: from the receiving loop, the ping loop and
+        # packets that fail to unpack. One is enough. Two at once would each start a connection, and the receiving
+        # loop of the first one would read the second one before it is connected.
+        if self.is_restarting:
+            return
+
+        self.is_restarting = True
+
+        try:
+            await self.stop()
+            await self.start()
+        finally:
+            self.is_restarting = False
 
     async def handle_packet(self, packet):
         try:
