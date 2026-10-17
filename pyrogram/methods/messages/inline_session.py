@@ -75,3 +75,28 @@ async def get_session(client: "pyrogram.Client", dc_id: int, is_media: bool = Tr
         sessions[dc_id] = session
 
         return session
+
+
+async def get_media_session(client: "pyrogram.Client", dc_id: int) -> Session:
+    """A media session for file transfers on any data center, kept for the next transfers like TDLib does.
+
+    Starting a session costs a few round trips (and a new authorization key on another data center): transfers
+    don't pay for it every time anymore.
+    """
+    if dc_id != await client.storage.dc_id():
+        return await get_session(client, dc_id, is_media=True)
+
+    async with client.media_sessions_lock:
+        if client.media_sessions.get(dc_id):
+            return client.media_sessions[dc_id]
+
+        session = Session(
+            client, dc_id, await client.storage.auth_key(),
+            await client.storage.test_mode(), is_media=True
+        )
+
+        await session.start()
+
+        client.media_sessions[dc_id] = session
+
+        return session

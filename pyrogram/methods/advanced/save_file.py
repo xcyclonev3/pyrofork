@@ -30,7 +30,7 @@ from typing import Union, BinaryIO, Callable
 import pyrogram
 from pyrogram import StopTransmission
 from pyrogram import raw
-from pyrogram.session import Session
+from pyrogram.methods.messages.inline_session import get_media_session
 
 log = logging.getLogger(__name__)
 
@@ -139,15 +139,13 @@ class SaveFile:
             is_missing_part = file_id is not None
             file_id = file_id or self.rnd_id()
             md5_sum = md5() if not is_big and not is_missing_part else None
-            session = Session(
-                self, await self.storage.dc_id(), await self.storage.auth_key(),
-                await self.storage.test_mode(), is_media=True
-            )
-            workers = [self.loop.create_task(worker(session)) for _ in range(workers_count)]
+            workers = []
             queue = asyncio.Queue(1)
 
             try:
-                await session.start()
+                # Kept for the next transfers: starting it costs a few round trips
+                session = await get_media_session(self, await self.storage.dc_id())
+                workers = [self.loop.create_task(worker(session)) for _ in range(workers_count)]
 
                 fp.seek(part_size * file_part)
 
@@ -219,8 +217,6 @@ class SaveFile:
                     await queue.put(None)
 
                 await asyncio.gather(*workers)
-
-                await session.stop()
 
                 if isinstance(path, (str, PurePath)):
                     fp.close()
