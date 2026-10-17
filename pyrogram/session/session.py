@@ -56,6 +56,9 @@ class Session:
     ACKS_THRESHOLD = 10
     PING_INTERVAL = 5
     STORED_MSG_IDS_MAX_SIZE = 500
+    # Messages up to this size are packed and unpacked right away: handing them to crypto_executor (a thread hop)
+    # costs more than the work. Bigger ones still go to it, so that their encryption doesn't hold up the event loop.
+    INLINE_CRYPTO_SIZE = 64 * 1024
 
     TRANSPORT_ERRORS = {
         404: "auth key not found",
@@ -94,6 +97,11 @@ class Session:
         self.result_vectors = {}  # msg_id -> element type of the bare vector the request returns
 
         self.stored_msg_ids = []
+
+        # Messages of this session in crypto_executor. While there are some, the next ones queue up there too:
+        # messages are sent in msg_id order and received ones are handled in the order they came
+        self.packing = 0
+        self.unpacking = 0
 
         self.ping_task = None
         self.ping_task_event = asyncio.Event()
@@ -192,15 +200,29 @@ class Session:
 
     async def handle_packet(self, packet):
         try:
-            data = await self.loop.run_in_executor(
-                pyrogram.crypto_executor,
-                mtproto.unpack,
-                BytesIO(packet),
-                self.session_id,
-                self.auth_key,
-                self.auth_key_id,
-                self.result_vectors
-            )
+            if len(packet) <= self.INLINE_CRYPTO_SIZE and not self.unpacking:
+                data = mtproto.unpack(
+                    BytesIO(packet),
+                    self.session_id,
+                    self.auth_key,
+                    self.auth_key_id,
+                    self.result_vectors
+                )
+            else:
+                self.unpacking += 1
+
+                try:
+                    data = await self.loop.run_in_executor(
+                        pyrogram.crypto_executor,
+                        mtproto.unpack,
+                        BytesIO(packet),
+                        self.session_id,
+                        self.auth_key,
+                        self.auth_key_id,
+                        self.result_vectors
+                    )
+                finally:
+                    self.unpacking -= 1
         except ValueError as e:
             log.debug(e)
             self.loop.create_task(self.restart())
@@ -357,17 +379,26 @@ class Session:
         log.debug("Sent: %s", message)
 
         try:
-            payload = await self.loop.run_in_executor(
-                pyrogram.crypto_executor,
-                mtproto.pack,
-                message,
-                self.salt,
-                self.session_id,
-                self.auth_key,
-                self.auth_key_id,
-                body
-            )
+            if len(body) <= self.INLINE_CRYPTO_SIZE and not self.packing:
+                payload = mtproto.pack(message, self.salt, self.session_id, self.auth_key, self.auth_key_id, body)
+            else:
+                self.packing += 1
 
+                try:
+                    payload = await self.loop.run_in_executor(
+                        pyrogram.crypto_executor,
+                        mtproto.pack,
+                        message,
+                        self.salt,
+                        self.session_id,
+                        self.auth_key,
+                        self.auth_key_id,
+                        body
+                    )
+                finally:
+                    self.packing -= 1
+
+            # No await between taking the payload and handing it over: payloads are sent in the order they're made
             try:
                 await self.connection.send(payload)
             except OSError as e:
