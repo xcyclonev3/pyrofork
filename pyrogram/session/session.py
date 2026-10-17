@@ -91,6 +91,7 @@ class Session:
         self.pending_acks = set()
 
         self.results = {}
+        self.result_vectors = {}  # msg_id -> element type of the bare vector the request returns
 
         self.stored_msg_ids = []
 
@@ -197,7 +198,8 @@ class Session:
                 BytesIO(packet),
                 self.session_id,
                 self.auth_key,
-                self.auth_key_id
+                self.auth_key_id,
+                self.result_vectors
             )
         except ValueError as e:
             log.debug(e)
@@ -341,6 +343,17 @@ class Session:
         if wait_response:
             self.results[msg_id] = Result()
 
+            # Results that are bare vectors of primitive values must be read with their type (RESULT_VECTOR)
+            query = data
+
+            while isinstance(getattr(query, "query", None), TLObject):  # invokeWithLayer, initConnection, ...
+                query = query.query
+
+            result_vector = getattr(query, "RESULT_VECTOR", None)
+
+            if result_vector is not None:
+                self.result_vectors[msg_id] = result_vector
+
         log.debug("Sent: %s", message)
 
         payload = await self.loop.run_in_executor(
@@ -357,6 +370,7 @@ class Session:
             await self.connection.send(payload)
         except OSError as e:
             self.results.pop(msg_id, None)
+            self.result_vectors.pop(msg_id, None)
             raise e
 
         if wait_response:
@@ -366,6 +380,7 @@ class Session:
                 pass
 
             result = self.results.pop(msg_id).value
+            self.result_vectors.pop(msg_id, None)
 
             if result is None:
                 raise TimeoutError("Request timed out")

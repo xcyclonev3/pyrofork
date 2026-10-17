@@ -545,6 +545,16 @@ def start(format: bool = False):
         slots = ", ".join([f'"{i[0]}"' for i in sorted_args])
         return_arguments = ", ".join([f"{i[0]}={i[0]}" for i in sorted_args])
 
+        # A bare vector of primitive values can't be read without knowing their type (e.g. Vector<string>):
+        # functions returning one declare it, so that their result is read with it (see Session.send)
+        result_vector = ""
+
+        if c.section == "functions" and c.qualtype.startswith("Vector<"):
+            element_type = c.qualtype[len("Vector<"):-1]
+
+            if element_type in CORE_TYPES and element_type not in ("Bool", "true"):
+                result_vector = f"\n    RESULT_VECTOR = {element_type.title()}"
+
         compiled_combinator = combinator_tmpl.format(
             notice=notice,
             warning=WARNING,
@@ -557,7 +567,8 @@ def start(format: bool = False):
             fields=fields,
             read_types=read_types,
             write_types=write_types,
-            return_arguments=return_arguments
+            return_arguments=return_arguments,
+            result_vector=result_vector
         )
 
         directory = "types" if c.section == "types" else c.section

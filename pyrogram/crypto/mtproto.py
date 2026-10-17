@@ -55,7 +55,8 @@ def unpack(
     b: BytesIO,
     session_id: bytes,
     auth_key: bytes,
-    auth_key_id: bytes
+    auth_key_id: bytes,
+    result_vectors: dict = None
 ) -> Message:
     SecurityCheckMismatch.check(b.read(8) == auth_key_id, "b.read(8) == auth_key_id")
 
@@ -68,7 +69,8 @@ def unpack(
     SecurityCheckMismatch.check(data.read(8) == session_id, "data.read(8) == session_id")
 
     try:
-        message = Message.read(data)
+        # The element types of the bare vectors that requests return, see Session.send
+        message = Message.read(data, result_vectors) if result_vectors else Message.read(data)
     except KeyError as e:
         if e.args[0] == 0:
             raise ConnectionError("Received empty data. Check your internet connection.")
