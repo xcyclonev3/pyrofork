@@ -31,7 +31,7 @@ class CheckedGiftCode(Object):
             Date when the giveaway was launched.
 
         months (``int``):
-            Number of months of subscription.
+            Number of months of subscription; 0 if the duration isn't a whole number of months.
 
         via_giveaway (``bool``, *optional*):
             True if the gift code is received via giveaway.
@@ -47,6 +47,9 @@ class CheckedGiftCode(Object):
 
         used_date (:py:obj:`~datetime.datetime`, *optional*):
             Date when the gift code was used.
+
+        days (``int``, *optional*):
+            Number of days of subscription.
     """
 
     def __init__(
@@ -58,7 +61,8 @@ class CheckedGiftCode(Object):
         from_chat: "types.Chat" = None,
         winner: "types.User" = None,
         giveaway_message_id: int = None,
-        used_date: datetime = None
+        used_date: datetime = None,
+        days: int = None
     ):
         super().__init__()
 
@@ -69,6 +73,7 @@ class CheckedGiftCode(Object):
         self.winner = winner
         self.giveaway_message_id = giveaway_message_id
         self.used_date = used_date
+        self.days = days
 
     @staticmethod
     def _parse(client, checked_gift_code: "raw.types.payments.CheckedGiftCode", users, chats):
@@ -84,7 +89,8 @@ class CheckedGiftCode(Object):
 
         return CheckedGiftCode(
             date=utils.timestamp_to_datetime(checked_gift_code.date),
-            months=checked_gift_code.months,
+            months=utils.get_premium_duration_month_count(checked_gift_code.days),
+            days=checked_gift_code.days,
             via_giveaway=getattr(checked_gift_code, "via_giveaway", None),
             from_chat=from_chat,
             winner=winner,

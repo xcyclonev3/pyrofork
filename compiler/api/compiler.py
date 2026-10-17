@@ -488,8 +488,10 @@ def start(format: bool = False):
                     read_types += "\n        "
                     read_types += f"{arg_name} = True if flags{number} & (1 << {index}) else False"
                 elif flag_type in CORE_TYPES:
+                    # A flagged field is present if and only if its bit is set, possibly by another field
+                    # sharing the same bit, so the body must follow the flags computed above.
                     write_types += "\n        "
-                    write_types += f"if self.{arg_name} is not None:\n            "
+                    write_types += f"if flags{number} & (1 << {index}):\n            "
                     write_types += f"b.write({flag_type.title()}(self.{arg_name}))\n        "
 
                     read_types += "\n        "
@@ -498,8 +500,8 @@ def start(format: bool = False):
                     sub_type = arg_type.split("<")[1][:-1]
 
                     write_types += "\n        "
-                    write_types += f"if self.{arg_name} is not None:\n            "
-                    write_types += "b.write(Vector(self.{}{}))\n        ".format(
+                    write_types += f"if flags{number} & (1 << {index}):\n            "
+                    write_types += "b.write(Vector(self.{} or []{}))\n        ".format(
                         arg_name, f", {sub_type.title()}" if sub_type in CORE_TYPES else ""
                     )
 
@@ -509,7 +511,7 @@ def start(format: bool = False):
                     )
                 else:
                     write_types += "\n        "
-                    write_types += f"if self.{arg_name} is not None:\n            "
+                    write_types += f"if flags{number} & (1 << {index}):\n            "
                     write_types += f"b.write(self.{arg_name}.write())\n        "
 
                     read_types += "\n        "
@@ -543,6 +545,16 @@ def start(format: bool = False):
         slots = ", ".join([f'"{i[0]}"' for i in sorted_args])
         return_arguments = ", ".join([f"{i[0]}={i[0]}" for i in sorted_args])
 
+        # A bare vector of primitive values can't be read without knowing their type (e.g. Vector<string>):
+        # functions returning one declare it, so that their result is read with it (see Session.send)
+        result_vector = ""
+
+        if c.section == "functions" and c.qualtype.startswith("Vector<"):
+            element_type = c.qualtype[len("Vector<"):-1]
+
+            if element_type in CORE_TYPES and element_type not in ("Bool", "true"):
+                result_vector = f"\n    RESULT_VECTOR = {element_type.title()}"
+
         compiled_combinator = combinator_tmpl.format(
             notice=notice,
             warning=WARNING,
@@ -555,7 +567,8 @@ def start(format: bool = False):
             fields=fields,
             read_types=read_types,
             write_types=write_types,
-            return_arguments=return_arguments
+            return_arguments=return_arguments,
+            result_vector=result_vector
         )
 
         directory = "types" if c.section == "types" else c.section

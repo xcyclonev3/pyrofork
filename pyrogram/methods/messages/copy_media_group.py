@@ -173,6 +173,12 @@ class CopyMediaGroup:
                     )
                 ),
             )
+
+            if message.photo and message.photo.live_video:
+                media = await utils.add_live_photo_video(
+                    self, await self.resolve_peer(chat_id), media, message.photo.live_video.file_id
+                )
+
             multi_media.append(
                 raw.types.InputSingleMedia(
                     media=media,
@@ -225,6 +231,7 @@ class CopyMediaGroup:
                                              raw.types.UpdateNewScheduledMessage)),
                     r.updates
                 )],
+                topics=[],
                 users=r.users,
                 chats=r.chats
             )

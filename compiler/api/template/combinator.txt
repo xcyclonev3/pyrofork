@@ -17,7 +17,7 @@ class {name}(TLObject):  # type: ignore
     __slots__: List[str] = [{slots}]
 
     ID = {id}
-    QUALNAME = "{qualname}"
+    QUALNAME = "{qualname}"{result_vector}
 
     def __init__(self{arguments}) -> None:
         {fields}

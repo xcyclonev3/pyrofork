@@ -18,16 +18,20 @@
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
 from .add_chat_members import AddChatMembers
+from .add_chat_welcome_message import AddChatWelcomeMessage
 from .archive_chats import ArchiveChats
 from .ban_chat_member import BanChatMember
 from .create_channel import CreateChannel
 from .create_group import CreateGroup
 from .create_supergroup import CreateSupergroup
+from .delete_all_chat_welcome_messages import DeleteAllChatWelcomeMessages
 from .delete_channel import DeleteChannel
 from .delete_chat_photo import DeleteChatPhoto
+from .delete_chat_welcome_message import DeleteChatWelcomeMessage
 from .delete_folder import DeleteFolder
 from .delete_supergroup import DeleteSupergroup
 from .delete_user_history import DeleteUserHistory
+from .edit_chat_welcome_message import EditChatWelcomeMessage
 from .export_folder_link import ExportFolderLink
 from .get_chat import GetChat
 from .get_chat_event_log import GetChatEventLog
@@ -35,18 +39,24 @@ from .get_chat_member import GetChatMember
 from .get_chat_members import GetChatMembers
 from .get_chat_members_count import GetChatMembersCount
 from .get_chat_online_count import GetChatOnlineCount
+from .get_chat_owner_after_leaving import GetChatOwnerAfterLeaving
+from .get_chat_welcome_messages import GetChatWelcomeMessages
 from .get_dialogs import GetDialogs
 from .get_dialogs_count import GetDialogsCount
 from .get_folders import GetFolders
+from .get_guard_bot_web_app_url import GetGuardBotWebAppUrl
 from .get_send_as_chats import GetSendAsChats
 from .join_chat import JoinChat
 from .leave_chat import LeaveChat
 from .mark_chat_unread import MarkChatUnread
 from .pin_chat_message import PinChatMessage
+from .process_chat_protected_content_disable_request import ProcessChatProtectedContentDisableRequest
 from .promote_chat_member import PromoteChatMember
 from .restrict_chat_member import RestrictChatMember
 from .set_administrator_title import SetAdministratorTitle
 from .set_chat_description import SetChatDescription
+from .set_chat_join_by_request import SetChatJoinByRequest
+from .set_chat_member_tag import SetChatMemberTag
 from .set_chat_permissions import SetChatPermissions
 from .set_chat_photo import SetChatPhoto
 from .set_chat_protected_content import SetChatProtectedContent
@@ -107,6 +117,16 @@ class Chats(
     SetChatProtectedContent,
     TransferChatOwnership,
     UpdateColor,
-    UpdateFolder
+    UpdateFolder,
+    SetChatMemberTag,
+    GetGuardBotWebAppUrl,
+    GetChatOwnerAfterLeaving,
+    ProcessChatProtectedContentDisableRequest,
+    GetChatWelcomeMessages,
+    AddChatWelcomeMessage,
+    EditChatWelcomeMessage,
+    DeleteChatWelcomeMessage,
+    DeleteAllChatWelcomeMessages,
+    SetChatJoinByRequest
 ):
     pass

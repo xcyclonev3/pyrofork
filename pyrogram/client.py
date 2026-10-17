@@ -355,6 +355,8 @@ class Client(Methods):
 
         self.media_sessions = {}
         self.media_sessions_lock = asyncio.Lock()
+        # Regular sessions on other data centers, e.g. for TON Center requests
+        self.dc_sessions = {}
 
         self.save_file_semaphore = asyncio.Semaphore(self.max_concurrent_transmissions)
         self.get_file_semaphore = asyncio.Semaphore(self.max_concurrent_transmissions)
@@ -614,6 +616,14 @@ class Client(Methods):
                 peer_id = utils.get_channel_id(peer.id)
                 access_hash = peer.access_hash
                 peer_type = "channel" if peer.broadcast else "supergroup"
+            elif isinstance(peer, (raw.types.Community, raw.types.CommunityForbidden)):
+                # Communities share the channel id space and are addressed with InputChannel/InputPeerChannel
+                if peer.access_hash is None:
+                    continue
+
+                peer_id = utils.get_channel_id(peer.id)
+                access_hash = peer.access_hash
+                peer_type = "channel"
             else:
                 continue
 

@@ -175,6 +175,30 @@ class User(Object, Update):
         frozen_icon (``int``, *optional*):
             Frozen account icon.
             This field is available only in case *is_frozen* is True.
+
+        community_id (``int``, *optional*):
+            Identifier of the community the chat with the bot was added to.
+            For bots only.
+
+        has_topics (``bool``, *optional*):
+            True, if the private chat with the bot has topics.
+            For bots only.
+
+        allows_users_to_create_topics (``bool``, *optional*):
+            True, if users can create and delete topics in the private chat with the bot.
+            For bots only.
+
+        can_manage_bots (``bool``, *optional*):
+            True, if the bot can create and manage other bots (see :meth:`~pyrogram.Client.create_bot`).
+            For bots only.
+
+        supports_guest_queries (``bool``, *optional*):
+            True, if the bot can be mentioned in chats it isn't a member of (see :obj:`~pyrogram.types.GuestQuery`).
+            For bots only.
+
+        is_guard_bot (``bool``, *optional*):
+            True, if the bot can be the guard bot of chats, approving the join requests of new members.
+            For bots only.
     """
 
     def __init__(
@@ -212,7 +236,13 @@ class User(Object, Update):
         reply_color: "types.ChatColor" = None,
         profile_color: "types.ChatColor" = None,
         active_users: int = None,
-        frozen_icon: int = None
+        frozen_icon: int = None,
+        community_id: int = None,
+        has_topics: bool = None,
+        allows_users_to_create_topics: bool = None,
+        can_manage_bots: bool = None,
+        supports_guest_queries: bool = None,
+        is_guard_bot: bool = None
     ):
         super().__init__(client)
 
@@ -248,6 +278,12 @@ class User(Object, Update):
         self.profile_color = profile_color
         self.active_users = active_users
         self.frozen_icon = frozen_icon
+        self.community_id = community_id
+        self.has_topics = has_topics
+        self.allows_users_to_create_topics = allows_users_to_create_topics
+        self.can_manage_bots = can_manage_bots
+        self.supports_guest_queries = supports_guest_queries
+        self.is_guard_bot = is_guard_bot
 
     @property
     def full_name(self) -> str:
@@ -313,6 +349,13 @@ class User(Object, Update):
             profile_color=types.ChatColor._parse_profile_color(getattr(user, "profile_color", None)),
             active_users=active_users,
             frozen_icon=frozen_icon,
+            community_id=utils.get_channel_id(user.linked_community_id) if user.linked_community_id else None,
+            # Like TDLib's userTypeBot: users can manage the topics of bots that have topics and allow it
+            has_topics=user.bot_forum_view if user.bot else None,
+            allows_users_to_create_topics=(user.bot_forum_view and user.bot_forum_can_manage_topics) if user.bot else None,
+            can_manage_bots=user.bot_can_manage_bots if user.bot else None,
+            supports_guest_queries=user.bot_guestchat if user.bot else None,
+            is_guard_bot=user.bot_guard if user.bot else None,
             client=client
         )
 

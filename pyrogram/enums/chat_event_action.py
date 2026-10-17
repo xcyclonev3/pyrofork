@@ -133,5 +133,8 @@ class ChatEventAction(AutoName):
     DELETED_FORUM_TOPIC = auto()
     "a forum topic has been deleted (see `deleted_forum_topic`)"
 
+    MEMBER_TAG_CHANGED = auto()
+    "a member tag has been changed (see ``member_tag_user``, ``old_member_tag`` and ``new_member_tag``)"
+
     UNKNOWN = auto()
     "Unknown chat event action"

@@ -18,14 +18,18 @@
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
 from .business_schedule import BusinessSchedule
+from .button_style import ButtonStyle
 from .chat_action import ChatAction
 from .chat_event_action import ChatEventAction
+from .chat_join_result_type import ChatJoinResultType
 from .chat_join_type import ChatJoinType
 from .chat_member_status import ChatMemberStatus
 from .chat_members_filter import ChatMembersFilter
 from .chat_type import ChatType
 from .client_platform import ClientPlatform
+from .craft_gift_result_type import CraftGiftResultType
 from .folder_color import FolderColor
+from .gift_attribute_rarity_type import GiftAttributeRarityType
 from .gift_attribute_type import GiftAttributeType
 from .gift_for_resale_order import GiftForResaleOrder
 from .listerner_types import ListenerTypes
@@ -35,14 +39,19 @@ from .message_origin_type import MessageOriginType
 from .message_service_type import MessageServiceType
 from .messages_filter import MessagesFilter
 from .next_code_type import NextCodeType
+from .page_block_horizontal_alignment import PageBlockHorizontalAlignment
+from .page_block_vertical_alignment import PageBlockVerticalAlignment
 from .parse_mode import ParseMode
 from .poll_type import PollType
 from .profile_color import ProfileColor
 from .reaction_type import ReactionType
 from .reply_color import ReplyColor
+from .report_result_type import ReportResultType
 from .sent_code_type import SentCodeType
 from .stories_privacy_rules import StoriesPrivacyRules
 from .story_privacy import StoryPrivacy
+from .ton_connect_session_state import TonConnectSessionState
+from .ton_wallet_transaction_type import TonWalletTransactionType
 from .user_status import UserStatus
 
 __all__ = [
@@ -72,5 +81,14 @@ __all__ = [
     'SentCodeType',
     "StoriesPrivacyRules",
     "StoryPrivacy",
-    'UserStatus'
+    'UserStatus',
+    'ButtonStyle',
+    'ChatJoinResultType',
+    'GiftAttributeRarityType',
+    'CraftGiftResultType',
+    'TonWalletTransactionType',
+    'TonConnectSessionState',
+    'PageBlockHorizontalAlignment',
+    'PageBlockVerticalAlignment',
+    'ReportResultType'
 ]

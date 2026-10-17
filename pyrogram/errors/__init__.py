@@ -72,11 +72,37 @@ class CDNFileHashMismatch(SecurityError):
     def __init__(self, msg: str = None):
         super().__init__("A CDN file hash mismatch has occurred." if msg is None else msg)
 
+
+class GuardBotApprovalRequired(Exception):
+    """Raised by :meth:`~pyrogram.Client.join_chat` when a guard bot of the chat must approve the join first.
+
+    The approval happens in a Web App of the bot: get its URL with
+    :meth:`~pyrogram.Client.get_guard_bot_web_app_url` (passing ``query_id``) and wait for the
+    :obj:`~pyrogram.types.ChatJoinResult` with the same ``query_id`` (see :meth:`~pyrogram.Client.on_chat_join_result`).
+
+    Parameters:
+        bot_id (``int``):
+            Identifier of the guard bot.
+
+        query_id (``int``):
+            Identifier of the join request.
+
+        bot (:obj:`~pyrogram.types.User`, *optional*):
+            The guard bot, if Telegram sent its details.
+    """
+
+    def __init__(self, bot_id: int, query_id: int, bot=None):
+        super().__init__(f"The guard bot {bot_id} must approve the join request {query_id} in its Web App")
+        self.bot_id = bot_id
+        self.query_id = query_id
+        self.bot = bot
+
 __all__ = [
     "BadMsgNotification",
     "SecurityError",
     "SecurityCheckMismatch",
     "CDNFileHashMismatch",
+    "GuardBotApprovalRequired",
     "RPCError",
     "UnknownError"
 ]

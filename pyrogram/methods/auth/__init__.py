@@ -17,11 +17,21 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from .accept_oauth_request import AcceptOauthRequest
+from .check_oauth_request_match_code import CheckOauthRequestMatchCode
 from .check_password import CheckPassword
 from .connect import Connect
+from .decline_oauth_request import DeclineOauthRequest
 from .disconnect import Disconnect
+from .dismiss_web_token import DismissWebToken
+from .finish_firebase_pnv_login import FinishFirebasePnvLogin
+from .firebase_pnv_sign_up import FirebasePnvSignUp
 from .get_active_sessions import GetActiveSessions
+from .get_external_link import GetExternalLink
+from .get_external_link_info import GetExternalLinkInfo
+from .get_oauth_link_info import GetOauthLinkInfo
 from .get_password_hint import GetPasswordHint
+from .init_firebase_pnv_login import InitFirebasePnvLogin
 from .initialize import Initialize
 from .log_out import LogOut
 from .recover_password import RecoverPassword
@@ -49,6 +59,16 @@ class Auth(
     SignIn,
     SignInBot,
     SignInQrcode,
-    Terminate
+    Terminate,
+    GetExternalLinkInfo,
+    GetExternalLink,
+    GetOauthLinkInfo,
+    CheckOauthRequestMatchCode,
+    AcceptOauthRequest,
+    DeclineOauthRequest,
+    InitFirebasePnvLogin,
+    FinishFirebasePnvLogin,
+    FirebasePnvSignUp,
+    DismissWebToken
 ):
     pass

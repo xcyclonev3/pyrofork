@@ -19,6 +19,7 @@
 
 import re
 from struct import unpack
+from typing import Optional
 
 # SMP = Supplementary Multilingual Plane: https://en.wikipedia.org/wiki/Plane_(Unicode)#Overview
 SMP_RE = re.compile(r"[\U00010000-\U0010FFFF]")
@@ -53,3 +54,57 @@ def within_surrogate(text, index, *, length=None):
             '\ud800' <= text[index - 1] <= '\udbff' and  # previous is
             '\ud800' <= text[index] <= '\udfff'  # current is
     )
+
+
+# Date formats of <tg-time format="..."> and ![...](tg://time?unix=...&format=...), as parsed by TDLib
+# (FormattedDate::get_date_flags): "r" is relative, otherwise any of t/T (time), d/D (date) and w (day of week).
+DATE_FORMAT_FLAGS = {
+    "t": "short_time",
+    "T": "long_time",
+    "d": "short_date",
+    "D": "long_date",
+    "w": "day_of_week",
+    "W": "day_of_week"
+}
+
+
+def get_unix_time(unix) -> Optional[int]:
+    """The Unix time of a formatted date given as a string, or None if it isn't a valid one."""
+    try:
+        date = int(unix)
+    except (TypeError, ValueError):
+        return None
+
+    return date if 0 < date < 2 ** 31 else None
+
+
+def get_formatted_date(unix, date_format) -> dict:
+    """Arguments of :obj:`~pyrogram.raw.types.MessageEntityFormattedDate` for a Unix time and a date format.
+
+    Like in TDLib, an invalid date format is an error, while an invalid Unix time gives date 0: the HTML parser drops
+    such dates.
+    """
+    date_format = date_format or ""
+
+    if date_format in ("r", "R"):
+        flags = {"relative": True}
+    elif any(c not in DATE_FORMAT_FLAGS for c in date_format):
+        raise ValueError(f"Invalid date format: {date_format!r}")
+    else:
+        flags = {DATE_FORMAT_FLAGS[c]: True for c in date_format}
+
+    return {"date": get_unix_time(unix) or 0, **flags}
+
+
+def get_date_format(entity) -> str:
+    """The date format of a formatted date :obj:`~pyrogram.types.MessageEntity`."""
+    if entity.relative:
+        return "r"
+
+    return "".join(c for c, flag in (
+        ("w", entity.day_of_week),
+        ("d", entity.short_date),
+        ("D", entity.long_date),
+        ("t", entity.short_time),
+        ("T", entity.long_time)
+    ) if flag)

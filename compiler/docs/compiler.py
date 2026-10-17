@@ -228,6 +228,48 @@ def pyrogram_api():
             translate_message_text
             start_bot
             delete_chat_history
+            add_poll_option
+            delete_poll_option
+            get_unread_poll_votes
+            read_all_chat_poll_votes
+            get_stake_dice_state
+            send_stake_dice
+            get_text_composition_styles
+            create_text_composition_style
+            edit_text_composition_style
+            delete_text_composition_style
+            search_text_composition_style
+            get_text_composition_style_example
+            add_text_composition_style
+            remove_text_composition_style
+            compose_text_with_ai
+            fix_text_with_ai
+            summarize_message
+            listen_to_audio
+            get_personal_chat_history
+            delete_message_reactions_from_sender
+            delete_all_recent_message_reactions_from_sender
+            get_poll_vote_statistics
+            send_text_message_draft
+            stop_pending_message
+            send_message_view_metrics
+            send_rich_message
+            edit_message_rich_message
+            edit_inline_rich_message
+            get_full_rich_message
+            translate_rich_message
+            translate_message_rich_message
+            compose_rich_message_with_ai
+            create_rich_message_with_ai
+            fix_rich_message_with_ai
+            send_rich_message_draft
+            set_chat_draft_message
+            send_ephemeral_message
+            edit_ephemeral_message
+            edit_ephemeral_message_caption
+            delete_ephemeral_message
+            request_ephemeral_callback_answer
+            report_ephemeral_message
         """,
         chats="""
         Chats
@@ -289,6 +331,16 @@ def pyrogram_api():
             unhide_general_topic
             update_color
             update_folder
+            set_chat_member_tag
+            get_guard_bot_web_app_url
+            get_chat_owner_after_leaving
+            process_chat_protected_content_disable_request
+            get_chat_welcome_messages
+            add_chat_welcome_message
+            edit_chat_welcome_message
+            delete_chat_welcome_message
+            delete_all_chat_welcome_messages
+            set_chat_join_by_request
         """,
         users="""
         Users
@@ -307,6 +359,11 @@ def pyrogram_api():
             get_common_chats
             get_default_emoji_statuses
             set_emoji_status
+            get_web_browser_settings
+            change_web_browser_settings
+            add_web_browser_settings_exception
+            remove_web_browser_settings_exception
+            remove_all_web_browser_settings_exceptions
         """,
         stories="""
         Stories
@@ -319,6 +376,7 @@ def pyrogram_api():
             get_stories_history
             get_peer_stories
             send_story
+            get_story_album_stories
         """,
         stickers="""
         Stickers
@@ -382,6 +440,9 @@ def pyrogram_api():
             transfer_gift
             upgrade_gift
             get_stars_balance
+            get_gifts_for_crafting
+            craft_gift
+            get_currency_exchange_rates
         """,
         phone="""
         Phone
@@ -416,6 +477,22 @@ def pyrogram_api():
             get_collectible_item_info
             get_owned_bots
             get_similar_bots
+            answer_chat_join_request_query
+            create_bot
+            get_managed_bot_token
+            get_managed_bot_access_settings
+            set_managed_bot_access_settings
+            check_bot_username
+            add_bot_secondary_username
+            delete_bot_secondary_username
+            toggle_bot_username_is_active
+            save_prepared_keyboard_button
+            get_prepared_keyboard_button
+            share_users_with_bot
+            share_chat_with_bot
+            answer_guest_query
+            get_login_url_info
+            get_login_url
         """,
         business="""
         Telegram Business
@@ -426,6 +503,7 @@ def pyrogram_api():
             get_business_account_gifts
             get_business_account_star_balance
             transfer_business_account_stars
+            confirm_business_connected_bot
         """,
         authorization="""
         Authorization
@@ -444,12 +522,79 @@ def pyrogram_api():
             recover_password
             log_out
             get_active_sessions
+            get_external_link_info
+            get_external_link
+            get_oauth_link_info
+            check_oauth_request_match_code
+            accept_oauth_request
+            decline_oauth_request
+            init_firebase_pnv_login
+            finish_firebase_pnv_login
+            firebase_pnv_sign_up
+            dismiss_web_token
         """,
         advanced="""
         Advanced
             invoke
             resolve_peer
             save_file
+        """,
+        communities="""
+        Communities
+            create_community
+            get_joined_communities
+            add_chat_to_community
+            remove_chat_from_community
+            set_community_collapsed
+            get_community_chat_requests
+            approve_community_chat_request
+            decline_community_chat_request
+            approve_all_community_chat_requests
+            decline_all_community_chat_requests
+            ban_community_member
+            unban_community_member
+            get_community_member_chats
+        """,
+        wallet="""
+        TON Wallet
+            get_ton_wallet_nfts
+            get_ton_wallet_state
+            get_ton_wallet_transactions
+            get_ton_wallet_transaction
+            get_ton_wallet_transaction_by_msg_hash
+            get_ton_wallet_gasless_transfers_info
+            check_wallet_bot_balance
+            get_user_ton_wallet_addresses
+            create_user_ton_wallet
+            get_address_ton_wallet
+            send_ton_wallet_transfer
+            get_ton_wallet_ownership_proof_challenge
+            get_ton_wallet_backup_holder_dcs
+            enable_ton_wallet_backup
+            disable_ton_wallet_backup
+            disable_ton_wallet_backup_with_proof
+            delete_ton_wallet
+            replace_ton_wallet
+            export_ton_wallet_secret_phrase
+            get_ton_wallet_encrypted_secret_phrase_part
+            get_ton_connect_sessions
+            create_ton_connect_session
+            set_ton_connect_session_wallet_client_id
+            send_ton_connect_session_connect_result
+            get_ton_connect_session_pending_requests
+            get_ton_connect_dapp_pending_requests
+            claim_ton_connect_request
+            answer_ton_connect_request
+            get_ton_connect_session_next_event_id
+            disconnect_ton_connect_session
+            get_on_ramp_providers
+            get_on_ramp_provider_base_currencies
+            get_on_ramp_payment_availability
+            get_on_ramp_payment_limits
+            get_on_ramp_payment_quote
+            create_on_ramp_payment_session
+            send_ton_center_api_request
+            get_ton_center_streaming_api_url
         """
     )
 
@@ -527,6 +672,16 @@ def pyrogram_api():
             ChatColor
             CollectibleItemInfo
             BotVerification
+            ChatJoinResult
+            CommunityChat
+            CommunityChatRequest
+            CommunityMemberChats
+            WebDomainException
+            WebBrowserSettings
+            ChatOwnerLeft
+            ChatOwnerChanged
+            ChatHasProtectedContentToggled
+            ChatHasProtectedContentDisableRequested
         """,
         messages_media="""
         Messages & Media
@@ -602,6 +757,23 @@ def pyrogram_api():
             ScreenshotTaken
             Wallpaper
             WallpaperSettings
+            StakeDiceState
+            FormattedText
+            TextCompositionStyle
+            TextCompositionStyleExample
+            FixedText
+            StatisticalGraph
+            StatisticalGraphData
+            StatisticalGraphAsync
+            StatisticalGraphError
+            PollVoteStatistics
+            PendingMessage
+            MessageDraftStopped
+            DraftMessage
+            EphemeralMessage
+            WelcomeMessage
+            ReportOption
+            ReportResult
         """,
         stories="""
         Stories
@@ -635,6 +807,8 @@ def pyrogram_api():
             StarsStatus
             StarsTransaction
             SuccessfulPayment
+            CraftGiftResult
+            CurrencyExchangeRate
         """,
         pyromod="""
         Pyromod
@@ -646,6 +820,11 @@ def pyrogram_api():
             BotAllowed
             BotApp
             BotBusinessConnection
+            BotAccessSettings
+            GuestQuery
+            ManagedBotUpdated
+            ManagedBotCreated
+            UserSubscriptionUpdated
         """,
         bot_keyboards="""
         Bot keyboards
@@ -672,6 +851,11 @@ def pyrogram_api():
             MenuButtonWebApp
             MenuButtonDefault
             SentWebAppMessage
+            KeyboardButtonPollType
+            RequestPeerTypeManagedBot
+            LoginUrlInfo
+            LoginUrlInfoOpen
+            LoginUrlInfoRequestConfirmation
         """,
         bot_commands="""
         Bot commands
@@ -691,6 +875,7 @@ def pyrogram_api():
             ShippingAddress
             ShippingOption
             ShippingQuery
+            BusinessConnectedBot
         """,
         input_media="""
         Input Media
@@ -745,6 +930,7 @@ def pyrogram_api():
             InputContactMessageContent
             InputInvoiceMessageContent
             InputTodoTask
+            InputRichMessageContent
         """,
         authorization="""
         Authorization
@@ -753,6 +939,154 @@ def pyrogram_api():
             LoginToken
             SentCode
             TermsOfService
+            OauthLinkInfo
+            FirebasePnvIntent
+        """,
+        wallet="""
+        TON Wallet
+            WebDocument
+            TonNftAttribute
+            TonNft
+            TonWalletState
+            TonWalletTransaction
+            TonWalletGaslessTransfersInfo
+            WalletBotBalance
+            UserTonWalletAddress
+            TonWalletTransferResult
+            TonWalletOwnershipProof
+            TonWalletOwnershipProofChallenge
+            TonWalletBackupHolderDc
+            TonWalletSecretPhraseParts
+            TonConnectManifest
+            TonConnectSession
+            TonConnectRequest
+            TonConnectRequests
+            TonConnectChallenge
+            OnRampProvider
+            OnRampPaymentMethod
+            OnRampPaymentAvailability
+            OnRampPaymentLimits
+            OnRampPaymentQuote
+            OnRampPaymentSession
+            TonCenterStreamingApiUrl
+            TonWalletTransfer
+            TonConnectPendingDisconnect
+        """,
+        rich_messages="""
+        Rich Messages
+            RichMessage
+            InlineButton
+            InputRichMessage
+            RichMessageSource
+            RichMessageSourceBlocks
+            RichMessageSourceMarkdown
+            RichMessageSourceHtml
+            InputRichMessageMedia
+        """,
+        rich_texts="""
+        Rich Texts
+            RichText
+            RichTextPlain
+            RichTextBold
+            RichTextItalic
+            RichTextUnderline
+            RichTextStrikethrough
+            RichTextSpoiler
+            RichTextSubscript
+            RichTextSuperscript
+            RichTextMarked
+            RichTextDateTime
+            RichTextMention
+            RichTextHashtag
+            RichTextCashtag
+            RichTextBankCardNumber
+            RichTextTonAddress
+            RichTextBotCommand
+            RichTextFixed
+            RichTextMentionName
+            RichTextUrl
+            RichTextEmailAddress
+            RichTextPhoneNumber
+            RichTextCustomEmoji
+            RichTextIcon
+            RichTextMathematicalExpression
+            RichTextButton
+            RichTextDiff
+            RichTextReference
+            RichTextReferenceLink
+            RichTextAnchor
+            RichTextAnchorLink
+            RichTexts
+        """,
+        page_blocks="""
+        Page Blocks
+            PageBlock
+            PageBlockTitle
+            PageBlockSubtitle
+            PageBlockAuthorDate
+            PageBlockHeader
+            PageBlockSubheader
+            PageBlockSectionHeading
+            PageBlockKicker
+            PageBlockParagraph
+            PageBlockPreformatted
+            PageBlockFooter
+            PageBlockThinking
+            PageBlockDivider
+            PageBlockMathematicalExpression
+            PageBlockAnchor
+            PageBlockList
+            PageBlockBlockQuote
+            PageBlockExpandableBlockQuote
+            PageBlockPullQuote
+            PageBlockAnimation
+            PageBlockAudio
+            PageBlockDocument
+            PageBlockPhoto
+            PageBlockVideo
+            PageBlockVoiceNote
+            PageBlockCover
+            PageBlockEmbedded
+            PageBlockEmbeddedPost
+            PageBlockCollage
+            PageBlockSlideshow
+            PageBlockChatLink
+            PageBlockTable
+            PageBlockDetails
+            PageBlockRelatedArticles
+            PageBlockMap
+            PageBlockButtonRow
+            PageBlockUnsupported
+            PageBlockCaption
+            PageBlockListItem
+            PageBlockTableCell
+            PageBlockRelatedArticle
+            InputPageBlock
+            InputPageBlockSectionHeading
+            InputPageBlockParagraph
+            InputPageBlockPreformatted
+            InputPageBlockFooter
+            InputPageBlockThinking
+            InputPageBlockDivider
+            InputPageBlockMathematicalExpression
+            InputPageBlockAnchor
+            InputPageBlockList
+            InputPageBlockListItem
+            InputPageBlockBlockQuote
+            InputPageBlockExpandableBlockQuote
+            InputPageBlockPullQuote
+            InputPageBlockAnimation
+            InputPageBlockAudio
+            InputPageBlockDocument
+            InputPageBlockPhoto
+            InputPageBlockVideo
+            InputPageBlockVoiceNote
+            InputPageBlockCollage
+            InputPageBlockSlideshow
+            InputPageBlockTable
+            InputPageBlockDetails
+            InputPageBlockMap
+            InputPageBlockButtonRow
         """
     )
 
@@ -824,6 +1158,7 @@ def pyrogram_api():
             Message.react
             Message.transcribe
             Message.translate
+            Message.summarize
             Message.wait_for_click
         """,
         chat="""
@@ -909,6 +1244,7 @@ def pyrogram_api():
             CallbackQuery.edit_message_caption
             CallbackQuery.edit_message_media
             CallbackQuery.edit_message_reply_markup
+            CallbackQuery.reply_with_ephemeral_message
         """,
         inline_query="""
         InlineQuery
@@ -926,6 +1262,16 @@ def pyrogram_api():
         ChatJoinRequest
             ChatJoinRequest.approve
             ChatJoinRequest.decline
+        """,
+        guest_query="""
+        GuestQuery
+            GuestQuery.answer
+        """,
+        ephemeral_message="""
+        EphemeralMessage
+            EphemeralMessage.reply
+            EphemeralMessage.edit
+            EphemeralMessage.delete
         """
     )
 

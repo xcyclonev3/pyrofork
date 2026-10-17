@@ -30,7 +30,9 @@ class SearchGiftsForResale:
         order: "enums.GiftForResaleOrder" = enums.GiftForResaleOrder.CHANGE_DATE,
         attributes: Optional[List["types.UpgradedGiftAttributeId"]] = None,
         limit: int = 0,
-        offset: str = ""
+        offset: str = "",
+        for_crafting: Optional[bool] = None,
+        for_stars: Optional[bool] = None
     ):
         """Get upgraded gifts that can be bought from other owners.
 
@@ -53,6 +55,14 @@ class SearchGiftsForResale:
 
             offset (``str``, *optional*):
                 The offset from which to start returning results. Default is "" (no offset).
+
+            for_crafting (``bool``, *optional*):
+                Pass True to get only gifts suitable for crafting.
+                Their contribution to the crafting success is given in
+                :obj:`~pyrogram.types.Gift` *craft_probability_per_mille*.
+
+            for_stars (``bool``, *optional*):
+                Pass True to get only gifts that can be bought using Telegram Stars.
 
         Returns:
             ``Generator``: A generator yielding :obj:`~pyrogram.types.Gift` objects.
@@ -80,7 +90,8 @@ class SearchGiftsForResale:
                     sort_by_price=order == enums.GiftForResaleOrder.PRICE,
                     sort_by_num=order == enums.GiftForResaleOrder.NUMBER,
                     attributes=[attr.write() for attr in attributes] if attributes else None,
-
+                    for_craft=for_crafting,
+                    stars_only=for_stars
                 ),
                 sleep_threshold=60
             )

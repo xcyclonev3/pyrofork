@@ -40,7 +40,8 @@ class WebPage(Object):
         type (``str``, *optional*):
             Type of webpage preview, known types (at the time of writing) are:
             *"article"*, *"photo"*, *"gif"*, *"video"* and *"document"*,
-            *"telegram_user"*, *"telegram_bot"*, *"telegram_channel"*, *"telegram_megagroup"*.
+            *"telegram_user"*, *"telegram_bot"*, *"telegram_channel"*, *"telegram_megagroup"*,
+            *"telegram_aicomposetone"*.
 
         site_name (``str``, *optional*):
             Webpage site name.
@@ -83,6 +84,10 @@ class WebPage(Object):
 
         author (``str``, *optional*):
             Author of the webpage, eg the Twitter user for a tweet, or the author in an article.
+
+        custom_emoji_id (``int``, *optional*):
+            For *"telegram_aicomposetone"* previews, identifier of the custom emoji of the text composition style.
+            Use :meth:`~pyrogram.Client.search_text_composition_style` to get the style.
     """
 
     def __init__(
@@ -106,7 +111,8 @@ class WebPage(Object):
         embed_width: int = None,
         embed_height: int = None,
         duration: int = None,
-        author: str = None
+        author: str = None,
+        custom_emoji_id: int = None
     ):
         super().__init__(client)
 
@@ -128,6 +134,7 @@ class WebPage(Object):
         self.embed_height = embed_height
         self.duration = duration
         self.author = author
+        self.custom_emoji_id = custom_emoji_id
 
     @staticmethod
     def _parse(client, webpage: "raw.types.WebPage") -> "WebPage":
@@ -166,6 +173,12 @@ class WebPage(Object):
             else:
                 document = types.Document._parse(client, doc, file_name)
 
+        custom_emoji_id = None
+
+        for attribute in getattr(webpage, "attributes", None) or []:
+            if isinstance(attribute, raw.types.WebPageAttributeAiComposeTone):
+                custom_emoji_id = attribute.emoji_id
+
         return WebPage(
             id=str(webpage.id),
             url=webpage.url,
@@ -184,5 +197,6 @@ class WebPage(Object):
             embed_width=webpage.embed_width,
             embed_height=webpage.embed_height,
             duration=webpage.duration,
-            author=webpage.author
+            author=webpage.author,
+            custom_emoji_id=custom_emoji_id
         )

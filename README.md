@@ -59,7 +59,7 @@ If you'd like to support Pyrofork, you can consider:
 - **Ready**: Install Pyrofork with pip and start building your applications right away.
 - **Easy**: Makes the Telegram API simple and intuitive, while still allowing advanced usages.
 - **Elegant**: Low-level details are abstracted and re-presented in a more convenient way.
-- **Fast**: Boosted up by [TgCrypto](https://github.com/pyrogram/tgcrypto), a high-performance cryptography library written in C.  
+- **Fast**: Boosted up by [TgCrypto](https://github.com/Mayuri-Chan/tgcrypto), a high-performance cryptography library written in C, installed along with Pyrofork.  
 - **Type-hinted**: Types and methods are all type-hinted, enabling excellent editor support.
 - **Async**: Fully asynchronous (also usable synchronously if wanted, for convenience).
 - **Powerful**: Full access to Telegram's API to execute any official client action and more.

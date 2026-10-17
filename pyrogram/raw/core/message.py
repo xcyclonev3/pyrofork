@@ -17,11 +17,17 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from gzip import decompress
 from io import BytesIO
-from typing import Any
+from typing import Any, Dict, Optional
 
+from .primitives.bytes import Bytes
 from .primitives.int import Int, Long
+from .primitives.vector import Vector
 from .tl_object import TLObject
+
+RPC_RESULT_ID = 0xF35C6D01
+GZIP_PACKED_ID = 0x3072CFA1
 
 
 class Message(TLObject):
@@ -39,12 +45,52 @@ class Message(TLObject):
 
     @staticmethod
     def read(data: BytesIO, *args: Any) -> "Message":
+        """Read a message; *args* may hold the element types of the results of bare vectors, by request msg_id."""
         msg_id = Long.read(data)
         seq_no = Int.read(data)
         length = Int.read(data)
-        body = data.read(length)
+        body = BytesIO(data.read(length))
 
-        return Message(TLObject.read(BytesIO(body)), msg_id, seq_no, length)
+        result_vectors = args[0] if args else None
+
+        if result_vectors:
+            rpc_result = Message._read_vector_rpc_result(body, result_vectors)
+
+            if rpc_result is not None:
+                return Message(rpc_result, msg_id, seq_no, length)
+
+        return Message(TLObject.read(body, *args), msg_id, seq_no, length)
+
+    @staticmethod
+    def _read_vector_rpc_result(body: BytesIO, result_vectors: Dict[int, Any]) -> Optional[TLObject]:
+        """Read an rpc_result whose request returns a bare vector of primitive values with their declared type.
+
+        Such vectors can't be told apart without it: a Vector<string> of three-letter strings looks exactly like a
+        Vector<int>. Returns None for other messages, leaving *body* untouched.
+        """
+        from pyrogram.raw.types import RpcResult  # The generated types import this module
+
+        if Int.read(body, False) != RPC_RESULT_ID:
+            body.seek(0)
+            return None
+
+        req_msg_id = Long.read(body)
+        element_type = result_vectors.get(req_msg_id)
+        result = body
+
+        if element_type is not None:
+            constructor_id = Int.read(result, False)
+
+            if constructor_id == GZIP_PACKED_ID:
+                result = BytesIO(decompress(Bytes.read(result)))
+                constructor_id = Int.read(result, False)
+
+            if constructor_id == Vector.ID:
+                return RpcResult(req_msg_id=req_msg_id, result=Vector.read(result, element_type))
+
+        # Not a vector (e.g. an rpc_error): read as usual
+        body.seek(0)
+        return None
 
     def write(self, *args: Any) -> bytes:
         b = BytesIO()

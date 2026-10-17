@@ -202,7 +202,7 @@ class ExternalReplyInfo(Object):
 
         if media:
             if isinstance(media, raw.types.MessageMediaPhoto):
-                photo = types.Photo._parse(client, media.photo, media.ttl_seconds)
+                photo = types.Photo._parse(client, media.photo, media.ttl_seconds, live_video=media.video)
                 media_type = enums.MessageMediaType.PHOTO
                 has_media_spoiler = media.spoiler
             elif isinstance(media, raw.types.MessageMediaGeo):
@@ -218,7 +218,7 @@ class ExternalReplyInfo(Object):
                 game = types.Game._parse(client, media)
                 media_type = enums.MessageMediaType.GAME
             elif isinstance(media, raw.types.MessageMediaGiveaway):
-                giveaway = types.Giveaway._parse(client, reply, chats)
+                giveaway = await types.Giveaway._parse(client, media, chats)
                 media_type = enums.MessageMediaType.GIVEAWAY
             elif isinstance(media, raw.types.MessageMediaGiveawayResults):
                 giveaway_result = await types.GiveawayResult._parse(client, media, users, chats)
@@ -280,7 +280,7 @@ class ExternalReplyInfo(Object):
                         document = types.Document._parse(client, doc, file_name)
                         media_type = enums.MessageMediaType.DOCUMENT
             elif isinstance(media, raw.types.MessageMediaPoll):
-                poll = types.Poll._parse(client, media, users)
+                poll = await types.Poll._parse(client, media, users, chats)
                 media_type = enums.MessageMediaType.POLL
             elif isinstance(media, raw.types.MessageMediaDice):
                 dice = types.Dice._parse(client, media)

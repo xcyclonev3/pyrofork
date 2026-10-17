@@ -57,6 +57,20 @@ Index
     - :meth:`~Client.on_disconnect`
     - :meth:`~Client.on_raw_update`
     - :meth:`~Client.on_error`
+    - :meth:`~Client.on_chat_join_result`
+    - :meth:`~Client.on_guest_query`
+    - :meth:`~Client.on_managed_bot_updated`
+    - :meth:`~Client.on_business_connected_bot`
+    - :meth:`~Client.on_pending_message`
+    - :meth:`~Client.on_message_draft_stopped`
+    - :meth:`~Client.on_ton_wallet_state`
+    - :meth:`~Client.on_ton_wallet_gasless_transfers_info`
+    - :meth:`~Client.on_ton_connect_session`
+    - :meth:`~Client.on_ton_connect_pending_disconnect`
+    - :meth:`~Client.on_ephemeral_message`
+    - :meth:`~Client.on_edited_ephemeral_message`
+    - :meth:`~Client.on_deleted_ephemeral_messages`
+    - :meth:`~Client.on_user_subscription_updated`
 
 -----
 
@@ -86,3 +100,17 @@ Details
 .. autodecorator:: pyrogram.Client.on_disconnect()
 .. autodecorator:: pyrogram.Client.on_raw_update()
 .. autodecorator:: pyrogram.Client.on_error()
+.. autodecorator:: pyrogram.Client.on_chat_join_result()
+.. autodecorator:: pyrogram.Client.on_guest_query()
+.. autodecorator:: pyrogram.Client.on_managed_bot_updated()
+.. autodecorator:: pyrogram.Client.on_business_connected_bot()
+.. autodecorator:: pyrogram.Client.on_pending_message()
+.. autodecorator:: pyrogram.Client.on_message_draft_stopped()
+.. autodecorator:: pyrogram.Client.on_ton_wallet_state()
+.. autodecorator:: pyrogram.Client.on_ton_wallet_gasless_transfers_info()
+.. autodecorator:: pyrogram.Client.on_ton_connect_session()
+.. autodecorator:: pyrogram.Client.on_ton_connect_pending_disconnect()
+.. autodecorator:: pyrogram.Client.on_ephemeral_message()
+.. autodecorator:: pyrogram.Client.on_edited_ephemeral_message()
+.. autodecorator:: pyrogram.Client.on_deleted_ephemeral_messages()
+.. autodecorator:: pyrogram.Client.on_user_subscription_updated()

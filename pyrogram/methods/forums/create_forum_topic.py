@@ -57,7 +57,7 @@ class CreateForumTopic:
         """
         r = await self.invoke(
             raw.functions.messages.CreateForumTopic(
-                channel=await self.resolve_peer(chat_id),
+                peer=await self.resolve_peer(chat_id),
                 title=title,
                 random_id=self.rnd_id(),
                 icon_color=icon_color,

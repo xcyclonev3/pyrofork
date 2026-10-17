@@ -28,7 +28,7 @@ class GiftCode(Object):
 
     parameters:
         months (``int``):
-            How long the telegram premium last (in month).
+            How long the telegram premium last (in month); 0 if the duration isn't a whole number of months.
 
         slug (``str``):
             The slug of the gift code.
@@ -53,6 +53,9 @@ class GiftCode(Object):
 
         crypto_amount (``int``, *optional*):
             The crypto amount of the gift code.
+
+        days (``int``, *optional*):
+            How long the telegram premium last (in days).
     """
 
     def __init__(
@@ -65,10 +68,12 @@ class GiftCode(Object):
         currency: str = None,
         amount: int = None,
         crypto_currency: str = None,
-        crypto_amount: int = None
+        crypto_amount: int = None,
+        days: int = None
     ):
         super().__init__()
         self.months = months
+        self.days = days
         self.slug = slug
         self.is_giveaway = is_giveaway
         self.is_unclaimed = is_unclaimed
@@ -90,7 +95,8 @@ class GiftCode(Object):
             boosted_chat = types.Chat._parse_channel_chat(client, boosted_chat_raw)
 
         return GiftCode(
-            months=gift_code.months,
+            months=utils.get_premium_duration_month_count(gift_code.days),
+            days=gift_code.days,
             slug=gift_code.slug,
             is_giveaway=gift_code.via_giveaway,
             is_unclaimed=gift_code.unclaimed,

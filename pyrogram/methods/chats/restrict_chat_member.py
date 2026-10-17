@@ -52,6 +52,9 @@ class RestrictChatMember:
 
             permissions (:obj:`~pyrogram.types.ChatPermissions`):
                 New user permissions.
+                Without arguments, :obj:`~pyrogram.types.ChatPermissions` restricts the user completely: like in TDLib,
+                the user can't react to messages or change their tag either.
+                Permissions that are not passed keep the default permissions of the chat.
 
             until_date (:py:obj:`~datetime.datetime`, *optional*):
                 Date when the user will be unbanned.
@@ -90,6 +93,8 @@ class RestrictChatMember:
             send_stickers=None
             send_videos=None
             send_voices=None
+            send_reactions=None
+            edit_rank=None
             if permissions.all_perms:
                 send_messages=False
                 send_media=False
@@ -100,6 +105,8 @@ class RestrictChatMember:
                 pin_messages=False
                 manage_topics=False
                 send_inline=False
+                send_reactions=False
+                edit_rank=False
             else:
                 send_messages=True
                 send_media=True
@@ -110,8 +117,12 @@ class RestrictChatMember:
                 pin_messages=True
                 manage_topics=True
                 send_inline=True
+                send_reactions=True
+                edit_rank=True
         else:
-            old_permissions = (await self.get_chat(chat_id)).permissions
+            old_permissions = (await self.get_chat(chat_id)).permissions or types.ChatPermissions._parse(
+                raw.types.ChatBannedRights(until_date=0)
+            )
             send_messages = None
             send_media = None
             embed_links=not permissions.can_add_web_page_previews if permissions.can_add_web_page_previews is not None else not old_permissions.can_add_web_page_previews
@@ -131,6 +142,8 @@ class RestrictChatMember:
             send_stickers=not permissions.can_send_stickers if permissions.can_send_stickers is not None else not old_permissions.can_send_stickers
             send_videos=not permissions.can_send_videos if permissions.can_send_videos is not None else not old_permissions.can_send_videos
             send_voices=not permissions.can_send_voices if permissions.can_send_voices is not None else not old_permissions.can_send_voices
+            send_reactions=not permissions.can_react_to_messages if permissions.can_react_to_messages is not None else not old_permissions.can_react_to_messages
+            edit_rank=not permissions.can_edit_tag if permissions.can_edit_tag is not None else not old_permissions.can_edit_tag
             if permissions.can_send_messages is not None:
                 if permissions.can_send_messages:
                     send_plain = False
@@ -189,7 +202,9 @@ class RestrictChatMember:
                     send_roundvideos=send_roundvideos,
                     send_stickers=send_stickers,
                     send_videos=send_videos,
-                    send_voices=send_voices
+                    send_voices=send_voices,
+                    send_reactions=send_reactions,
+                    edit_rank=edit_rank
                 )
             )
         )

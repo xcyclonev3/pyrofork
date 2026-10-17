@@ -33,7 +33,9 @@ class GetChatGifts:
         exclude_upgraded: Optional[bool] = None,
         sort_by_value: Optional[bool] = None,
         limit: int = 0,
-        offset: str = ""
+        offset: str = "",
+        exclude_upgradable: Optional[bool] = None,
+        exclude_unupgradable: Optional[bool] = None
     ):
         """Get all gifts owned by specified chat.
 
@@ -56,6 +58,7 @@ class GetChatGifts:
                 
             exclude_limited (``bool``, *optional*):
                 Exclude limited star gifts.
+                Same as passing both *exclude_upgradable* and *exclude_unupgradable*.
                 
             exclude_upgraded (``bool``, *optional*):
                 Exclude upgraded star gifts.
@@ -68,6 +71,12 @@ class GetChatGifts:
 
             limit (``int``, *optional*):
                 Maximum amount of star gifts to be returned.
+
+            exclude_upgradable (``bool``, *optional*):
+                Exclude limited star gifts that can be upgraded to collectible gifts.
+
+            exclude_unupgradable (``bool``, *optional*):
+                Exclude limited star gifts that can't be upgraded to collectible gifts.
 
         Returns:
             ``Generator``: A generator yielding :obj:`~pyrogram.types.Gift` objects.
@@ -93,7 +102,9 @@ class GetChatGifts:
                     exclude_unsaved=exclude_unsaved,
                     exclude_saved=exclude_saved,
                     exclude_unlimited=exclude_unlimited,
-                    exclude_limited=exclude_limited,
+                    # Limited gifts are now split into upgradable and non-upgradable ones (see TDLib's getReceivedGifts)
+                    exclude_upgradable=exclude_upgradable or exclude_limited,
+                    exclude_unupgradable=exclude_unupgradable or exclude_limited,
                     exclude_unique=exclude_upgraded,
                     sort_by_value=sort_by_value
                 ),

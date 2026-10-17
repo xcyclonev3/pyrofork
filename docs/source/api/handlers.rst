@@ -56,6 +56,20 @@ Index
     - :class:`DisconnectHandler`
     - :class:`RawUpdateHandler`
     - :class:`ErrorHandler`
+    - :class:`ChatJoinResultHandler`
+    - :class:`GuestQueryHandler`
+    - :class:`ManagedBotUpdatedHandler`
+    - :class:`BusinessConnectedBotHandler`
+    - :class:`PendingMessageHandler`
+    - :class:`MessageDraftStoppedHandler`
+    - :class:`TonWalletStateHandler`
+    - :class:`TonWalletGaslessTransfersInfoHandler`
+    - :class:`TonConnectSessionHandler`
+    - :class:`TonConnectPendingDisconnectHandler`
+    - :class:`EphemeralMessageHandler`
+    - :class:`EditedEphemeralMessageHandler`
+    - :class:`DeletedEphemeralMessagesHandler`
+    - :class:`UserSubscriptionUpdatedHandler`
 
 -----
 
@@ -84,3 +98,17 @@ Details
 .. autoclass:: DisconnectHandler()
 .. autoclass:: RawUpdateHandler()
 .. autoclass:: ErrorHandler()
+.. autoclass:: ChatJoinResultHandler()
+.. autoclass:: GuestQueryHandler()
+.. autoclass:: ManagedBotUpdatedHandler()
+.. autoclass:: BusinessConnectedBotHandler()
+.. autoclass:: PendingMessageHandler()
+.. autoclass:: MessageDraftStoppedHandler()
+.. autoclass:: TonWalletStateHandler()
+.. autoclass:: TonWalletGaslessTransfersInfoHandler()
+.. autoclass:: TonConnectSessionHandler()
+.. autoclass:: TonConnectPendingDisconnectHandler()
+.. autoclass:: EphemeralMessageHandler()
+.. autoclass:: EditedEphemeralMessageHandler()
+.. autoclass:: DeletedEphemeralMessagesHandler()
+.. autoclass:: UserSubscriptionUpdatedHandler()

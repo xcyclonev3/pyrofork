@@ -62,7 +62,8 @@ class SendPhoto:
             "types.ForceReply"
         ] = None,
         progress: Callable = None,
-        progress_args: tuple = ()
+        progress_args: tuple = (),
+        live_video: Union[str, BinaryIO] = None
     ) -> Optional["types.Message"]:
         """Send photos.
 
@@ -170,6 +171,14 @@ class SendPhoto:
                 You can pass anything you need to be available in the progress callback scope; for example, a Message
                 object or a Client instance in order to edit the message with the updated progress status.
 
+            live_video (``str`` | ``BinaryIO``, *optional*):
+                Short video clip captured alongside the photo, to send it as a live photo.
+                Pass a file_id as string to send a video that exists on the Telegram servers,
+                pass an HTTP URL as a string for Telegram to get a video from the Internet,
+                pass a file path as string to upload a new video that exists on your local machine, or
+                pass a binary file-like object with its attribute ".name" set for in-memory uploads.
+                The upload of the video doesn't report progress.
+
         Other Parameters:
             current (``int``):
                 The amount of bytes transmitted so far.
@@ -199,6 +208,9 @@ class SendPhoto:
 
                 # Send self-destructing photo
                 await app.send_photo("me", "photo.jpg", ttl_seconds=10)
+
+                # Send a live photo
+                await app.send_photo("me", "photo.jpg", live_video="video.mp4")
         """
         file = None
 
@@ -239,6 +251,11 @@ class SendPhoto:
                     file=file,
                     ttl_seconds=(1 << 31) - 1 if view_once else ttl_seconds,
                     spoiler=has_spoiler
+                )
+
+            if live_video is not None:
+                media = await utils.add_live_photo_video(
+                    self, await self.resolve_peer(chat_id), media, live_video, business_connection_id
                 )
 
             while True:

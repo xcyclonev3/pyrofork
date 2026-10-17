@@ -8,6 +8,11 @@ ADMIN_ID_INVALID	The specified admin ID is invalid
 ADMIN_RANK_EMOJI_NOT_ALLOWED	Emoji are not allowed in custom administrator titles
 ADMIN_RANK_INVALID	The custom administrator title is invalid or too long
 ADMIN_RIGHTS_EMPTY	The chatAdminRights constructor passed in keyboardButtonRequestPeer.peer_type.user_admin_rights has no rights set (i.e. flags is 0).
+AICOMPOSE_FLOOD_PREMIUM	You've reached the daily limit of AI text transformations, upgrade to Telegram Premium to get 50x times more AI text transformations per day!
+AICOMPOSE_TONE_INVALID	The specified tone is invalid.
+AICOMPOSE_TONE_SLUG_INVALID	The name of the text composition style is invalid
+AICOMPOSE_TONE_TITLE_INVALID	The specified tone title is invalid.
+AI_COMPOSE_TASK_MISSING	No AI task was specified. The caller must provide at least one of: proofread, translate (with a target language), tone, or emojify.
 ALBUM_PHOTOS_TOO_MANY	Too many photos were included in the album
 API_ID_INVALID	The api_id/api_hash combination is invalid
 API_ID_PUBLISHED_FLOOD	You are using an API key that is limited on the server side because it was published somewhere
@@ -22,6 +27,7 @@ AUTH_TOKEN_INVALID	An invalid authorization token was provided
 AUTH_TOKEN_INVALID2	An invalid authorization token was provided
 AUTH_TOKEN_INVALIDX	The specified auth token is invalid
 AUTOARCHIVE_NOT_AVAILABLE	This feature is not yet enabled for your account due to it not receiving too many private messages from strangers
+BALANCE_TOO_LOW	The transaction cannot be completed because the current Telegram Stars balance is too low.
 BANK_CARD_NUMBER_INVALID	The credit card number is invalid
 BANNED_RIGHTS_INVALID	You provided a set of restrictions that is invalid
 BASE_PORT_LOC_INVALID	The base port location is invalid
@@ -30,9 +36,11 @@ BOTS_TOO_MUCH	The chat has too many bots
 BOT_CHANNELS_NA	Bots can't edit admin privileges
 BOT_COMMAND_DESCRIPTION_INVALID	The command description was empty, too long or had invalid characters
 BOT_COMMAND_INVALID	The specified command is invalid
+BOT_CREATE_LIMIT_EXCEEDED	The current user already owns the maximum allowed number of owned bots, as specified by bots_create_limit_default and bots_create_limit_premium; if the current user doesn't have Telegram Premium, upgrading to Premium will allow them to create more bots.
 BOT_DOMAIN_INVALID	The domain used for the auth button does not match the one configured in @BotFather
 BOT_GAMES_DISABLED	Bot games cannot be used in this type of chat
 BOT_GROUPS_BLOCKED	This bot can't be added to groups
+BOT_ID_INVALID	The specified bot ID is invalid.
 BOT_INLINE_DISABLED	The inline feature of the bot is disabled
 BOT_INVALID	This is not a valid bot
 BOT_INVOICE_INVALID	The provided invoice is invalid
@@ -48,11 +56,17 @@ BROADCAST_ID_INVALID	The channel is invalid
 BROADCAST_PUBLIC_VOTERS_FORBIDDEN	Polls with public voters cannot be sent in channels
 BROADCAST_REQUIRED	The request can only be used with a channel
 BUSINESS_BOT_MISSING	Business bot missing
+BUSINESS_CONNECTION_INVALID	The connection_id passed to the wrapping invokeWithBusinessConnection call is invalid.
+BUSINESS_PEER_INVALID	Messages can't be set to the specified peer through the current business connection.
+BUSINESS_PEER_USAGE_MISSING	You cannot send a message to a user through a business connection if the user hasn't recently contacted us.
+BUTTON_COPY_TEXT_INVALID	The specified keyboardButtonCopy.copy_text is invalid.
 BUTTON_DATA_INVALID	The button callback data is invalid or too large
 BUTTON_ID_INVALID	The button_id parameter is invalid
+BUTTON_INVALID	The specified button is invalid.
 BUTTON_TEXT_INVALID	The specified button text is invalid
 BUTTON_TYPE_INVALID	The type of one of the buttons you provided is invalid
 BUTTON_URL_INVALID	The button url is invalid
+BUTTON_USER_INVALID	The user_id passed to inputKeyboardButtonUserProfile is invalid!
 BUTTON_USER_PRIVACY_RESTRICTED	The privacy settings of the user specified in a keyboard button do not allow creating such button
 CALL_ALREADY_ACCEPTED	The call is already accepted
 CALL_ALREADY_DECLINED	The call is already declined
@@ -66,6 +80,7 @@ CHANNEL_ADD_INVALID	Internal error.
 CHANNEL_BANNED	The channel is banned
 CHANNEL_ID_INVALID	The specified supergroup ID is invalid.
 CHANNEL_INVALID	The channel parameter is invalid
+CHANNEL_MONOFORUM_UNSUPPORTED	Monoforums do not support this feature.
 CHANNEL_PARICIPANT_MISSING	The current user is not in the channel
 CHANNEL_PRIVATE	The channel/supergroup is not accessible
 CHANNEL_TOO_BIG	The channel too big
@@ -83,7 +98,9 @@ CHAT_ID_INVALID	The chat id being used is invalid or not known yet. Make sure yo
 CHAT_INVALID	The chat is invalid
 CHAT_INVITE_PERMANENT	The chat invite link is primary
 CHAT_LINK_EXISTS	The action failed because the supergroup is linked to a channel
+CHAT_MEMBER_ADD_FAILED	Could not add participants.
 CHAT_NOT_MODIFIED	The chat settings (title, permissions, photo, etc..) were not modified because you tried to edit them using the same content
+CHAT_PUBLIC_REQUIRED	You can only enable join requests in public groups.
 CHAT_RESTRICTED	The chat is restricted and cannot be used
 CHAT_REVOKE_DATE_UNSUPPORTED	`min_date` and `max_date` are not available for using with non-user peers
 CHAT_SEND_INLINE_FORBIDDEN	You cannot use inline bots to send messages in this chat
@@ -93,6 +110,8 @@ CODE_EMPTY	The provided code is empty
 CODE_HASH_INVALID	The provided code hash invalid
 CODE_INVALID	The provided code is invalid (i.e. from email)
 COLOR_INVALID	The provided color is invalid
+COMMUNITY_PEERS_TOO_MUCH	The community already has the maximum number of chats
+COMMUNITY_REQUEST_CREATED	A request to add the chat to the community was sent to its administrators
 CONNECTION_API_ID_INVALID	The provided API id is invalid
 CONNECTION_APP_VERSION_EMPTY	App version is empty
 CONNECTION_DEVICE_MODEL_EMPTY	The device model is empty
@@ -115,6 +134,7 @@ DATE_EMPTY	The date argument is empty
 DC_ID_INVALID	The dc_id parameter is invalid
 DH_G_A_INVALID	The g_a parameter invalid
 DOCUMENT_INVALID	The document is invalid
+EFFECT_CHAT_INVALID	Message effects can only be used in private 1-on-1 chats, but the caller tried to send a message with an effect to a group or channel.
 EMAIL_HASH_EXPIRED	The email hash expired and cannot be used to verify it
 EMAIL_INVALID	The email provided is invalid
 EMAIL_NOT_ALLOWED	This email is not allowed
@@ -135,6 +155,9 @@ ENCRYPTION_DECLINED	The secret chat was declined
 ENCRYPTION_ID_INVALID	The provided secret chat id is invalid
 ENTITIES_TOO_LONG	The entity provided contains data that is too long, or you passed too many entities to this message
 ENTITY_BOUNDS_INVALID	The message entity bounds are invalid
+ENTITY_DATE_FORMAT_INVALID	One of the passed messageEntityFormattedDate objects has an invalid format (i.e. an invalid combination of the format flags).
+ENTITY_DATE_INVALID	One of the passed messageEntityFormattedDate objects has an invalid date: the allowed value ranges from 0 to the current date plus 1098 days (time()+1098*86400).
+ENTITY_DATE_TOO_LONG	The maximum text span that can be covered by a date entity is 31 UTF-16 code units if any of the date formatting flags is set, or 127 UTF-16 code units without.
 ENTITY_MENTION_USER_INVALID	The mentioned entity is not an user
 ERROR_TEXT_EMPTY	The provided error message is empty
 EXPIRE_DATE_INVALID	The expiration date is invalid
@@ -214,12 +237,14 @@ INVITE_FORBIDDEN_WITH_JOINAS	If the user has anonymously joined a group call as 
 INVITE_HASH_EMPTY	The invite hash is empty
 INVITE_HASH_EXPIRED	The chat invite link is no longer valid
 INVITE_HASH_INVALID	The invite link hash is invalid
+INVITE_REQUEST_DECLINED	The guard bot of the chat declined the join request
 INVITE_REQUEST_SENT	The request to join this chat or channel has been successfully sent
 INVITE_REVOKED_MISSING	The action required a chat invite link to be revoked first
 INVITE_SLUG_EMPTY	The invite slug is empty
 INVITE_SLUG_EXPIRED	The invite slug is expired
 INVOICE_PAYLOAD_INVALID	The specified invoice payload is invalid
 JOIN_AS_PEER_INVALID	The specified peer cannot be used to join a group call
+JOIN_GUARD_TIMEOUT	The guard bot didn't answer in time, the join request was sent to the chat administrators
 LANG_CODE_INVALID	The specified language code is invalid
 LANG_CODE_NOT_SUPPORTED	The specified language code is not supported
 LANG_PACK_INVALID	The provided language pack is invalid
@@ -227,18 +252,20 @@ LASTNAME_INVALID	The last name is invalid
 LIMIT_INVALID	The limit parameter is invalid
 LINK_NOT_MODIFIED	The chat link was not modified because you tried to link to the same target
 LOCATION_INVALID	The file location is invalid
+MANAGER_INVALID	The specified manager bot is invalid.
+MANAGER_PERMISSION_MISSING	The specified manager bot does not have the user.bot_can_manage_bots flag set.
 MAX_DATE_INVALID	The specified maximum date is invalid
 MAX_ID_INVALID	The max_id parameter is invalid
 MAX_QTS_INVALID	The provided QTS is invalid
 MD5_CHECKSUM_INVALID	The file's checksum did not match the md5_checksum parameter
 MEDIA_CAPTION_TOO_LONG	The media caption is too long
 MEDIA_EMPTY	The media you tried to send is invalid
-MEDIA_FILE_INVALID	The provided media file is invalid
 MEDIA_GROUPED_INVALID	You tried to send media of different types in an album
 MEDIA_INVALID	The media is invalid
 MEDIA_NEW_INVALID	The new media to edit the message with is invalid
 MEDIA_PREV_INVALID	The previous media cannot be edited with anything else
 MEDIA_TTL_INVALID	The media ttl is invalid
+MEDIA_TYPE_INVALID	The specified media type cannot be used in stories.
 MEDIA_VIDEO_STORY_MISSING	The media does not have a photo or a video
 MEGAGROUP_ID_INVALID	The supergroup is invalid
 MEGAGROUP_PREHISTORY_HIDDEN	The action failed because the supergroup has the pre-history hidden
@@ -257,6 +284,7 @@ MSG_TOO_OLD	chat_read_mark_expire_period have passed since the message was sent,
 MSG_VOICE_MISSING	The message does not contain a voice message
 MSG_WAIT_FAILED	A waiting call returned an error
 MULTI_MEDIA_TOO_LONG	The album/media group contains too many items
+NAME_INVALID	The specified bot name is invalid.
 NEW_SALT_INVALID	The new salt is invalid
 NEW_SETTINGS_EMPTY	No password is set on the current account, and no new password was specified in `new_settings`
 NEW_SETTINGS_INVALID	The new settings are invalid
@@ -284,6 +312,7 @@ PEER_FLOOD	The method can't be used because your account is currently limited
 PEER_HISTORY_EMPTY	Peer history empty
 PEER_ID_INVALID	The peer id being used is invalid or not known yet. Make sure you meet the peer before interacting with it
 PEER_ID_NOT_SUPPORTED	The provided peer id is not supported
+PEER_TYPES_INVALID	The passed keyboardButtonSwitchInline.peer_types field is invalid.
 PERSISTENT_TIMESTAMP_EMPTY	The pts argument is empty
 PERSISTENT_TIMESTAMP_INVALID	The persistent timestamp is invalid
 PHONE_CODE_EMPTY	The phone code is missing
@@ -331,11 +360,14 @@ PUBLIC_KEY_REQUIRED	A public key is required
 QUERY_ID_EMPTY	The query ID is empty
 QUERY_ID_INVALID	The callback query id is invalid
 QUERY_TOO_SHORT	The query is too short
+QUICK_REPLIES_BOT_NOT_ALLOWED	Quick replies cannot be used by bots.
+QUICK_REPLIES_TOO_MUCH	A maximum of appConfig.quick_replies_limit shortcuts may be created, the limit was reached.
 QUIZ_ANSWER_MISSING	You can forward a quiz while hiding the original author only after choosing an option in the quiz
 QUIZ_CORRECT_ANSWERS_EMPTY	The correct answers of the quiz are empty
 QUIZ_CORRECT_ANSWERS_TOO_MUCH	The quiz contains too many correct answers
 QUIZ_CORRECT_ANSWER_INVALID	The correct answers of the quiz are invalid
 QUIZ_MULTIPLE_INVALID	A quiz can't have multiple answers
+QUOTE_TEXT_INVALID	The specified reply_to.quote_text field is invalid.
 RANDOM_ID_EMPTY	The random ID is empty
 RANDOM_ID_INVALID	The provided random ID is invalid
 RANDOM_LENGTH_INVALID	The random length is invalid
@@ -347,7 +379,12 @@ REPLY_MARKUP_BUY_EMPTY	Reply markup for buy button empty
 REPLY_MARKUP_GAME_EMPTY	The provided reply markup for the game is empty
 REPLY_MARKUP_INVALID	The provided reply markup is invalid
 REPLY_MARKUP_TOO_LONG	The reply markup is too long
+REPLY_MESSAGES_TOO_MUCH	Each shortcut can contain a maximum of appConfig.quick_reply_messages_limit messages, the limit was reached.
 REPLY_MESSAGE_ID_INVALID	The reply message id is invalid
+REPLY_TO_INVALID	The specified reply_to field is invalid.
+REPLY_TO_MONOFORUM_PEER_INVALID	The specified inputReplyToMonoForum.monoforum_peer_id is invalid.
+REPLY_TO_USER_INVALID	The replied-to user is invalid.
+REQUEST_MSG_EXPIRED	The request specified in request_msg_id has already expired.
 RESET_REQUEST_MISSING	No password reset is in progress
 RESULTS_TOO_MUCH	The result contains too many items
 RESULT_ID_DUPLICATE	The result contains items with duplicated identifiers
@@ -358,6 +395,7 @@ RESULT_TYPE_INVALID	The result type is invalid
 REVOTE_NOT_ALLOWED	You cannot change your vote
 RIGHTS_NOT_MODIFIED	The new admin rights are equal to the old rights, no change was made
 RSA_DECRYPT_FAILED	Internal RSA decryption failed
+SAVED_ID_EMPTY	The passed inputSavedStarGiftChat.saved_id is empty.
 SCHEDULE_BOT_NOT_ALLOWED	Bots are not allowed to schedule messages
 SCHEDULE_DATE_INVALID	Invalid schedule date provided
 SCHEDULE_DATE_TOO_LATE	The date you tried to schedule is too far in the future (more than one year)
@@ -381,8 +419,14 @@ SMS_CODE_CREATE_FAILED	An error occurred while creating the SMS code
 SRP_ID_INVALID	Invalid SRP ID provided
 SRP_PASSWORD_CHANGED	The password has changed
 STARGIFT_ALREADY_CONVERTED	The provided star gift already converted to stars
+STARGIFT_ALREADY_CRAFTED	One of the gifts was already used for crafting
 STARGIFT_ALREADY_UPGRADED	This star gift was already upgraded before
+STARGIFT_ATTRIBUTE_INVALID	One of the specified star gift attributes is invalid.
+STARGIFT_CRAFT_TOO_EARLY_X	One of the gifts can be used for crafting only in {value} seconds
+STARGIFT_CRAFT_UNAVAILABLE	One of the gifts can't be used for crafting
+STARGIFT_INVALID	The passed gift is invalid.
 STARGIFT_USAGE_LIMITED	The star gift usage is limited
+STARS_PAYMENT_REQUIRED	To import this chat invite link, you must first pay for the associated Telegram Star subscription.
 START_PARAM_EMPTY	The start parameter is empty
 START_PARAM_INVALID	The start parameter is invalid
 START_PARAM_TOO_LONG	The start parameter is too long
@@ -413,8 +457,9 @@ STORY_PERIOD_INVALID	The specified story period is invalid for this account.
 STORIES_TOO_MUCH	Too many stories in the current account
 STORY_SEND_FLOOD_WEEKLY_X	You've hit the weekly story limit, wait for the specified number of seconds before posting a new story.
 STORY_SEND_FLOOD_MONTHLY_X	You've hit the monthly story limit, wait for the specified number of seconds before posting a new story.
-STORY_PERIOD_INVALID	The story period is invalid
 SUBSCRIPTION_PERIOD_INVALID	The subscription period is invalid.
+SUGGESTED_POST_AMOUNT_INVALID	The specified price for the suggested post is invalid.
+SUGGESTED_POST_PEER_INVALID	You cannot send suggested posts to non-monoforum peers.
 SWITCH_PM_TEXT_EMPTY	The switch_pm.text field was empty
 TAKEOUT_INVALID	The takeout id is invalid
 TAKEOUT_REQUIRED	The method must be invoked inside a takeout session
@@ -428,7 +473,10 @@ THEME_TITLE_INVALID	The specified theme title is invalid
 TITLE_INVALID	The specified stickerpack title is invalid
 TMP_PASSWORD_DISABLED	The temporary password is disabled
 TMP_PASSWORD_INVALID	The temporary password is invalid
+TODO_ITEMS_EMPTY	A checklist was specified, but no checklist items were passed.
+TODO_ITEM_DUPLICATE	Duplicate checklist items detected.
 TOKEN_INVALID	The provided token is invalid
+TONES_SAVED_TOO_MANY	The maximum number of added text composition styles has been reached
 TOPIC_CLOSED	The topic was closed
 TOPIC_DELETED	The topic was deleted
 TOPIC_CLOSE_SEPARATELY	The close flag cannot be provided together with any of the other flags.
@@ -438,12 +486,14 @@ TOPIC_NOT_MODIFIED	The topic was not modified
 TOPIC_TITLE_EMPTY	The specified topic title is empty.
 TO_LANG_INVALID	The specified destination language is invalid
 TRANSCRIPTION_FAILED	Telegram is having internal problems. Please try again later to transcribe the audio.
+TRANSLATE_REQ_QUOTA_EXCEEDED	Translation is currently unavailable due to a temporary server-side lack of resources.
 TTL_DAYS_INVALID	The provided TTL days is invalid
 TTL_MEDIA_INVALID	The media does not support self-destruction
 TYPES_EMPTY	The types parameter is empty
 TYPE_CONSTRUCTOR_INVALID	The type constructor is invalid
 UNKNOWN_ERROR	Unknown error
 UNTIL_DATE_INVALID	That date parameter is invalid
+URL_EXPIRED	The specified OAuth request has expired.
 URL_INVALID	The URL provided is invalid
 USAGE_LIMIT_INVALID	The usage limit is invalid
 USERNAME_INVALID	The username is invalid
@@ -451,6 +501,7 @@ USERNAME_NOT_MODIFIED	The username was not modified because you tried to edit it
 USERNAME_NOT_OCCUPIED	The username is not occupied by anyone
 USERNAME_OCCUPIED	The username is already in use by someone else
 USERNAME_PURCHASE_AVAILABLE	The username is available for purchase on fragment.com
+USERNAME_SUFFIX_MISSING	The required bot suffix is missing from the passed username.
 USERPIC_UPLOAD_REQUIRED	You are required to upload a profile picture for this action
 USERS_TOO_FEW	Not enough users (to create a chat, for example)
 USERS_TOO_MUCH	The maximum number of users has been exceeded (to create a chat, for example)
@@ -462,6 +513,7 @@ USER_BLOCKED	The user is blocked
 USER_BOT	Bots in channels can only be administrators, not members.
 USER_BOT_INVALID	This method can only be used by a bot
 USER_BOT_REQUIRED	The method can be used by bots only
+USER_BOT_TO_BOT_DISABLED	Bot-to-bot messaging is disabled because one of the two bots hasn't enabled the Bot to Bot setting in @BotFather.
 USER_CHANNELS_TOO_MUCH	The user is already in too many channels or supergroups
 USER_CREATOR	You can't leave this channel because you're its creator
 USER_ID_INVALID	The user id being used is invalid or not known yet. Make sure you meet the user before interacting with it
@@ -473,7 +525,9 @@ USER_NOT_MUTUAL_CONTACT	The user is not a mutual contact
 USER_NOT_PARTICIPANT	The user is not a member of this chat
 USER_PUBLIC_MISSING	The accounts username is missing
 USER_VOLUME_INVALID	The specified user volume is invalid
+VENUE_ID_INVALID	The specified venue ID is invalid.
 VIDEO_CONTENT_TYPE_INVALID	The video content type is invalid (i.e.: not streamable)
+VIDEO_DURATION_INVALID	The duration of the specified video is invalid.
 VIDEO_FILE_INVALID	The video file is invalid
 VIDEO_TITLE_EMPTY	The specified video title is empty
 VOICE_MESSAGES_FORBIDDEN	This user's privacy settings forbid you from sending voice messages
@@ -483,6 +537,7 @@ WALLPAPER_INVALID	The input wallpaper was not valid
 WALLPAPER_MIME_INVALID	The wallpaper mime type is invalid
 WALLPAPER_NOT_FOUND	The specified wallpaper could not be found.
 WC_CONVERT_URL_INVALID	WC convert URL invalid
+WEBAPP_REQ_ID_INVALID	The specified webapp_req_id is invalid.
 WEBDOCUMENT_INVALID	The web document is invalid
 WEBDOCUMENT_MIME_INVALID	The web document mime type is invalid
 WEBDOCUMENT_SIZE_TOO_BIG	The web document is too big

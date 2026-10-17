@@ -25,10 +25,13 @@ class ChatJoinType(AutoName):
     """How the service message :obj:`~pyrogram.enums.MessageServiceType.NEW_CHAT_MEMBERS` was used for the member to join the chat."""
 
     BY_ADD = auto()
-    "A new member joined the chat via an invite link"
+    "A new member was added to the chat"
 
     BY_LINK = auto()
     "A new member joined the chat via an invite link"
 
     BY_REQUEST = auto()
     "A new member was accepted to the chat by an administrator"
+
+    BY_COMMUNITY = auto()
+    "A new member joined the chat from a community"

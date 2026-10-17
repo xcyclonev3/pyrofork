@@ -113,7 +113,7 @@ class SendPaymentForm:
                         media = ext_media.media
 
                         if isinstance(media, raw.types.MessageMediaPhoto):
-                            medias.append(types.Photo._parse(self, media.photo))
+                            medias.append(types.Photo._parse(self, media.photo, live_video=media.video))
                         elif isinstance(media, raw.types.MessageMediaDocument):
                             doc = media.document
 

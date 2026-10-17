@@ -43,7 +43,8 @@ class EditStory:
         caption: str = None,
         parse_mode: "enums.ParseMode" = None,
         caption_entities: List["types.MessageEntity"] = None,
-        media_areas: List["types.InputMediaArea"] = None
+        media_areas: List["types.InputMediaArea"] = None,
+        music: str = None
     ) -> "types.Story":
         """Edit story.
 
@@ -100,6 +101,10 @@ class EditStory:
             media_areas (List of :obj:`~pyrogram.types.InputMediaArea`):
                 List of media area object to be included in story.
 
+            music (``str``, *optional*):
+                New audio track to play as background music for the story.
+                Pass the file_id of an audio file that exists on the Telegram servers.
+
         Returns:
             :obj:`~pyrogram.types.Story` a single story is returned.
 
@@ -121,6 +126,9 @@ class EditStory:
 
         media = None
         privacy_rules = None
+
+        if music is not None:
+            music = utils.get_input_media_from_file_id(music, FileType.AUDIO).id
 
         if privacy:
             privacy_rules = [types.StoriesPrivacyRules(type=privacy)]
@@ -247,7 +255,8 @@ class EditStory:
                 media_areas=[
                     await media_area.write(self)
                     for media_area in media_areas
-                ]
+                ] if media_areas is not None else None,
+                music=music
             )
         )
         return await types.Story._parse(self, r.updates[0].story, r.updates[0].peer)

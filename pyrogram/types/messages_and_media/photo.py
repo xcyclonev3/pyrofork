@@ -18,7 +18,7 @@
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 import pyrogram
 from pyrogram import raw, utils
@@ -55,6 +55,9 @@ class Photo(Object):
 
         thumbs (List of :obj:`~pyrogram.types.Thumbnail`, *optional*):
             Available thumbnails of this photo.
+
+        live_video (:obj:`~pyrogram.types.Video`, *optional*):
+            The video representing the live photo; None if the photo is static.
     """
 
     def __init__(
@@ -68,7 +71,8 @@ class Photo(Object):
         file_size: int,
         date: datetime,
         ttl_seconds: int = None,
-        thumbs: List["types.Thumbnail"] = None
+        thumbs: List["types.Thumbnail"] = None,
+        live_video: "types.Video" = None
     ):
         super().__init__(client)
 
@@ -80,9 +84,32 @@ class Photo(Object):
         self.date = date
         self.ttl_seconds = ttl_seconds
         self.thumbs = thumbs
+        self.live_video = live_video
 
     @staticmethod
-    def _parse(client, photo: "raw.types.Photo", ttl_seconds: int = None) -> "Photo":
+    def _parse_live_video(client, video: "raw.base.Document", ttl_seconds: int = None) -> Optional["types.Video"]:
+        # The "video" of messageMediaPhoto, sent along with the live_photo flag
+        if not isinstance(video, raw.types.Document):
+            return None
+
+        attributes = {type(i): i for i in video.attributes}
+
+        return types.Video._parse(
+            client,
+            video,
+            # Like TDLib, take the document as a video even without its attribute
+            attributes.get(raw.types.DocumentAttributeVideo, raw.types.DocumentAttributeVideo(duration=0, w=0, h=0)),
+            getattr(attributes.get(raw.types.DocumentAttributeFilename, None), "file_name", None),
+            ttl_seconds
+        )
+
+    @staticmethod
+    def _parse(
+        client,
+        photo: "raw.types.Photo",
+        ttl_seconds: int = None,
+        live_video: "raw.base.Document" = None
+    ) -> "Photo":
         if isinstance(photo, raw.types.Photo):
             photos: List[raw.types.PhotoSize] = []
 
@@ -127,5 +154,6 @@ class Photo(Object):
                 date=utils.timestamp_to_datetime(photo.date),
                 ttl_seconds=ttl_seconds,
                 thumbs=types.Thumbnail._parse(client, photo),
+                live_video=Photo._parse_live_video(client, live_video, ttl_seconds),
                 client=client
             )

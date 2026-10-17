@@ -21,6 +21,7 @@ from typing import Optional
 
 import pyrogram
 from pyrogram import raw, enums
+from .search_global import get_input_community
 
 
 class SearchGlobalCount:
@@ -31,6 +32,7 @@ class SearchGlobalCount:
         channels_only: Optional[bool] = None,
         groups_only: Optional[bool] = None,
         users_only: Optional[bool] = None,
+        community_id: int = None
     ) -> int:
         """Get the count of messages resulting from a global search.
 
@@ -55,9 +57,15 @@ class SearchGlobalCount:
             users_only (``bool``, *optional*):
                 Pass True to search only in users.
 
+            community_id (``int``, *optional*):
+                Unique identifier of a community.
+                Pass it to search only for messages in the chats of the community.
+
         Returns:
             ``int``: On success, the messages count is returned.
         """
+        community = await get_input_community(self, community_id)
+
         r = await self.invoke(
             raw.functions.messages.SearchGlobal(
                 q=query,
@@ -70,6 +78,7 @@ class SearchGlobalCount:
                 broadcasts_only=channels_only,
                 groups_only=groups_only,
                 users_only=users_only,
+                community=community,
                 limit=1
             )
         )

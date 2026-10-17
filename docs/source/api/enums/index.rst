@@ -38,6 +38,15 @@ to apply only a valid value among the expected ones.
     ReplyColor
     StoriesPrivacyRules
     StoryPrivacy
+    ButtonStyle
+    ChatJoinResultType
+    GiftAttributeRarityType
+    CraftGiftResultType
+    TonWalletTransactionType
+    TonConnectSessionState
+    PageBlockHorizontalAlignment
+    PageBlockVerticalAlignment
+    ReportResultType
 
 .. toctree::
     :hidden:
@@ -67,3 +76,12 @@ to apply only a valid value among the expected ones.
     ReplyColor
     StoriesPrivacyRules
     StoryPrivacy
+    ButtonStyle
+    ChatJoinResultType
+    GiftAttributeRarityType
+    CraftGiftResultType
+    TonWalletTransactionType
+    TonConnectSessionState
+    PageBlockHorizontalAlignment
+    PageBlockVerticalAlignment
+    ReportResultType

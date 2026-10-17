@@ -99,6 +99,19 @@ Chats
 
     {chats}
 
+Communities
+-----------
+
+.. autosummary::
+    :nosignatures:
+
+    {communities}
+
+.. toctree::
+    :hidden:
+
+    {communities}
+
 Stickers
 --------
 
@@ -202,6 +215,19 @@ Payments
     :hidden:
 
     {payments}
+
+TON Wallet
+----------
+
+.. autosummary::
+    :nosignatures:
+
+    {wallet}
+
+.. toctree::
+    :hidden:
+
+    {wallet}
 
 Authorization
 -------------

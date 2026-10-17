@@ -45,6 +45,10 @@ class ChatJoinRequest(Object, Update):
 
         invite_link (:obj:`~pyrogram.types.ChatInviteLink`, *optional*):
             Chat invite link that was used by the user to send the join request.
+
+        query_id (``int``, *optional*):
+            Identifier of the join request query, if the current bot is the guard bot of the chat.
+            Use it with :meth:`~pyrogram.Client.answer_chat_join_request_query`.
     """
 
     def __init__(
@@ -55,7 +59,8 @@ class ChatJoinRequest(Object, Update):
         from_user: "types.User",
         date: datetime,
         bio: str = None,
-        invite_link: "types.ChatInviteLink" = None
+        invite_link: "types.ChatInviteLink" = None,
+        query_id: int = None
     ):
         super().__init__(client)
 
@@ -64,6 +69,7 @@ class ChatJoinRequest(Object, Update):
         self.date = date
         self.bio = bio
         self.invite_link = invite_link
+        self.query_id = query_id
 
     @staticmethod
     def _parse(
@@ -80,6 +86,7 @@ class ChatJoinRequest(Object, Update):
             date=utils.timestamp_to_datetime(update.date),
             bio=update.about,
             invite_link=types.ChatInviteLink._parse(client, update.invite, users),
+            query_id=update.query_id,
             client=client
         )
 

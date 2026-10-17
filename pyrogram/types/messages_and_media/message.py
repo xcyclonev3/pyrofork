@@ -437,6 +437,65 @@ class Message(Object, Update):
         chat_join_type (:obj:`~pyrogram.enums.ChatJoinType`, *optional*):
             The message is a service message of the type :obj:`~pyrogram.enums.MessageServiceType.NEW_CHAT_MEMBERS`.
             This field will contain the enumeration type of how the user had joined the chat.
+
+        poll_option_added (:obj:`~pyrogram.types.PollOption`, *optional*):
+            Service message: an answer option was added to the poll this message replies to.
+
+        poll_option_deleted (:obj:`~pyrogram.types.PollOption`, *optional*):
+            Service message: an answer option was deleted from the poll this message replies to.
+
+        sender_tag (``str``, *optional*):
+            Tag of the sender in the supergroup at the time the message was sent. For basic groups and
+            administrators, see the custom title of the member instead.
+
+        summary_language_code (``str``, *optional*):
+            IETF language tag of the language in which the message can be summarized, if a summary is
+            available.
+
+        chat_added_to_community (:obj:`~pyrogram.types.Chat`, *optional*):
+            Service message: the chat was added to this community.
+
+        chat_removed_from_community (``bool``, *optional*):
+            Service message: the chat was removed from its community.
+
+        chat_joined_from_community (:obj:`~pyrogram.types.Chat`, *optional*):
+            Service message: the members in *new_chat_members* joined the chat from this community.
+
+        managed_bot_created (:obj:`~pyrogram.types.ManagedBotCreated`, *optional*):
+            Service message: a bot managed by the bot of this private chat was created.
+
+        chat_owner_left (:obj:`~pyrogram.types.ChatOwnerLeft`, *optional*):
+            Service message: the owner of the chat left it.
+
+        chat_owner_changed (:obj:`~pyrogram.types.ChatOwnerChanged`, *optional*):
+            Service message: the owner of the chat changed.
+
+        chat_has_protected_content_toggled (:obj:`~pyrogram.types.ChatHasProtectedContentToggled`, *optional*):
+            Service message: the content protection of the chat was changed, or a request to disable it was
+            rejected.
+
+        chat_has_protected_content_disable_requested (:obj:`~pyrogram.types.ChatHasProtectedContentDisableRequested`, *optional*):
+            Service message: a request to disable the content protection of the chat.
+
+        ton_wallet_transfer (:obj:`~pyrogram.types.TonWalletTransfer`, *optional*):
+            Service message: a TON transfer between the wallets of the users of this private chat.
+
+        ton_connect_request (:obj:`~pyrogram.types.TonConnectRequest`, *optional*):
+            Service message: a TON Connect request to the wallet of the current user.
+
+        rich_message (:obj:`~pyrogram.types.RichMessage`, *optional*):
+            The message is a rich message: its blocks. If *rich_message.is_full* is False, get the full
+            message with get_full_rich_message().
+
+        reply_to_ephemeral_message_id (``int``, *optional*):
+            The message is a reply to the ephemeral message with this identifier.
+
+        guest_bot_caller (:obj:`~pyrogram.types.User` | :obj:`~pyrogram.types.Chat`, *optional*):
+            For messages sent by a guest bot, the user or the chat that called the bot (see GuestQuery).
+
+        reply_to_poll_option_data (``bytes``, *optional*):
+            The message is a reply to the poll option with this data (see PollOption.data), in the poll of the
+            replied message.
     """
 
     # TODO: Add game missing field, Also connected_website
@@ -561,6 +620,24 @@ class Message(Object, Update):
         ] = None,
         reactions: List["types.Reaction"] = None,
         chat_join_type: "enums.ChatJoinType" = None,
+        poll_option_added: "types.PollOption" = None,
+        poll_option_deleted: "types.PollOption" = None,
+        sender_tag: str = None,
+        summary_language_code: str = None,
+        chat_added_to_community: "types.Chat" = None,
+        chat_removed_from_community: bool = None,
+        chat_joined_from_community: "types.Chat" = None,
+        managed_bot_created: "types.ManagedBotCreated" = None,
+        chat_owner_left: "types.ChatOwnerLeft" = None,
+        chat_owner_changed: "types.ChatOwnerChanged" = None,
+        chat_has_protected_content_toggled: "types.ChatHasProtectedContentToggled" = None,
+        chat_has_protected_content_disable_requested: "types.ChatHasProtectedContentDisableRequested" = None,
+        ton_wallet_transfer: "types.TonWalletTransfer" = None,
+        ton_connect_request: "types.TonConnectRequest" = None,
+        rich_message: "types.RichMessage" = None,
+        reply_to_ephemeral_message_id: int = None,
+        guest_bot_caller: Union["types.User", "types.Chat"] = None,
+        reply_to_poll_option_data: bytes = None,
         raw: "raw.types.Message" = None
     ):
         super().__init__(client)
@@ -676,6 +753,24 @@ class Message(Object, Update):
         self.payment_refunded = payment_refunded
         self.reactions = reactions
         self.chat_join_type = chat_join_type
+        self.poll_option_added = poll_option_added
+        self.poll_option_deleted = poll_option_deleted
+        self.sender_tag = sender_tag
+        self.summary_language_code = summary_language_code
+        self.chat_added_to_community = chat_added_to_community
+        self.chat_removed_from_community = chat_removed_from_community
+        self.chat_joined_from_community = chat_joined_from_community
+        self.managed_bot_created = managed_bot_created
+        self.chat_owner_left = chat_owner_left
+        self.chat_owner_changed = chat_owner_changed
+        self.chat_has_protected_content_toggled = chat_has_protected_content_toggled
+        self.chat_has_protected_content_disable_requested = chat_has_protected_content_disable_requested
+        self.ton_wallet_transfer = ton_wallet_transfer
+        self.ton_connect_request = ton_connect_request
+        self.rich_message = rich_message
+        self.reply_to_ephemeral_message_id = reply_to_ephemeral_message_id
+        self.guest_bot_caller = guest_bot_caller
+        self.reply_to_poll_option_data = reply_to_poll_option_data
         self.raw = raw
 
     async def wait_for_click(
@@ -793,6 +888,18 @@ class Message(Object, Update):
             todo_tasks_added = None
             todo_tasks_completed = None
             todo_tasks_incompleted = None
+            poll_option_added = None
+            poll_option_deleted = None
+            chat_added_to_community = None
+            chat_removed_from_community = None
+            chat_joined_from_community = None
+            managed_bot_created = None
+            chat_owner_left = None
+            chat_owner_changed = None
+            chat_has_protected_content_toggled = None
+            chat_has_protected_content_disable_requested = None
+            ton_wallet_transfer = None
+            ton_connect_request = None
 
             service_type = None
             chat_join_type = None
@@ -917,6 +1024,63 @@ class Message(Object, Update):
             elif isinstance(action, raw.types.MessageActionPaidMessagesPrice):
                 paid_message_price_changed = types.PaidMessagePriceChanged._parse(action)
                 service_type = enums.MessageServiceType.PAID_MESSAGE_PRICE_CHANGED
+            elif isinstance(action, raw.types.MessageActionPollAppendAnswer):
+                poll_option_added = await types.PollOption._parse(client, action.answer, users, chats)
+                service_type = enums.MessageServiceType.POLL_OPTION_ADDED
+            elif isinstance(action, raw.types.MessageActionPollDeleteAnswer):
+                poll_option_deleted = await types.PollOption._parse(client, action.answer, users, chats)
+                service_type = enums.MessageServiceType.POLL_OPTION_DELETED
+            elif isinstance(action, raw.types.MessageActionChangeCommunity):
+                if action.community_id:
+                    chat_added_to_community = types.Chat._parse_community(client, action.community_id, chats)
+                    service_type = enums.MessageServiceType.CHAT_ADDED_TO_COMMUNITY
+                else:
+                    chat_removed_from_community = True
+                    service_type = enums.MessageServiceType.CHAT_REMOVED_FROM_COMMUNITY
+            elif isinstance(action, raw.types.MessageActionChatJoinedViaCommunity):
+                new_chat_members = [from_user] if from_user else None
+                chat_joined_from_community = types.Chat._parse_community(client, action.community_id, chats)
+                service_type = enums.MessageServiceType.NEW_CHAT_MEMBERS
+                chat_join_type = enums.ChatJoinType.BY_COMMUNITY
+            elif isinstance(action, raw.types.MessageActionManagedBotCreated):
+                # As in TDLib, the manager bot is the bot of the private chat: the chat partner for messages
+                # sent by the user, the current bot for messages it receives
+                manager_bot = (
+                    types.User._parse(client, users.get(utils.get_raw_peer_id(message.peer_id)))
+                    if message.out else client.me
+                )
+                managed_bot_created = types.ManagedBotCreated._parse(client, action, users, manager_bot=manager_bot)
+                service_type = enums.MessageServiceType.MANAGED_BOT_CREATED
+            elif isinstance(action, raw.types.MessageActionNewCreatorPending):
+                chat_owner_left = types.ChatOwnerLeft._parse(client, action, users)
+                service_type = enums.MessageServiceType.CHAT_OWNER_LEFT
+            elif isinstance(action, raw.types.MessageActionChangeCreator):
+                chat_owner_changed = types.ChatOwnerChanged._parse(client, action, users)
+                service_type = enums.MessageServiceType.CHAT_OWNER_CHANGED
+            elif isinstance(action, raw.types.MessageActionNoForwardsToggle):
+                # The service message replies to the request, if there was one
+                reply_to = message.reply_to
+                request_message_id = (
+                    reply_to.reply_to_msg_id
+                    if isinstance(reply_to, raw.types.MessageReplyHeader) and not reply_to.reply_to_peer_id
+                    else None
+                )
+                chat_has_protected_content_toggled = types.ChatHasProtectedContentToggled._parse(
+                    client, action, request_message_id
+                )
+                service_type = enums.MessageServiceType.CHAT_HAS_PROTECTED_CONTENT_TOGGLED
+            elif isinstance(action, raw.types.MessageActionNoForwardsRequest):
+                chat_has_protected_content_disable_requested = types.ChatHasProtectedContentDisableRequested._parse(
+                    client, action
+                )
+                if chat_has_protected_content_disable_requested is not None:
+                    service_type = enums.MessageServiceType.CHAT_HAS_PROTECTED_CONTENT_DISABLE_REQUESTED
+            elif isinstance(action, raw.types.MessageActionGramTransfer):
+                ton_wallet_transfer = types.TonWalletTransfer._parse(client, action)
+                service_type = enums.MessageServiceType.TON_WALLET_TRANSFER
+            elif isinstance(action, raw.types.MessageActionWalletTonConnectRequest):
+                ton_connect_request = types.TonConnectRequest._parse_action(client, action, message.id)
+                service_type = enums.MessageServiceType.TON_CONNECT_REQUEST
 
 
             parsed_message = Message(
@@ -964,6 +1128,18 @@ class Message(Object, Update):
                 gift_code=gift_code,
                 screenshot_taken=screenshot_taken,
                 paid_message_price_changed=paid_message_price_changed,
+                poll_option_added=poll_option_added,
+                poll_option_deleted=poll_option_deleted,
+                chat_added_to_community=chat_added_to_community,
+                chat_removed_from_community=chat_removed_from_community,
+                chat_joined_from_community=chat_joined_from_community,
+                managed_bot_created=managed_bot_created,
+                chat_owner_left=chat_owner_left,
+                chat_owner_changed=chat_owner_changed,
+                chat_has_protected_content_toggled=chat_has_protected_content_toggled,
+                chat_has_protected_content_disable_requested=chat_has_protected_content_disable_requested,
+                ton_wallet_transfer=ton_wallet_transfer,
+                ton_connect_request=ton_connect_request,
                 raw=message,
                 chat_join_type=chat_join_type,
                 client=client
@@ -971,6 +1147,10 @@ class Message(Object, Update):
             )
             if parsed_message.chat.type is not enums.ChatType.CHANNEL:
                 parsed_message.sender_chat = sender_chat
+
+            if service_type in (enums.MessageServiceType.POLL_OPTION_ADDED, enums.MessageServiceType.POLL_OPTION_DELETED):
+                # The service message replies to the poll message
+                parsed_message.reply_to_message_id = getattr(message.reply_to, "reply_to_msg_id", None)
 
             if isinstance(action, raw.types.MessageActionPinMessage):
                 try:
@@ -1090,7 +1270,7 @@ class Message(Object, Update):
 
             if media:
                 if isinstance(media, raw.types.MessageMediaPhoto):
-                    photo = types.Photo._parse(client, media.photo, media.ttl_seconds)
+                    photo = types.Photo._parse(client, media.photo, media.ttl_seconds, live_video=media.video)
                     media_type = enums.MessageMediaType.PHOTO
                     has_media_spoiler = media.spoiler
                 elif isinstance(media, raw.types.MessageMediaGeo):
@@ -1179,7 +1359,7 @@ class Message(Object, Update):
                     else:
                         media = None
                 elif isinstance(media, raw.types.MessageMediaPoll):
-                    poll = await types.Poll._parse(client, media, users)
+                    poll = await types.Poll._parse(client, media, users, chats)
                     media_type = enums.MessageMediaType.POLL
                 elif isinstance(media, raw.types.MessageMediaDice):
                     dice = types.Dice._parse(client, media)
@@ -1248,6 +1428,8 @@ class Message(Object, Update):
                     else None
                 ),
                 author_signature=message.post_author,
+                sender_tag=getattr(message, "from_rank", None),
+                summary_language_code=getattr(message, "summary_from_language", None),
                 has_protected_content=message.noforwards,
                 has_media_spoiler=has_media_spoiler,
                 forward_origin=forward_origin,
@@ -1289,11 +1471,18 @@ class Message(Object, Update):
                 reply_markup=reply_markup,
                 reactions=reactions,
                 effect_id=getattr(message, "effect", None),
+                rich_message=types.RichMessage._parse(client, getattr(message, "rich_message", None)),
                 raw=message,
                 client=client
             )
             if parsed_message.chat.type is not enums.ChatType.CHANNEL:
                 parsed_message.sender_chat = sender_chat
+
+            guestchat_via_from = getattr(message, "guestchat_via_from", None)
+            if isinstance(guestchat_via_from, raw.types.PeerUser):
+                parsed_message.guest_bot_caller = types.User._parse(client, users.get(guestchat_via_from.user_id))
+            elif guestchat_via_from is not None:
+                parsed_message.guest_bot_caller = types.Chat._parse_peer(client, guestchat_via_from, users, chats)
 
             if message.reply_to:
                 parsed_message.external_reply = await types.ExternalReplyInfo._parse(
@@ -1329,6 +1518,11 @@ class Message(Object, Update):
                     else:
                         parsed_message.reply_to_message_id = message.reply_to.reply_to_msg_id
                         parsed_message.reply_to_top_message_id = message.reply_to.reply_to_top_id
+                    parsed_message.reply_to_poll_option_data = message.reply_to.poll_option
+                    if message.reply_to.reply_to_ephemeral:
+                        # The replied message is an ephemeral message, not a message of the chat
+                        parsed_message.reply_to_ephemeral_message_id = parsed_message.reply_to_message_id
+                        parsed_message.reply_to_message_id = None
                 else:
                     parsed_message.reply_to_story_id = message.reply_to.story_id
                     if isinstance(message.reply_to.peer, raw.types.PeerUser):
@@ -2046,7 +2240,8 @@ class Message(Object, Update):
             "types.ReplyKeyboardMarkup",
             "types.ReplyKeyboardRemove",
             "types.ForceReply"
-        ] = None
+        ] = None,
+        live_video: str = None
     ) -> "Message":
         """Bound method *reply_cached_media* of :obj:`~pyrogram.types.Message`.
 
@@ -2110,6 +2305,10 @@ class Message(Object, Update):
                 Additional interface options. An object for an inline keyboard, custom reply keyboard,
                 instructions to remove reply keyboard or to force a reply from the user.
 
+            live_video (``str``, *optional*):
+                File identifier of the video of a live photo (see :obj:`~pyrogram.types.Photo`), to send the photo
+                of *file_id* as a live photo. For photos only.
+
         Returns:
             On success, the sent :obj:`~pyrogram.types.Message` is returned.
 
@@ -2145,7 +2344,8 @@ class Message(Object, Update):
             quote_text=quote_text,
             quote_entities=quote_entities,
             allow_paid_broadcast=allow_paid_broadcast,
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
+            live_video=live_video
         )
 
     async def reply_chat_action(
@@ -3011,7 +3211,8 @@ class Message(Object, Update):
             "types.ForceReply"
         ] = None,
         progress: Callable = None,
-        progress_args: tuple = ()
+        progress_args: tuple = (),
+        live_video: Union[str, BinaryIO] = None
     ) -> "Message":
         """Bound method *reply_photo* of :obj:`~pyrogram.types.Message`.
 
@@ -3116,6 +3317,13 @@ class Message(Object, Update):
                 You can pass anything you need to be available in the progress callback scope; for example, a Message
                 object or a Client instance in order to edit the message with the updated progress status.
 
+            live_video (``str`` | ``BinaryIO``, *optional*):
+                Short video clip captured alongside the photo, to send it as a live photo.
+                Pass a file_id as string to send a video that exists on the Telegram servers,
+                pass an HTTP URL as a string for Telegram to get a video from the Internet,
+                pass a file path as string to upload a new video that exists on your local machine, or
+                pass a binary file-like object with its attribute ".name" set for in-memory uploads.
+
         Other Parameters:
             current (``int``):
                 The amount of bytes transmitted so far.
@@ -3177,7 +3385,8 @@ class Message(Object, Update):
             invert_media=invert_media,
             reply_markup=reply_markup,
             progress=progress,
-            progress_args=progress_args
+            progress_args=progress_args,
+            live_video=live_video
         )
 
     async def reply_poll(
@@ -4912,6 +5121,8 @@ class Message(Object, Update):
 
             if self.photo:
                 file_id = self.photo.file_id
+                if self.photo.live_video:
+                    send_media = partial(send_media, live_video=self.photo.live_video.file_id)
             elif self.audio:
                 file_id = self.audio.file_id
             elif self.document:
@@ -5028,6 +5239,53 @@ class Message(Object, Update):
                     message_thread_id=message_thread_id,
                     allow_paid_broadcast=allow_paid_broadcast
                 )
+        elif self.rich_message:
+            # Rich messages can't be sent again from their parsed blocks: they are copied on the server, as forwards
+            # without the author, which keep their reply markup
+            if reply_markup is not object:
+                raise ValueError("The reply markup of a copied rich message can't be changed")
+
+            reply_to = None
+
+            if reply_to_message_id:
+                reply_to = await utils.get_reply_to(
+                    client=self._client,
+                    chat_id=chat_id,
+                    reply_to_message_id=reply_to_message_id,
+                    message_thread_id=message_thread_id,
+                    reply_to_chat_id=reply_to_chat_id,
+                    quote_text=quote_text,
+                    quote_entities=quote_entities,
+                    parse_mode=parse_mode
+                )
+
+            r = await self._client.invoke(
+                raw.functions.messages.ForwardMessages(
+                    to_peer=await self._client.resolve_peer(chat_id),
+                    from_peer=await self._client.resolve_peer(self.chat.id),
+                    id=[self.id],
+                    random_id=[self._client.rnd_id()],
+                    top_msg_id=None if reply_to else message_thread_id,
+                    reply_to=reply_to,
+                    silent=disable_notification or None,
+                    schedule_date=utils.datetime_to_timestamp(schedule_date),
+                    noforwards=protect_content,
+                    allow_paid_floodskip=allow_paid_broadcast,
+                    drop_author=True
+                )
+            )
+
+            users = {i.id: i for i in r.users}
+            chats = {i.id: i for i in r.chats}
+
+            for update in r.updates:
+                if isinstance(update, (raw.types.UpdateNewMessage,
+                                       raw.types.UpdateNewChannelMessage,
+                                       raw.types.UpdateNewScheduledMessage)):
+                    return await types.Message._parse(
+                        self._client, update.message, users, chats,
+                        is_scheduled=isinstance(update, raw.types.UpdateNewScheduledMessage)
+                    )
         else:
             raise ValueError("Can't copy this message")
 
@@ -5639,7 +5897,8 @@ class Message(Object, Update):
 
     async def translate(
         self,
-        to_language_code: str
+        to_language_code: str,
+        tone: str = None
     ) -> "types.TranslatedText":
         """Bound method *translate* of :obj:`~pyrogram.types.Message`.
 
@@ -5662,6 +5921,9 @@ class Message(Object, Update):
                 Language code of the language to which the message is translated.
                 Must be one of "af", "sq", "am", "ar", "hy", "az", "eu", "be", "bn", "bs", "bg", "ca", "ceb", "zh-CN", "zh", "zh-Hans", "zh-TW", "zh-Hant", "co", "hr", "cs", "da", "nl", "en", "eo", "et", "fi", "fr", "fy", "gl", "ka", "de", "el", "gu", "ht", "ha", "haw", "he", "iw", "hi", "hmn", "hu", "is", "ig", "id", "in", "ga", "it", "ja", "jv", "kn", "kk", "km", "rw", "ko", "ku", "ky", "lo", "la", "lv", "lt", "lb", "mk", "mg", "ms", "ml", "mt", "mi", "mr", "mn", "my", "ne", "no", "ny", "or", "ps", "fa", "pl", "pt", "pa", "ro", "ru", "sm", "gd", "sr", "st", "sn", "sd", "si", "sk", "sl", "so", "es", "su", "sw", "sv", "tl", "tg", "ta", "tt", "te", "th", "tr", "tk", "uk", "ur", "ug", "uz", "vi", "cy", "xh", "yi", "ji", "yo", "zu".
 
+            tone (``str``, *optional*):
+                Tone of the translation, one of "formal", "neutral" and "casual". Defaults to "neutral".
+
         Returns:
             :obj:`~pyrogram.types.TranslatedText`: The translated result is returned.
 
@@ -5671,5 +5933,48 @@ class Message(Object, Update):
         return await self._client.translate_message_text(
             chat_id=self.chat.id,
             message_ids=self.id,
-            to_language_code=to_language_code
+            to_language_code=to_language_code,
+            tone=tone
+        )
+
+    async def summarize(
+        self,
+        translate_to_language_code: str = None,
+        tone: str = None
+    ) -> "types.FormattedText":
+        """Bound method *summarize* of :obj:`~pyrogram.types.Message`.
+
+        Use as a shortcut for:
+
+        .. code-block:: python
+
+            await client.summarize_message(
+                chat_id=message.chat.id,
+                message_id=message.id
+            )
+
+        Example:
+            .. code-block:: python
+
+                summary = await message.summarize()
+
+        Parameters:
+            translate_to_language_code (``str``, *optional*):
+                Language code of the language in which the summary will be written.
+                By default, the summary is written in the language of the message.
+
+            tone (``str``, *optional*):
+                Tone of the summary, one of "formal", "neutral" and "casual". Defaults to "neutral".
+
+        Returns:
+            :obj:`~pyrogram.types.FormattedText`: On success, the summary is returned.
+
+        Raises:
+            RPCError: In case of a Telegram RPC error.
+        """
+        return await self._client.summarize_message(
+            chat_id=self.chat.id,
+            message_id=self.id,
+            translate_to_language_code=translate_to_language_code,
+            tone=tone
         )

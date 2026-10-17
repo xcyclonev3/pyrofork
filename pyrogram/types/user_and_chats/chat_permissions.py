@@ -90,6 +90,16 @@ class ChatPermissions(Object):
 
         can_send_voices (``bool``, *optional*):
             True, if the user is allowed to send voices.
+
+        can_react_to_messages (``bool``, *optional*):
+            True, if the user is allowed to react to messages.
+
+        can_edit_tag (``bool``, *optional*):
+            True, if the user is allowed to change their own tag in the chat.
+
+        can_edit_chat_list (``bool``, *optional*):
+            True, if the user is allowed to add chats to the community and to remove them.
+            Only meaningful for communities: other chats always allow it.
     """
 
     def __init__(
@@ -114,7 +124,10 @@ class ChatPermissions(Object):
         can_send_roundvideos: bool = None,
         can_send_stickers: bool = None,
         can_send_videos: bool = None,
-        can_send_voices: bool = None
+        can_send_voices: bool = None,
+        can_react_to_messages: bool = None,
+        can_edit_tag: bool = None,
+        can_edit_chat_list: bool = None
     ):
         super().__init__(None)
 
@@ -138,6 +151,9 @@ class ChatPermissions(Object):
         self.can_send_stickers = can_send_stickers
         self.can_send_videos = can_send_videos
         self.can_send_voices = can_send_voices
+        self.can_react_to_messages = can_react_to_messages
+        self.can_edit_tag = can_edit_tag
+        self.can_edit_chat_list = can_edit_chat_list
         if (
             all_perms is None
             and can_send_messages is None
@@ -159,6 +175,9 @@ class ChatPermissions(Object):
             and can_send_stickers is None
             and can_send_videos is None
             and can_send_voices is None
+            and can_react_to_messages is None
+            and can_edit_tag is None
+            and can_edit_chat_list is None
         ):
             self.all_perms = False
 
@@ -184,7 +203,9 @@ class ChatPermissions(Object):
                 denied_permissions.send_roundvideos,
                 denied_permissions.send_stickers,
                 denied_permissions.send_videos,
-                denied_permissions.send_voices
+                denied_permissions.send_voices,
+                denied_permissions.send_reactions,
+                denied_permissions.edit_rank
             ]
             all_params_not = [
                 not denied_permissions.send_messages,
@@ -204,7 +225,9 @@ class ChatPermissions(Object):
                 not denied_permissions.send_roundvideos,
                 not denied_permissions.send_stickers,
                 not denied_permissions.send_videos,
-                not denied_permissions.send_voices
+                not denied_permissions.send_voices,
+                not denied_permissions.send_reactions,
+                not denied_permissions.edit_rank
             ]
             if all(all_params):
                 all_permissions = False
@@ -230,5 +253,8 @@ class ChatPermissions(Object):
                 can_send_roundvideos=not denied_permissions.send_roundvideos,
                 can_send_stickers=not denied_permissions.send_stickers,
                 can_send_videos=not denied_permissions.send_videos,
-                can_send_voices=not denied_permissions.send_voices
+                can_send_voices=not denied_permissions.send_voices,
+                can_react_to_messages=not denied_permissions.send_reactions,
+                can_edit_tag=not denied_permissions.edit_rank,
+                can_edit_chat_list=not denied_permissions.manage_linked_peers
             )

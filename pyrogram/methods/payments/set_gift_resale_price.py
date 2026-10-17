@@ -75,7 +75,8 @@ class SetGiftResalePrice:
         await self.invoke(
             raw.functions.payments.UpdateStarGiftPrice(
                 stargift=stargift,
-                resell_stars=resale_star_count
+                # Like TDLib's StarGiftResalePrice::get_input_stars_amount: Stars, no nanos; 0 disallows resale
+                resell_amount=raw.types.StarsAmount(amount=resale_star_count, nanos=0)
             )
         )
 

@@ -45,3 +45,6 @@ class ChatType(AutoName):
 
     MONOFORUM = auto()
     "Chat is a monoforum"
+
+    COMMUNITY = auto()
+    "Chat is a community: a group of supergroups, channels and chats with bots"

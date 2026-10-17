@@ -105,6 +105,9 @@ class Story(Object, Update):
 
         raw (``pyrogram.raw.types.StoryItem``, *optional*):
             The raw story object, as received from the Telegram API.
+
+        music (:obj:`~pyrogram.types.Audio`, *optional*):
+            Audio track played as background music for the story.
     """
 
     # TODO: fix Allowed Chats
@@ -138,7 +141,8 @@ class Story(Object, Update):
         allowed_users: List[int] = None,
         denied_users: List[int] = None,
         media_areas: List["types.MediaArea"] = None,
-        raw: "raw.types.StoryItem" = None
+        raw: "raw.types.StoryItem" = None,
+        music: "types.Audio" = None
         #allowed_chats: List[int] = None,
         #denied_chats: List[int] = None
     ):
@@ -170,6 +174,7 @@ class Story(Object, Update):
         self.denied_users = denied_users
         self.media_areas = media_areas
         self.raw = raw
+        self.music = music
         #self.allowed_chats = allowed_chats
         #self.denied_chats = denied_chats
 
@@ -225,6 +230,17 @@ class Story(Object, Update):
                         media_type = None
             else:
                 media_type = None
+
+        music = None
+        if isinstance(stories.music, raw.types.Document):
+            music_attributes = {type(i): i for i in stories.music.attributes}
+            music = types.Audio._parse(
+                client,
+                stories.music,
+                music_attributes.get(raw.types.DocumentAttributeAudio, raw.types.DocumentAttributeAudio(duration=0)),
+                getattr(music_attributes.get(raw.types.DocumentAttributeFilename, None), "file_name", None)
+            )
+
         if isinstance(peer, raw.types.PeerChannel) or isinstance(peer, raw.types.InputPeerChannel):
             chat_id = utils.get_channel_id(peer.channel_id)
             chat = await client.invoke(
@@ -319,6 +335,7 @@ class Story(Object, Update):
             denied_users=denied_users,
             media_areas=media_areas,
             raw=stories,
+            music=music,
             client=client
         )
 
@@ -844,7 +861,8 @@ class Story(Object, Update):
             "types.ForceReply"
         ] = None,
         progress: Callable = None,
-        progress_args: tuple = ()
+        progress_args: tuple = (),
+        live_video: Union[str, BinaryIO] = None
     ) -> "types.Message":
         """Bound method *reply_photo* of :obj:`~pyrogram.types.Story`.
 
@@ -914,6 +932,13 @@ class Story(Object, Update):
                 You can pass anything you need to be available in the progress callback scope; for example, a Message
                 object or a Client instance in order to edit the message with the updated progress status.
 
+            live_video (``str`` | ``BinaryIO``, *optional*):
+                Short video clip captured alongside the photo, to send it as a live photo.
+                Pass a file_id as string to send a video that exists on the Telegram servers,
+                pass an HTTP URL as a string for Telegram to get a video from the Internet,
+                pass a file path as string to upload a new video that exists on your local machine, or
+                pass a binary file-like object with its attribute ".name" set for in-memory uploads.
+
         Other Parameters:
             current (``int``):
                 The amount of bytes transmitted so far.
@@ -949,7 +974,8 @@ class Story(Object, Update):
             reply_to_story_id=reply_to_story_id,
             reply_markup=reply_markup,
             progress=progress,
-            progress_args=progress_args
+            progress_args=progress_args,
+            live_video=live_video
         )
 
     async def reply_sticker(
@@ -1498,7 +1524,8 @@ class Story(Object, Update):
         caption: str = None,
         parse_mode: "enums.ParseMode" = None,
         caption_entities: List["types.MessageEntity"] = None,
-        media_areas: List["types.InputMediaArea"] = None
+        media_areas: List["types.InputMediaArea"] = None,
+        music: str = None
     ) -> "types.Story":
         """Bound method *edit* of :obj:`~pyrogram.types.Story`.
 
@@ -1563,6 +1590,10 @@ class Story(Object, Update):
             media_areas (List of :obj:`~pyrogram.types.InputMediaArea`):
                 List of media area object to be included in story.
 
+            music (``str``, *optional*):
+                New audio track to play as background music for the story.
+                Pass the file_id of an audio file that exists on the Telegram servers.
+
         Returns:
             On success, the edited :obj:`~pyrogram.types.Story` is returned.
 
@@ -1583,7 +1614,8 @@ class Story(Object, Update):
             caption=caption,
             parse_mode=parse_mode,
             caption_entities=caption_entities,
-            media_areas=media_areas
+            media_areas=media_areas,
+            music=music
         )
 
     async def edit_caption(

@@ -28,7 +28,7 @@ class TransferChatOwnership:
         user_id: Union[int, str],
         password: str,
     ) -> bool:
-        """Transfer the owner of a chat or channel to another user.
+        """Transfer the owner of a basic group, supergroup or channel to another user.
 
         .. note:
 
@@ -40,7 +40,7 @@ class TransferChatOwnership:
             chat_id (``int`` | ``str``):
                 Unique identifier (int) or username (str) of the target chat.
                 Unique identifier for the target chat in form of a *t.me/joinchat/* link, identifier (int) or username
-                of the target channel/supergroup (in the format @username).
+                of the target basic group, channel or supergroup (in the format @username).
 
             user_id (``int`` | ``str``):
                 Unique identifier (int) or username (str) of the new owner.
@@ -61,18 +61,18 @@ class TransferChatOwnership:
 
                 await app.transfer_chat_ownership(chat_id, user_id, "password")
         """
-        peer_channel = await self.resolve_peer(chat_id)
+        peer = await self.resolve_peer(chat_id)
         peer_user = await self.resolve_peer(user_id)
 
-        if not isinstance(peer_channel, raw.types.InputPeerChannel):
-            raise ValueError("The chat_id must belong to a channel/supergroup.")
+        if not isinstance(peer, (raw.types.InputPeerChannel, raw.types.InputPeerChat)):
+            raise ValueError("The chat_id must belong to a basic group, channel or supergroup.")
 
         if not isinstance(peer_user, raw.types.InputPeerUser):
             raise ValueError("The user_id must belong to a user.")
 
         r = await self.invoke(
-            raw.functions.channels.EditCreator(
-                channel=peer_channel,
+            raw.functions.messages.EditChatCreator(
+                peer=peer,
                 user_id=peer_user,
                 password=utils.compute_password_check(
                     await self.invoke(raw.functions.account.GetPassword()), password

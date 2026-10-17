@@ -61,6 +61,9 @@ class CallbackQuery(Object, Update):
         matches (List of regex Matches, *optional*):
             A list containing all `Match Objects <https://docs.python.org/3/library/re.html#match-objects>`_ that match
             the data of this callback query. Only applicable when using :obj:`Filters.regex <pyrogram.Filters.regex>`.
+
+        ephemeral_message (:obj:`~pyrogram.types.EphemeralMessage`, *optional*):
+            Ephemeral message with the callback button that originated the query.
     """
 
     def __init__(
@@ -74,7 +77,8 @@ class CallbackQuery(Object, Update):
         inline_message_id: str = None,
         data: Union[str, bytes] = None,
         game_short_name: str = None,
-        matches: List[Match] = None
+        matches: List[Match] = None,
+        ephemeral_message: "types.EphemeralMessage" = None
     ):
         super().__init__(client)
 
@@ -86,11 +90,14 @@ class CallbackQuery(Object, Update):
         self.data = data
         self.game_short_name = game_short_name
         self.matches = matches
+        self.ephemeral_message = ephemeral_message
 
     @staticmethod
-    async def _parse(client: "pyrogram.Client", callback_query, users) -> "CallbackQuery":
+    async def _parse(client: "pyrogram.Client", callback_query, users, chats=None) -> "CallbackQuery":
         message = None
         inline_message_id = None
+        ephemeral_message = None
+        chat_instance = callback_query.chat_instance
 
         if isinstance(callback_query, raw.types.UpdateBotCallbackQuery):
             chat_id = utils.get_peer_id(callback_query.peer)
@@ -112,6 +119,10 @@ class CallbackQuery(Object, Update):
                 replies=0,
                 business_connection_id=callback_query.connection_id
             )
+        elif isinstance(callback_query, raw.types.UpdateEphemeralBotCallbackQuery):
+            ephemeral_message = await types.EphemeralMessage._parse(
+                client, callback_query.message, users, chats or {}
+            )
         # Try to decode callback query data into string. If that fails, fallback to bytes instead of decoding by
         # ignoring/replacing errors, this way, button clicks will still work.
         data = getattr(callback_query, "data", None)
@@ -126,9 +137,10 @@ class CallbackQuery(Object, Update):
             from_user=types.User._parse(client, users[callback_query.user_id]),
             message=message,
             inline_message_id=inline_message_id,
-            chat_instance=str(callback_query.chat_instance),
+            chat_instance=str(chat_instance) if chat_instance is not None else None,
             data=data,
             game_short_name=getattr(callback_query, "game_short_name", None),
+            ephemeral_message=ephemeral_message,
             client=client
         )
 
@@ -209,10 +221,14 @@ class CallbackQuery(Object, Update):
         Returns:
             :obj:`~pyrogram.types.Message` | ``bool``: On success, if the edited message was sent by the bot, the edited
             message is returned, otherwise True is returned (message sent via the bot, as inline query result).
+            For ephemeral messages, the edited :obj:`~pyrogram.types.EphemeralMessage` is returned.
 
         Raises:
             RPCError: In case of a Telegram RPC error.
         """
+        if self.ephemeral_message is not None:
+            return await self.ephemeral_message.edit(text=text, parse_mode=parse_mode, reply_markup=reply_markup)
+
         if self.inline_message_id is None:
             return await self._client.edit_message_text(
                 chat_id=self.message.chat.id,
@@ -261,6 +277,7 @@ class CallbackQuery(Object, Update):
         Returns:
             :obj:`~pyrogram.types.Message` | ``bool``: On success, if the edited message was sent by the bot, the edited
             message is returned, otherwise True is returned (message sent via the bot, as inline query result).
+            For ephemeral messages, the edited :obj:`~pyrogram.types.EphemeralMessage` is returned.
 
         Raises:
             RPCError: In case of a Telegram RPC error.
@@ -300,10 +317,14 @@ class CallbackQuery(Object, Update):
         Returns:
             :obj:`~pyrogram.types.Message` | ``bool``: On success, if the edited message was sent by the bot, the edited
             message is returned, otherwise True is returned (message sent via the bot, as inline query result).
+            For ephemeral messages, the edited :obj:`~pyrogram.types.EphemeralMessage` is returned.
 
         Raises:
             RPCError: In case of a Telegram RPC error.
         """
+        if self.ephemeral_message is not None:
+            return await self.ephemeral_message.edit(media=media, reply_markup=reply_markup)
+
         if self.inline_message_id is None:
             return await self._client.edit_message_media(
                 chat_id=self.message.chat.id,
@@ -343,10 +364,14 @@ class CallbackQuery(Object, Update):
         Returns:
             :obj:`~pyrogram.types.Message` | ``bool``: On success, if the edited message was sent by the bot, the edited
             message is returned, otherwise True is returned (message sent via the bot, as inline query result).
+            For ephemeral messages, the edited :obj:`~pyrogram.types.EphemeralMessage` is returned.
 
         Raises:
             RPCError: In case of a Telegram RPC error.
         """
+        if self.ephemeral_message is not None:
+            return await self.ephemeral_message.edit(reply_markup=reply_markup)
+
         if self.inline_message_id is None:
             return await self._client.edit_message_reply_markup(
                 chat_id=self.message.chat.id,
@@ -363,3 +388,86 @@ class CallbackQuery(Object, Update):
                 inline_message_id=self.inline_message_id,
                 reply_markup=reply_markup
             )
+
+    async def reply_with_ephemeral_message(
+        self,
+        text: str = None,
+        media: "types.InputMedia" = None,
+        rich_message: "types.InputRichMessage" = None,
+        parse_mode: Optional["enums.ParseMode"] = None,
+        entities: List["types.MessageEntity"] = None,
+        reply_markup: "types.InlineKeyboardMarkup" = None,
+        replace_message: bool = None,
+        protect_content: bool = None
+    ) -> Optional["types.EphemeralMessage"]:
+        """Answer the callback query with an ephemeral message that only the user who pressed the button can see.
+
+        Bound method *reply_with_ephemeral_message* of :obj:`~pyrogram.types.CallbackQuery`.
+
+        Use as a shortcut for:
+
+        .. code-block:: python
+
+            await client.send_ephemeral_message(
+                chat_id=callback_query.message.chat.id,
+                receiver_user_id=callback_query.from_user.id,
+                text="Only you can see this",
+                callback_query_id=callback_query.id
+            )
+
+        Example:
+            .. code-block:: python
+
+                await callback_query.reply_with_ephemeral_message("Only you can see this")
+
+        Parameters:
+            text (``str``, *optional*):
+                Text of the message.
+
+            media (:obj:`~pyrogram.types.InputMedia`, *optional*):
+                Media of the message, with its caption.
+
+            rich_message (:obj:`~pyrogram.types.InputRichMessage`, *optional*):
+                Rich message to send.
+
+            parse_mode (:obj:`~pyrogram.enums.ParseMode`, *optional*):
+                By default, texts are parsed using both Markdown and HTML styles.
+                You can combine both syntaxes together.
+
+            entities (List of :obj:`~pyrogram.types.MessageEntity`):
+                List of special entities that appear in the text, which can be specified instead of *parse_mode*.
+
+            reply_markup (:obj:`~pyrogram.types.InlineKeyboardMarkup`, *optional*):
+                An InlineKeyboardMarkup object.
+
+            replace_message (``bool``, *optional*):
+                Pass True to show the ephemeral message instead of the message with the pressed button.
+
+            protect_content (``bool``, *optional*):
+                Protects the contents of the sent message from forwarding and saving.
+
+        Returns:
+            :obj:`~pyrogram.types.EphemeralMessage`: On success, the sent message is returned.
+
+        Raises:
+            ValueError: In case the callback query comes from an inline message.
+        """
+        message = self.ephemeral_message or self.message
+
+        if message is None:
+            raise ValueError("Callback queries of inline messages can't be answered with ephemeral messages")
+
+        return await self._client.send_ephemeral_message(
+            chat_id=message.chat.id,
+            receiver_user_id=self.from_user.id,
+            text=text,
+            media=media,
+            rich_message=rich_message,
+            parse_mode=parse_mode,
+            entities=entities,
+            reply_markup=reply_markup,
+            message_thread_id=message.message_thread_id,
+            callback_query_id=self.id,
+            replace_callback_query_message=replace_message,
+            protect_content=protect_content
+        )

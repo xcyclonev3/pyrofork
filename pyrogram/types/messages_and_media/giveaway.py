@@ -21,7 +21,7 @@ import pyrogram
 from datetime import datetime
 from pyrogram import raw, types, utils
 from ..object import Object
-from typing import List, Dict
+from typing import Dict, List, Union
 
 
 class Giveaway(Object):
@@ -88,10 +88,13 @@ class Giveaway(Object):
     @staticmethod
     async def _parse(
         client,
-        message: "raw.types.Message",
+        message: Union["raw.types.Message", "raw.types.MessageMediaGiveaway"],
         chats: Dict[int, "raw.types.Chat"] = None
     ) -> "Giveaway":
-        giveaway: "raw.types.MessageMediaGiveaway" = message.media
+        # A message, or directly the media of an external reply
+        giveaway: "raw.types.MessageMediaGiveaway" = (
+            message if isinstance(message, raw.types.MessageMediaGiveaway) else message.media
+        )
         chats = types.List([types.Chat._parse_channel_chat(client, chats.get(i)) for i in giveaway.channels])
 
         return Giveaway(

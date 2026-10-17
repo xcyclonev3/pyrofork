@@ -38,6 +38,7 @@ list of the basic styles currently supported by Pyrofork.
 - `text URL <https://pyrogram.org>`_
 - `user text mention <tg://user?id=123456789>`_
 - :emoji:`🔥`
+- formatted date and time
 - ``inline fixed-width code``
 - .. code-block:: text
 
@@ -71,6 +72,8 @@ To strictly use this mode, pass :obj:`~pyrogram.enums.HTML` to the *parse_mode* 
     <a href="tg://user?id=123456789">inline mention</a>
 
     <emoji id="12345678901234567890">🔥</emoji>
+
+    <tg-time unix="1647531900" format="wDT">22:45 tomorrow</tg-time>
 
     <code>inline fixed-width code</code>
 
@@ -128,6 +131,13 @@ To strictly use this mode, pass :obj:`~pyrogram.enums.HTML` to the *parse_mode* 
 
         &lt;my text&gt;
 
+.. note::
+
+    The format of a date is either ``r``, to show the time relative to now, or any combination of ``w`` (the day of
+    the week), ``d`` or ``D`` (the date, short or long) and ``t`` or ``T`` (the time, short or long). Like in TDLib, an
+    invalid format is an error, and so is an invalid Unix time in Markdown, while a ``<tg-time>`` tag with an invalid
+    Unix time is ignored.
+
 Markdown Style
 --------------
 
@@ -157,6 +167,8 @@ To strictly use this mode, pass :obj:`~pyrogram.enums.ParseMode.MARKDOWN` to the
     [text user mention](tg://user?id=123456789)
 
     ![🔥](tg://emoji?id=12345678901234567890)
+
+    ![22:45 tomorrow](tg://time?unix=1647531900&format=wDT)
 
     `inline fixed-width code`
 

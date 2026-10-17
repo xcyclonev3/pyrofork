@@ -81,6 +81,9 @@ class Parser(HTMLParser):
             entity = raw.types.MessageEntityCustomEmoji
             custom_emoji_id = int(attrs.get("id"))
             extra["document_id"] = custom_emoji_id
+        elif tag == "tg-time":
+            entity = raw.types.MessageEntityFormattedDate
+            extra.update(utils.get_formatted_date(attrs.get("unix"), attrs.get("format")))
         else:
             return
 
@@ -147,8 +150,11 @@ class HTML:
 
             entities.append(entity)
 
-        # Remove zero-length entities
-        entities = list(filter(lambda x: x.length > 0, entities))
+        # Remove zero-length entities, and formatted dates without a valid Unix time like TDLib does
+        entities = [
+            entity for entity in entities
+            if entity.length > 0 and not (isinstance(entity, raw.types.MessageEntityFormattedDate) and entity.date <= 0)
+        ]
 
         return {
             "message": utils.remove_surrogates(parser.text),
@@ -203,6 +209,10 @@ class HTML:
                 custom_emoji_id = entity.custom_emoji_id
                 start_tag = f'<emoji id="{custom_emoji_id}">'
                 end_tag = "</emoji>"
+            elif entity_type == MessageEntityType.FORMATTED_DATE:
+                date_format = utils.get_date_format(entity)
+                start_tag = f'<tg-time unix="{entity.date}"' + (f' format="{date_format}"' if date_format else "") + ">"
+                end_tag = "</tg-time>"
             else:
                 return
 

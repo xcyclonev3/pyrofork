@@ -218,6 +218,46 @@ class Chat(Object):
             
         bot_verification (:obj:`~pyrogram.types.BotVerification`, *optional*):
             Information about bot verification.
+
+        community_id (``int``, *optional*):
+            Identifier of the community the chat belongs to.
+            For supergroups, channels and bots.
+
+        is_collapsed (``bool``, *optional*):
+            True, if the community is collapsed in the chat list.
+            For communities only.
+
+        community_chats (List of :obj:`~pyrogram.types.CommunityChat`, *optional*):
+            Chats belonging to the community.
+            For communities only. Returned only in :meth:`~pyrogram.Client.get_chat`.
+
+        administrators_count (``int``, *optional*):
+            Number of administrators of the chat.
+            For supergroups, channels and communities. Returned only in :meth:`~pyrogram.Client.get_chat`.
+
+        banned_members_count (``int``, *optional*):
+            Number of users banned from the chat.
+            For supergroups, channels and communities. Returned only in :meth:`~pyrogram.Client.get_chat`.
+
+        chat_requests_count (``int``, *optional*):
+            Number of pending requests to add chats to the community.
+            For community administrators only. Returned only in :meth:`~pyrogram.Client.get_chat`.
+
+        has_welcome_messages (``bool``, *optional*):
+            True, if the chat has welcome messages (see :meth:`~pyrogram.Client.get_chat_welcome_messages`).
+            For groups, supergroups and channels. Returned only in :meth:`~pyrogram.Client.get_chat`.
+
+        guard_bot (:obj:`~pyrogram.types.User`, *optional*):
+            The guard bot of the chat, which approves the join requests of new members.
+            For supergroups. Returned only in :meth:`~pyrogram.Client.get_chat`.
+
+        uses_unofficial_app (``bool``, *optional*):
+            True, if the user uses an unofficial application that poses a security risk.
+            For private chats. Returned only in :meth:`~pyrogram.Client.get_chat`.
+
+        manager_bot (:obj:`~pyrogram.types.User`, *optional*):
+            The bot that manages the bot.
+            For bots. Returned only in :meth:`~pyrogram.Client.get_chat`.
     """
 
     def __init__(
@@ -275,7 +315,17 @@ class Chat(Object):
         max_reaction_count: int = None,
         subscription_until_date: datetime = None,
         gifts_count: int = None,
-        bot_verification: "types.BotVerification" = None
+        bot_verification: "types.BotVerification" = None,
+        community_id: int = None,
+        is_collapsed: bool = None,
+        community_chats: List["types.CommunityChat"] = None,
+        administrators_count: int = None,
+        banned_members_count: int = None,
+        chat_requests_count: int = None,
+        has_welcome_messages: bool = None,
+        guard_bot: "types.User" = None,
+        uses_unofficial_app: bool = None,
+        manager_bot: "types.User" = None
     ):
         super().__init__(client)
 
@@ -327,9 +377,20 @@ class Chat(Object):
         self.business_info = business_info
         self.birthday = birthday
         self.personal_chat = personal_chat
+        self.max_reaction_count = max_reaction_count
         self.subscription_until_date = subscription_until_date
         self.gifts_count = gifts_count
         self.bot_verification = bot_verification
+        self.community_id = community_id
+        self.is_collapsed = is_collapsed
+        self.community_chats = community_chats
+        self.administrators_count = administrators_count
+        self.banned_members_count = banned_members_count
+        self.chat_requests_count = chat_requests_count
+        self.has_welcome_messages = has_welcome_messages
+        self.guard_bot = guard_bot
+        self.uses_unofficial_app = uses_unofficial_app
+        self.manager_bot = manager_bot
 
     @property
     def full_name(self) -> str:
@@ -357,6 +418,7 @@ class Chat(Object):
             dc_id=getattr(getattr(user, "photo", None), "dc_id", None),
             reply_color=types.ChatColor._parse(getattr(user, "color", None)),
             profile_color=types.ChatColor._parse_profile_color(getattr(user, "profile_color", None)),
+            community_id=Chat._parse_community_id(getattr(user, "linked_community_id", None)),
             client=client
         )
 
@@ -391,6 +453,8 @@ class Chat(Object):
     def _parse_channel_chat(client, channel: raw.types.Channel) -> Optional["Chat"]:
         if channel is None:
             return None
+        if isinstance(channel, (raw.types.Community, raw.types.CommunityForbidden)):
+            return Chat._parse_community_chat(client, channel)
         peer_id = utils.get_channel_id(channel.id)
         restriction_reason = getattr(channel, "restriction_reason", [])
         user_name = getattr(channel, "username", None)
@@ -442,8 +506,54 @@ class Chat(Object):
             has_protected_content=getattr(channel, "noforwards", None),
             reply_color=types.ChatColor._parse(getattr(channel, "color", None)),
             subscription_until_date=subscription_until_date,
+            community_id=Chat._parse_community_id(getattr(channel, "linked_community_id", None)),
             client=client
         )
+
+    @staticmethod
+    def _parse_community_chat(
+        client,
+        community: Union["raw.types.Community", "raw.types.CommunityForbidden"]
+    ) -> Optional["Chat"]:
+        if community is None:
+            return None
+        peer_id = utils.get_channel_id(community.id)
+        photo = getattr(community, "photo", None)
+
+        return Chat(
+            id=peer_id,
+            type=enums.ChatType.COMMUNITY,
+            is_creator=getattr(community, "creator", None),
+            is_collapsed=getattr(community, "collapsed_in_dialogs", None),
+            title=community.title,
+            photo=types.ChatPhoto._parse(client, photo, peer_id, community.access_hash or 0),
+            permissions=types.ChatPermissions._parse(getattr(community, "default_banned_rights", None)),
+            dc_id=getattr(photo, "dc_id", None),
+            client=client
+        )
+
+    @staticmethod
+    def _parse_community(client, community_id: int, chats: Dict[int, "raw.base.Chat"]) -> Optional["Chat"]:
+        """Parse the community with the given raw id, from *chats* if it's there."""
+        if not community_id:
+            return None
+        community = chats.get(community_id)
+        if isinstance(community, (raw.types.Community, raw.types.CommunityForbidden)):
+            return Chat._parse_community_chat(client, community)
+
+        return Chat(id=utils.get_channel_id(community_id), type=enums.ChatType.COMMUNITY, client=client)
+
+    @staticmethod
+    def _parse_community_id(community_id: Optional[int]) -> Optional[int]:
+        return utils.get_channel_id(community_id) if community_id else None
+
+    @staticmethod
+    def _parse_user(client, user_id: Optional[int], users: Dict[int, "raw.base.User"]) -> Optional["types.User"]:
+        """The user with the given id, from *users* if it's there."""
+        if not user_id:
+            return None
+
+        return types.User._parse(client, users.get(user_id)) or types.User(id=user_id, client=client)
 
     @staticmethod
     def _parse(
@@ -484,6 +594,37 @@ class Chat(Object):
             return Chat._parse_channel_chat(client, chats[peer.channel_id])
 
     @staticmethod
+    def _parse_peer(
+        client,
+        peer: "raw.base.Peer",
+        users: Dict[int, "raw.base.User"],
+        chats: Dict[int, "raw.base.Chat"],
+        fallback: bool = False
+    ) -> Optional["Chat"]:
+        """Like :meth:`_parse_dialog`, but returns None for peers missing from *users* and *chats*, or, with
+        *fallback*, a chat with only the identifier and the most likely type."""
+        chat = None
+
+        if isinstance(peer, raw.types.PeerUser):
+            chat = Chat._parse_user_chat(client, users.get(peer.user_id))
+        elif isinstance(peer, raw.types.PeerChat):
+            chat = Chat._parse_chat_chat(client, chats.get(peer.chat_id))
+        elif isinstance(peer, raw.types.PeerChannel):
+            chat = Chat._parse_channel_chat(client, chats.get(peer.channel_id))
+
+        if chat is None and fallback and peer is not None:
+            if isinstance(peer, raw.types.PeerUser):
+                chat_type = enums.ChatType.PRIVATE
+            elif isinstance(peer, raw.types.PeerChat):
+                chat_type = enums.ChatType.GROUP
+            else:
+                chat_type = enums.ChatType.SUPERGROUP
+
+            chat = Chat(id=utils.get_peer_id(peer), type=chat_type, client=client)
+
+        return chat
+
+    @staticmethod
     async def _parse_full(client, chat_full: Union[raw.types.messages.ChatFull, raw.types.users.UserFull]) -> "Chat":
         users = {u.id: u for u in chat_full.users}
         chats = {c.id: c for c in chat_full.chats}
@@ -497,6 +638,10 @@ class Chat(Object):
             parsed_chat.business_info = types.BusinessInfo._parse(client, full_user, users)
             parsed_chat.birthday = types.Birthday._parse(getattr(full_user, "birthday", None))
             parsed_chat.gifts_count = getattr(full_user, "stargifts_count", None)
+            # Like TDLib, the content is protected if any of the two users enabled the protection
+            parsed_chat.has_protected_content = full_user.noforwards_my_enabled or full_user.noforwards_peer_enabled
+            parsed_chat.uses_unofficial_app = full_user.unofficial_security_risk
+            parsed_chat.manager_bot = Chat._parse_user(client, full_user.bot_manager_id, users)
             personal_chat_id = getattr(full_user, "personal_channel_id", None)
             
             if personal_chat_id is not None:
@@ -530,9 +675,23 @@ class Chat(Object):
             full_chat = chat_full.full_chat
             chat_raw = chats[full_chat.id]
 
+            if isinstance(full_chat, raw.types.CommunityFull):
+                parsed_chat = Chat._parse_community_chat(client, chat_raw)
+                parsed_chat.description = full_chat.about or None
+                parsed_chat.community_chats = types.List(filter(None, [
+                    types.CommunityChat._parse(client, linked_peer, users, chats)
+                    for linked_peer in full_chat.linked_peers
+                ])) or None
+                parsed_chat.administrators_count = full_chat.admins_count
+                parsed_chat.banned_members_count = full_chat.kicked_count
+                parsed_chat.chat_requests_count = full_chat.peer_link_requests_pending
+
+                return parsed_chat
+
             if isinstance(full_chat, raw.types.ChatFull):
                 parsed_chat = Chat._parse_chat_chat(client, chat_raw)
                 parsed_chat.description = full_chat.about or None
+                parsed_chat.has_welcome_messages = full_chat.has_welcome_messages
 
                 if isinstance(full_chat.participants, raw.types.ChatParticipants):
                     parsed_chat.members_count = len(full_chat.participants.participants)
@@ -553,6 +712,10 @@ class Chat(Object):
                 parsed_chat.is_auto_translation_enabled = getattr(full_chat, "auto_translation", None)
                 parsed_chat.gifts_count = getattr(full_chat, "stargifts_count", None)
                 parsed_chat.folder_id = getattr(full_chat, "folder_id", None)
+                parsed_chat.administrators_count = getattr(full_chat, "admins_count", None)
+                parsed_chat.banned_members_count = getattr(full_chat, "kicked_count", None)
+                parsed_chat.has_welcome_messages = full_chat.has_welcome_messages
+                parsed_chat.guard_bot = Chat._parse_user(client, full_chat.guard_bot_id, users)
 
                 linked_chat_raw = chats.get(full_chat.linked_chat_id, None)
 
@@ -611,6 +774,8 @@ class Chat(Object):
             return Chat._parse_chat_chat(client, chat)
         elif isinstance(chat, raw.types.User):
             return Chat._parse_user_chat(client, chat)
+        elif isinstance(chat, (raw.types.Community, raw.types.CommunityForbidden)):
+            return Chat._parse_community_chat(client, chat)
         else:
             return Chat._parse_channel_chat(client, chat)
 

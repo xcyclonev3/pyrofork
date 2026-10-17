@@ -143,6 +143,14 @@ class ChatEvent(Object):
         deleted_forum_topic (:obj:`~pyrogram.types.ForumTopic`, *optional*):
             Deleted forum topic.
             For :obj:`~pyrogram.enums.ChatEvenAction.DELETED_FORUM_TOPIC` action only.
+
+        member_tag_user (:obj:`~pyrogram.types.User`, *optional*):
+            The member whose tag was changed.
+            For :obj:`~pyrogram.enums.ChatEventAction.MEMBER_TAG_CHANGED` action only.
+
+        old_member_tag, new_member_tag (``str``, *optional*):
+            Previous and new tag of the member.
+            For :obj:`~pyrogram.enums.ChatEventAction.MEMBER_TAG_CHANGED` action only.
     """
 
     def __init__(
@@ -208,7 +216,10 @@ class ChatEvent(Object):
         created_forum_topic: "types.ForumTopic" = None,
         old_forum_topic: "types.ForumTopic" = None,
         new_forum_topic: "types.ForumTopic" = None,
-        deleted_forum_topic: "types.ForumTopic" = None
+        deleted_forum_topic: "types.ForumTopic" = None,
+        member_tag_user: "types.User" = None,
+        old_member_tag: str = None,
+        new_member_tag: str = None
     ):
         super().__init__()
 
@@ -274,6 +285,9 @@ class ChatEvent(Object):
         self.old_forum_topic = old_forum_topic
         self.new_forum_topic = new_forum_topic
         self.deleted_forum_topic = deleted_forum_topic
+        self.member_tag_user = member_tag_user
+        self.old_member_tag = old_member_tag
+        self.new_member_tag = new_member_tag
 
     @staticmethod
     async def _parse(
@@ -345,6 +359,10 @@ class ChatEvent(Object):
         old_forum_topic: Optional[types.ForumTopic] = None
         new_forum_topic: Optional[types.ForumTopic] = None
         deleted_forum_topic: Optional[types.ForumTopic] = None
+
+        member_tag_user: Optional[types.User] = None
+        old_member_tag: Optional[str] = None
+        new_member_tag: Optional[str] = None
 
         if isinstance(action, raw.types.ChannelAdminLogEventActionChangeAbout):
             old_description = action.prev_value
@@ -467,6 +485,12 @@ class ChatEvent(Object):
             created_forum_topic = types.ForumTopic._parse(action.topic)
             action = enums.ChatEventAction.DELETED_FORUM_TOPIC
 
+        elif isinstance(action, raw.types.ChannelAdminLogEventActionParticipantEditRank):
+            member_tag_user = types.User._parse(client, users.get(action.user_id))
+            old_member_tag = action.prev_rank
+            new_member_tag = action.new_rank
+            action = enums.ChatEventAction.MEMBER_TAG_CHANGED
+
         else:
             action = f"{enums.ChatEventAction.UNKNOWN}-{action.QUALNAME}"
 
@@ -530,5 +554,8 @@ class ChatEvent(Object):
             created_forum_topic=created_forum_topic,
             old_forum_topic=old_forum_topic,
             new_forum_topic=new_forum_topic,
-            deleted_forum_topic=deleted_forum_topic
+            deleted_forum_topic=deleted_forum_topic,
+            member_tag_user=member_tag_user,
+            old_member_tag=old_member_tag,
+            new_member_tag=new_member_tag
         )

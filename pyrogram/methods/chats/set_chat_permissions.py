@@ -34,6 +34,8 @@ class SetChatPermissions:
 
         You must be an administrator in the group or a supergroup for this to work and must have the
         *can_restrict_members* admin rights.
+        In a community, only *can_edit_chat_list* is used: pass it explicitly, since ``ChatPermissions()`` and
+        *all_perms* leave it as it is.
 
         .. include:: /_includes/usable-by/users-bots.rst
 
@@ -44,6 +46,8 @@ class SetChatPermissions:
 
             permissions (:obj:`~pyrogram.types.ChatPermissions`):
                 New default chat permissions.
+                Without arguments, :obj:`~pyrogram.types.ChatPermissions` restricts the members completely: like in
+                TDLib, they can't react to messages or change their tags either.
 
         Returns:
             :obj:`~pyrogram.types.Chat`: On success, a chat object is returned.
@@ -77,6 +81,9 @@ class SetChatPermissions:
             send_stickers=None
             send_videos=None
             send_voices=None
+            send_reactions=None
+            edit_rank=None
+            manage_linked_peers=None if permissions.can_edit_chat_list is None else not permissions.can_edit_chat_list
             if permissions.all_perms:
                 send_messages=False
                 send_media=False
@@ -87,6 +94,8 @@ class SetChatPermissions:
                 pin_messages=False
                 manage_topics=False
                 send_inline=False
+                send_reactions=False
+                edit_rank=False
             else:
                 send_messages=True
                 send_media=True
@@ -97,8 +106,12 @@ class SetChatPermissions:
                 pin_messages=True
                 manage_topics=True
                 send_inline=True
+                send_reactions=True
+                edit_rank=True
         else:
-            old_permissions = (await self.get_chat(chat_id)).permissions
+            old_permissions = (await self.get_chat(chat_id)).permissions or types.ChatPermissions._parse(
+                raw.types.ChatBannedRights(until_date=0)
+            )
             send_messages = None
             send_media = None
             embed_links=not permissions.can_add_web_page_previews if permissions.can_add_web_page_previews is not None else not old_permissions.can_add_web_page_previews
@@ -118,6 +131,9 @@ class SetChatPermissions:
             send_stickers=not permissions.can_send_stickers if permissions.can_send_stickers is not None else not old_permissions.can_send_stickers
             send_videos=not permissions.can_send_videos if permissions.can_send_videos is not None else not old_permissions.can_send_videos
             send_voices=not permissions.can_send_voices if permissions.can_send_voices is not None else not old_permissions.can_send_voices
+            send_reactions=not permissions.can_react_to_messages if permissions.can_react_to_messages is not None else not old_permissions.can_react_to_messages
+            edit_rank=not permissions.can_edit_tag if permissions.can_edit_tag is not None else not old_permissions.can_edit_tag
+            manage_linked_peers=not permissions.can_edit_chat_list if permissions.can_edit_chat_list is not None else not old_permissions.can_edit_chat_list
             if permissions.can_send_messages is not None:
                 if permissions.can_send_messages:
                     send_plain = False
@@ -176,7 +192,10 @@ class SetChatPermissions:
                     send_roundvideos=send_roundvideos,
                     send_stickers=send_stickers,
                     send_videos=send_videos,
-                    send_voices=send_voices
+                    send_voices=send_voices,
+                    send_reactions=send_reactions,
+                    edit_rank=edit_rank,
+                    manage_linked_peers=manage_linked_peers
                 )
             )
         )

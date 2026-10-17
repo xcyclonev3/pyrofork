@@ -27,7 +27,11 @@ from .contact import Contact
 from .contact_registered import ContactRegistered
 from .dice import Dice
 from .document import Document
+from .draft_message import DraftMessage
+from .ephemeral_message import EphemeralMessage
 from .external_reply_info import ExternalReplyInfo
+from .fixed_text import FixedText
+from .formatted_text import FormattedText
 from .game import Game
 from .giveaway import Giveaway
 from .giveaway_launched import GiveawayLaunched
@@ -37,6 +41,7 @@ from .media_area import MediaArea
 from .media_area_channel_post import MediaAreaChannelPost
 from .media_area_coordinates import MediaAreaCoordinates
 from .message import Message
+from .message_draft_stopped import MessageDraftStopped
 from .message_entity import MessageEntity
 from .message_origin import MessageOrigin
 from .message_origin_channel import MessageOriginChannel
@@ -44,16 +49,27 @@ from .message_origin_chat import MessageOriginChat
 from .message_origin_hidden_user import MessageOriginHiddenUser
 from .message_origin_import import MessageOriginImport
 from .message_origin_user import MessageOriginUser
+from .pending_message import PendingMessage
 from .photo import Photo
 from .poll import Poll
 from .poll_option import PollOption
+from .poll_vote_statistics import PollVoteStatistics
 from .reaction import Reaction
 from .read_participant import ReadParticipant
+from .report_option import ReportOption
+from .report_result import ReportResult
 from .screenshot_taken import ScreenshotTaken
+from .stake_dice_state import StakeDiceState
+from .statistical_graph import StatisticalGraph
+from .statistical_graph_async import StatisticalGraphAsync
+from .statistical_graph_data import StatisticalGraphData
+from .statistical_graph_error import StatisticalGraphError
 from .sticker import Sticker
 from .stickerset import StickerSet
 from .stories_privacy_rules import StoriesPrivacyRules
 from .stripped_thumbnail import StrippedThumbnail
+from .text_composition_style import TextCompositionStyle
+from .text_composition_style_example import TextCompositionStyleExample
 from .thumbnail import Thumbnail
 from .todo_list import TodoList
 from .todo_task import TodoTask
@@ -84,6 +100,7 @@ from .wallpaper_settings import WallpaperSettings
 from .transcribed_audio import TranscribedAudio
 from .translated_text import TranslatedText
 from .text_quote import TextQuote
+from .welcome_message import WelcomeMessage
 
 __all__ = [
     "AlternativeVideo",
@@ -152,5 +169,22 @@ __all__ = [
     "TodoTask",
     "TodoTasksAdded",
     "TodoTasksCompleted",
-    "TodoTasksIncompleted"
+    "TodoTasksIncompleted",
+    "StakeDiceState",
+    "FormattedText",
+    "TextCompositionStyle",
+    "TextCompositionStyleExample",
+    "FixedText",
+    "StatisticalGraph",
+    "StatisticalGraphData",
+    "StatisticalGraphAsync",
+    "StatisticalGraphError",
+    "PollVoteStatistics",
+    "PendingMessage",
+    "MessageDraftStopped",
+    "DraftMessage",
+    "EphemeralMessage",
+    "WelcomeMessage",
+    "ReportOption",
+    "ReportResult"
 ]

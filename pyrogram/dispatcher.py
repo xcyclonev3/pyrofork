@@ -49,7 +49,21 @@ from pyrogram.handlers import (
   ChatMemberUpdatedHandler,
   ChatJoinRequestHandler,
   StoryHandler,
-  PurchasedPaidMediaHandler
+  PurchasedPaidMediaHandler,
+  ChatJoinResultHandler,
+  GuestQueryHandler,
+  ManagedBotUpdatedHandler,
+  BusinessConnectedBotHandler,
+  PendingMessageHandler,
+  MessageDraftStoppedHandler,
+  TonWalletStateHandler,
+  TonWalletGaslessTransfersInfoHandler,
+  TonConnectSessionHandler,
+  TonConnectPendingDisconnectHandler,
+  EphemeralMessageHandler,
+  EditedEphemeralMessageHandler,
+  DeletedEphemeralMessagesHandler,
+  UserSubscriptionUpdatedHandler
 )
 from pyrogram.raw.types import (
     UpdateNewMessage, UpdateNewChannelMessage, UpdateNewScheduledMessage,
@@ -65,7 +79,21 @@ from pyrogram.raw.types import (
     UpdateBotMessageReactions,
     UpdateBotShippingQuery,
     UpdateBusinessBotCallbackQuery,
-    UpdateBotPurchasedPaidMedia
+    UpdateBotPurchasedPaidMedia,
+    UpdateJoinChatWebViewDecision,
+    UpdateBotGuestChatQuery,
+    UpdateManagedBot,
+    UpdateNewBotConnection,
+    UpdateUserTyping,
+    UpdateWalletState,
+    UpdateWalletGaslessInfo,
+    UpdateWalletTonConnectSession,
+    UpdateWalletTonConnectPendingDisconnect,
+    UpdateNewEphemeralMessage,
+    UpdateEditEphemeralMessage,
+    UpdateDeleteEphemeralMessages,
+    UpdateEphemeralBotCallbackQuery,
+    UpdateBotStarsSubscription
 )
 
 log = logging.getLogger(__name__)
@@ -78,7 +106,10 @@ class Dispatcher:
     EDIT_BOT_BUSINESS_MESSAGE_UPDATES = (UpdateBotEditBusinessMessage,)
     DELETE_MESSAGES_UPDATES = (UpdateDeleteMessages, UpdateDeleteChannelMessages)
     DELETE_BOT_BUSINESS_MESSAGES_UPDATES = (UpdateBotDeleteBusinessMessage,)
-    CALLBACK_QUERY_UPDATES = (UpdateBotCallbackQuery, UpdateInlineBotCallbackQuery, UpdateBusinessBotCallbackQuery)
+    CALLBACK_QUERY_UPDATES = (
+        UpdateBotCallbackQuery, UpdateInlineBotCallbackQuery, UpdateBusinessBotCallbackQuery,
+        UpdateEphemeralBotCallbackQuery
+    )
     CHAT_MEMBER_UPDATES = (UpdateChatParticipant, UpdateChannelParticipant, UpdateBotStopped,)
     USER_STATUS_UPDATES = (UpdateUserStatus,)
     BOT_INLINE_QUERY_UPDATES = (UpdateBotInlineQuery,)
@@ -92,6 +123,19 @@ class Dispatcher:
     PRE_CHECKOUT_QUERY_UPDATES = (UpdateBotPrecheckoutQuery,)
     SHIPPING_QUERY_UPDATES = (UpdateBotShippingQuery,)
     PURCHASED_PAID_MEDIA_UPDATES = (UpdateBotPurchasedPaidMedia,)
+    CHAT_JOIN_RESULT_UPDATES = (UpdateJoinChatWebViewDecision,)
+    GUEST_QUERY_UPDATES = (UpdateBotGuestChatQuery,)
+    MANAGED_BOT_UPDATES = (UpdateManagedBot,)
+    NEW_BOT_CONNECTION_UPDATES = (UpdateNewBotConnection,)
+    USER_TYPING_UPDATES = (UpdateUserTyping,)
+    WALLET_STATE_UPDATES = (UpdateWalletState,)
+    WALLET_GASLESS_INFO_UPDATES = (UpdateWalletGaslessInfo,)
+    WALLET_TON_CONNECT_SESSION_UPDATES = (UpdateWalletTonConnectSession,)
+    WALLET_TON_CONNECT_PENDING_DISCONNECT_UPDATES = (UpdateWalletTonConnectPendingDisconnect,)
+    NEW_EPHEMERAL_MESSAGE_UPDATES = (UpdateNewEphemeralMessage,)
+    EDIT_EPHEMERAL_MESSAGE_UPDATES = (UpdateEditEphemeralMessage,)
+    DELETE_EPHEMERAL_MESSAGES_UPDATES = (UpdateDeleteEphemeralMessages,)
+    BOT_STARS_SUBSCRIPTION_UPDATES = (UpdateBotStarsSubscription,)
 
     def __init__(self, client: "pyrogram.Client"):
         self.client = client
@@ -162,10 +206,13 @@ class Dispatcher:
             )
 
         async def callback_query_parser(update, users, chats):
-            return (
-                await pyrogram.types.CallbackQuery._parse(self.client, update, users),
-                CallbackQueryHandler
-            )
+            parsed = await pyrogram.types.CallbackQuery._parse(self.client, update, users, chats)
+
+            # Like TDLib, drop queries of ephemeral messages that can't be parsed (no chat)
+            if isinstance(update, UpdateEphemeralBotCallbackQuery) and parsed.ephemeral_message is None:
+                return None, type(None)
+
+            return parsed, CallbackQueryHandler
 
         async def user_status_parser(update, users, chats):
             return (
@@ -245,6 +292,90 @@ class Dispatcher:
                 PurchasedPaidMediaHandler
             )
 
+        async def chat_join_result_parser(update, users, chats):
+            return (
+                pyrogram.types.ChatJoinResult._parse(self.client, update, users, chats),
+                ChatJoinResultHandler
+            )
+
+        async def guest_query_parser(update, users, chats):
+            return (
+                await pyrogram.types.GuestQuery._parse(self.client, update, users, chats),
+                GuestQueryHandler
+            )
+
+        async def managed_bot_parser(update, users, chats):
+            return (
+                pyrogram.types.ManagedBotUpdated._parse(self.client, update, users),
+                ManagedBotUpdatedHandler
+            )
+
+        async def new_bot_connection_parser(update, users, chats):
+            return (
+                pyrogram.types.BusinessConnectedBot._parse(self.client, update, users),
+                BusinessConnectedBotHandler
+            )
+
+        async def user_typing_parser(update, users, chats):
+            # Only the actions of message drafts have a high-level update; the others reach raw handlers only
+            pending_message = pyrogram.types.PendingMessage._parse(self.client, update, users)
+            if pending_message is not None:
+                return pending_message, PendingMessageHandler
+
+            draft_stopped = pyrogram.types.MessageDraftStopped._parse(self.client, update, users)
+            if draft_stopped is not None:
+                return draft_stopped, MessageDraftStoppedHandler
+
+            return None, type(None)
+
+        async def wallet_state_parser(update, users, chats):
+            return (
+                pyrogram.types.TonWalletState._parse(self.client, update.state),
+                TonWalletStateHandler
+            )
+
+        async def wallet_gasless_info_parser(update, users, chats):
+            return (
+                pyrogram.types.TonWalletGaslessTransfersInfo._parse(self.client, update),
+                TonWalletGaslessTransfersInfoHandler
+            )
+
+        async def wallet_ton_connect_session_parser(update, users, chats):
+            return (
+                pyrogram.types.TonConnectSession._parse(self.client, update.session),
+                TonConnectSessionHandler
+            )
+
+        async def wallet_ton_connect_pending_disconnect_parser(update, users, chats):
+            return (
+                pyrogram.types.TonConnectPendingDisconnect._parse(self.client, update),
+                TonConnectPendingDisconnectHandler
+            )
+
+        async def ephemeral_message_parser(update, users, chats):
+            parsed = await pyrogram.types.EphemeralMessage._parse(self.client, update.message, users, chats)
+            return (parsed, EphemeralMessageHandler) if parsed is not None else (None, type(None))
+
+        async def edited_ephemeral_message_parser(update, users, chats):
+            parsed = await pyrogram.types.EphemeralMessage._parse(self.client, update.message, users, chats)
+            return (parsed, EditedEphemeralMessageHandler) if parsed is not None else (None, type(None))
+
+        async def deleted_ephemeral_messages_parser(update, users, chats):
+            chat = pyrogram.types.EphemeralMessage._parse_chat(self.client, update.peer, users, chats)
+            return (
+                pyrogram.types.List(
+                    pyrogram.types.EphemeralMessage(id=message_id, chat=chat, client=self.client)
+                    for message_id in update.ids
+                ),
+                DeletedEphemeralMessagesHandler
+            )
+
+        async def bot_stars_subscription_parser(update, users, chats):
+            return (
+                pyrogram.types.UserSubscriptionUpdated._parse(self.client, update, users),
+                UserSubscriptionUpdatedHandler
+            )
+
         self.update_parsers = {
             Dispatcher.NEW_MESSAGE_UPDATES: message_parser,
             Dispatcher.NEW_BOT_BUSINESS_MESSAGE_UPDATES: bot_business_message_parser,
@@ -265,7 +396,20 @@ class Dispatcher:
             Dispatcher.MESSAGE_BOT_NA_REACTION_UPDATES: message_bot_na_reaction_parser,
             Dispatcher.MESSAGE_BOT_A_REACTION_UPDATES: message_bot_a_reaction_parser,
             Dispatcher.BOT_BUSSINESS_CONNECT_UPDATES: bot_business_connect_parser,
-            Dispatcher.PURCHASED_PAID_MEDIA_UPDATES: purchased_paid_media_parser
+            Dispatcher.PURCHASED_PAID_MEDIA_UPDATES: purchased_paid_media_parser,
+            Dispatcher.CHAT_JOIN_RESULT_UPDATES: chat_join_result_parser,
+            Dispatcher.GUEST_QUERY_UPDATES: guest_query_parser,
+            Dispatcher.MANAGED_BOT_UPDATES: managed_bot_parser,
+            Dispatcher.NEW_BOT_CONNECTION_UPDATES: new_bot_connection_parser,
+            Dispatcher.USER_TYPING_UPDATES: user_typing_parser,
+            Dispatcher.WALLET_STATE_UPDATES: wallet_state_parser,
+            Dispatcher.WALLET_GASLESS_INFO_UPDATES: wallet_gasless_info_parser,
+            Dispatcher.WALLET_TON_CONNECT_SESSION_UPDATES: wallet_ton_connect_session_parser,
+            Dispatcher.WALLET_TON_CONNECT_PENDING_DISCONNECT_UPDATES: wallet_ton_connect_pending_disconnect_parser,
+            Dispatcher.NEW_EPHEMERAL_MESSAGE_UPDATES: ephemeral_message_parser,
+            Dispatcher.EDIT_EPHEMERAL_MESSAGE_UPDATES: edited_ephemeral_message_parser,
+            Dispatcher.DELETE_EPHEMERAL_MESSAGES_UPDATES: deleted_ephemeral_messages_parser,
+            Dispatcher.BOT_STARS_SUBSCRIPTION_UPDATES: bot_stars_subscription_parser
         }
 
         self.update_parsers = {key: value for key_tuple, value in self.update_parsers.items() for key in key_tuple}

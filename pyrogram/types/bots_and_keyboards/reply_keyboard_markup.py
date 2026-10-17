@@ -55,6 +55,9 @@ class ReplyKeyboardMarkup(Object):
 
         placeholder (``str``, *optional*):
             The placeholder to be shown in the input field when the keyboard is active; 1-64 characters.
+
+        force_reply (``bool``, *optional*):
+            Requests clients to force a reply to the message with the keyboard.
     """
 
     def __init__(
@@ -64,7 +67,8 @@ class ReplyKeyboardMarkup(Object):
         resize_keyboard: bool = None,
         one_time_keyboard: bool = None,
         selective: bool = None,
-        placeholder: str = None
+        placeholder: str = None,
+        force_reply: bool = None
     ):
         super().__init__()
 
@@ -74,6 +78,7 @@ class ReplyKeyboardMarkup(Object):
         self.one_time_keyboard = one_time_keyboard
         self.selective = selective
         self.placeholder = placeholder
+        self.force_reply = force_reply
 
     @staticmethod
     def read(kb: "raw.base.ReplyMarkup"):
@@ -93,7 +98,8 @@ class ReplyKeyboardMarkup(Object):
             resize_keyboard=kb.resize,
             one_time_keyboard=kb.single_use,
             selective=kb.selective,
-            placeholder=kb.placeholder
+            placeholder=kb.placeholder,
+            force_reply=kb.force_reply or None
         )
 
     # TODO: Implement KeyboardButtonBuy.write method
@@ -110,5 +116,6 @@ class ReplyKeyboardMarkup(Object):
             single_use=self.one_time_keyboard or None,
             selective=self.selective or None,
             persistent=self.is_persistent or None,
-            placeholder=self.placeholder or None
+            placeholder=self.placeholder or None,
+            force_reply=self.force_reply or None
         )

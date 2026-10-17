@@ -98,6 +98,8 @@ class EditInlineMedia:
             filename_attribute = []
 
         if isinstance(media, types.InputMediaPhoto):
+            live_video = media.live_video
+
             if is_uploaded_file:
                 media = raw.types.InputMediaUploadedPhoto(
                     file=await self.save_file(media.media),
@@ -110,6 +112,9 @@ class EditInlineMedia:
                 )
             else:
                 media = utils.get_input_media_from_file_id(media.media, FileType.PHOTO)
+
+            if live_video is not None:
+                media = await utils.add_live_photo_video(self, raw.types.InputPeerSelf(), media, live_video)
         elif isinstance(media, types.InputMediaVideo):
             if is_uploaded_file:
                 media = raw.types.InputMediaUploadedDocument(
@@ -213,14 +218,16 @@ class EditInlineMedia:
                     access_hash=uploaded_media.photo.access_hash,
                     file_reference=uploaded_media.photo.file_reference
                 ),
-                spoiler=getattr(media, "has_spoiler", None)
-            ) if isinstance(media, types.InputMediaPhoto) else raw.types.InputMediaDocument(
+                spoiler=media.spoiler,
+                live_photo=media.live_photo,
+                video=media.video
+            ) if isinstance(media, raw.types.InputMediaUploadedPhoto) else raw.types.InputMediaDocument(
                 id=raw.types.InputDocument(
                     id=uploaded_media.document.id,
                     access_hash=uploaded_media.document.access_hash,
                     file_reference=uploaded_media.document.file_reference
                 ),
-                spoiler=getattr(media, "has_spoiler", None)
+                spoiler=media.spoiler
             )
         else:
             actual_media = media

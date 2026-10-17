@@ -17,7 +17,7 @@
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime
-from typing import List, Union, Optional
+from typing import Dict, List, Union, Optional
 
 import pyrogram
 from pyrogram import raw, enums, utils
@@ -38,6 +38,8 @@ class Poll(Object, Update):
 
         options (List of :obj:`~pyrogram.types.PollOption`):
             List of poll options.
+            Poll updates may carry only the new results: then the options have just *voter_count* and *data*, in the
+            order of the results, which may differ from the order of the poll options. Match them by *data*.
 
         question_entities (List of :obj:`~pyrogram.types.MessageEntity`, *optional*):
             Special entities like usernames, URLs, bot commands, etc. that appear in the poll question.
@@ -80,6 +82,43 @@ class Poll(Object, Update):
 
         recent_voters (List of :obj:`~pyrogram.types.User`, *optional*):
             List of user whos recently vote.
+
+        media (:obj:`~pyrogram.types.Photo` | :obj:`~pyrogram.types.Video` | :obj:`~pyrogram.types.Animation` | :obj:`~pyrogram.types.Audio` | :obj:`~pyrogram.types.Document` | :obj:`~pyrogram.types.Location` | :obj:`~pyrogram.types.Venue` | :obj:`~pyrogram.types.WebPagePreview`, *optional*):
+            Media attached to the poll.
+
+        correct_option_ids (List of ``int``, *optional*):
+            0-based identifiers of the correct answer options, for polls in the quiz mode that can have several
+            correct answers. Available in the same cases as *correct_option_id*.
+
+        explanation_media (:obj:`~pyrogram.types.Photo` | :obj:`~pyrogram.types.Video` | :obj:`~pyrogram.types.Animation` | :obj:`~pyrogram.types.Audio` | :obj:`~pyrogram.types.Document` | :obj:`~pyrogram.types.Location` | :obj:`~pyrogram.types.Venue` | :obj:`~pyrogram.types.WebPagePreview`, *optional*):
+            Media shown with the explanation of a quiz.
+
+        allows_revoting (``bool``, *optional*):
+            True, if the vote can be changed.
+
+        allows_adding_options (``bool``, *optional*):
+            True, if users can add answer options to the poll.
+
+        shuffle_options (``bool``, *optional*):
+            True, if the options are shown in a fixed random order.
+
+        hide_results_until_closes (``bool``, *optional*):
+            True, if the results are shown only after the poll closes.
+
+        members_only (``bool``, *optional*):
+            True, if only users that are members of the chat for more than a day can vote.
+
+        country_codes (List of ``str``, *optional*):
+            Two-letter ISO 3166-1 alpha-2 codes of the countries whose users can vote; None if all users can vote.
+
+        is_creator (``bool``, *optional*):
+            True, if the current user created the poll.
+
+        has_unread_votes (``bool``, *optional*):
+            True, if the poll has votes the current user didn't see yet.
+
+        can_view_statistics (``bool``, *optional*):
+            True, if the current user can get the vote statistics of the poll.
     """
 
     def __init__(
@@ -101,7 +140,19 @@ class Poll(Object, Update):
         explanation_entities: Optional[List["types.MessageEntity"]] = None,
         open_period: Optional[int] = None,
         close_date: Optional[datetime] = None,
-        recent_voters: List["types.User"] = None
+        recent_voters: List["types.User"] = None,
+        media=None,
+        correct_option_ids: Optional[List[int]] = None,
+        explanation_media=None,
+        allows_revoting: Optional[bool] = None,
+        allows_adding_options: Optional[bool] = None,
+        shuffle_options: Optional[bool] = None,
+        hide_results_until_closes: Optional[bool] = None,
+        members_only: Optional[bool] = None,
+        country_codes: Optional[List[str]] = None,
+        is_creator: Optional[bool] = None,
+        has_unread_votes: Optional[bool] = None,
+        can_view_statistics: Optional[bool] = None
     ):
         super().__init__(client)
 
@@ -121,45 +172,95 @@ class Poll(Object, Update):
         self.open_period = open_period
         self.close_date = close_date
         self.recent_voters = recent_voters
+        self.media = media
+        self.correct_option_ids = correct_option_ids
+        self.explanation_media = explanation_media
+        self.allows_revoting = allows_revoting
+        self.allows_adding_options = allows_adding_options
+        self.shuffle_options = shuffle_options
+        self.hide_results_until_closes = hide_results_until_closes
+        self.members_only = members_only
+        self.country_codes = country_codes
+        self.is_creator = is_creator
+        self.has_unread_votes = has_unread_votes
+        self.can_view_statistics = can_view_statistics
+
+    @staticmethod
+    async def _parse_media(client, media: "raw.base.MessageMedia"):
+        """The object of a media attached to a poll, to one of its options or to a quiz explanation."""
+        if isinstance(media, raw.types.MessageMediaPhoto):
+            return types.Photo._parse(client, media.photo, media.ttl_seconds, live_video=media.video)
+
+        if isinstance(media, raw.types.MessageMediaGeo):
+            return types.Location._parse(client, media.geo)
+
+        if isinstance(media, raw.types.MessageMediaVenue):
+            return types.Venue._parse(client, media)
+
+        if isinstance(media, raw.types.MessageMediaWebPage):
+            return types.WebPagePreview._parse(client, media)
+
+        if isinstance(media, raw.types.MessageMediaDocument) and isinstance(media.document, raw.types.Document):
+            doc = media.document
+            attributes = {type(i): i for i in doc.attributes}
+            file_name = getattr(attributes.get(raw.types.DocumentAttributeFilename, None), "file_name", None)
+
+            if raw.types.DocumentAttributeAnimated in attributes:
+                return types.Animation._parse(client, doc, attributes.get(raw.types.DocumentAttributeVideo), file_name)
+
+            if raw.types.DocumentAttributeSticker in attributes:
+                return await types.Sticker._parse(client, doc, attributes)
+
+            if raw.types.DocumentAttributeVideo in attributes:
+                return types.Video._parse(client, doc, attributes[raw.types.DocumentAttributeVideo], file_name)
+
+            if raw.types.DocumentAttributeAudio in attributes:
+                audio_attributes = attributes[raw.types.DocumentAttributeAudio]
+
+                if audio_attributes.voice:
+                    return types.Voice._parse(client, doc, audio_attributes)
+
+                return types.Audio._parse(client, doc, audio_attributes, file_name)
+
+            return types.Document._parse(client, doc, file_name)
+
+        return None
 
     @staticmethod
     async def _parse(
         client,
         media_poll: Union["raw.types.MessageMediaPoll", "raw.types.UpdateMessagePoll"],
-        users: List["raw.base.User"]
+        users: List["raw.base.User"],
+        chats: Dict[int, "raw.base.Chat"] = None
     ) -> "Poll":
+        # Callers pass the users/chats of an Updates object either as lists or as id -> object dicts
+        users = users if isinstance(users, dict) else {i.id: i for i in users or []}
+        chats = chats if isinstance(chats, dict) else {i.id: i for i in chats or []}
+
         poll: raw.types.Poll = media_poll.poll
         poll_results: raw.types.PollResults = media_poll.results
-        results: List[raw.types.PollAnswerVoters] = poll_results.results
+        # Match results by option bytes like tdesktop and TDLib do: with open answers and shuffled polls
+        # the results are not guaranteed to follow the order of the answers
+        results: Dict[bytes, raw.types.PollAnswerVoters] = {r.option: r for r in poll_results.results}
 
         chosen_option_id = None
-        correct_option_id = None
+        correct_option_ids = []
         options = []
 
         for i, answer in enumerate(poll.answers):
             voter_count = 0
+            result = results.get(answer.option)
 
-            if results:
-                result = results[i]
-                voter_count = result.voters
+            if result is not None:
+                voter_count = result.voters or 0
 
                 if result.chosen:
                     chosen_option_id = i
 
                 if result.correct:
-                    correct_option_id = i
+                    correct_option_ids.append(i)
 
-            o_entities = [types.MessageEntity._parse(client, entity, {}) for entity in answer.text.entities] if answer.text.entities else []
-            option_entities = types.List(filter(lambda x: x is not None, o_entities))
-
-            options.append(
-                types.PollOption(
-                    text=answer.text.text,
-                    voter_count=voter_count,
-                    data=answer.option,
-                    entities=option_entities
-                )
-            )
+            options.append(await types.PollOption._parse(client, answer, users, chats, voter_count))
 
         q_entities = [types.MessageEntity._parse(client, entity, {}) for entity in poll.question.entities] if poll.question.entities else []
         question_entities = types.List(filter(lambda x: x is not None, q_entities))
@@ -184,7 +285,7 @@ class Poll(Object, Update):
             type=enums.PollType.QUIZ if poll.quiz else enums.PollType.REGULAR,
             allows_multiple_answers=poll.multiple_choice,
             chosen_option_id=chosen_option_id,
-            correct_option_id=correct_option_id,
+            correct_option_id=correct_option_ids[0] if correct_option_ids else None,
             explanation=poll_results.solution,
             explanation_entities=[
                 types.MessageEntity._parse(client, i, {})
@@ -193,6 +294,18 @@ class Poll(Object, Update):
             open_period=poll.close_period,
             close_date=utils.timestamp_to_datetime(poll.close_date),
             recent_voters=recent_voters if len(recent_voters) > 0 else None,
+            media=await Poll._parse_media(client, getattr(media_poll, "attached_media", None)),
+            correct_option_ids=correct_option_ids or None,
+            explanation_media=await Poll._parse_media(client, poll_results.solution_media),
+            allows_revoting=not poll.revoting_disabled,
+            allows_adding_options=poll.open_answers,
+            shuffle_options=poll.shuffle_answers,
+            hide_results_until_closes=poll.hide_results_until_close,
+            members_only=poll.subscribers_only,
+            country_codes=poll.countries_iso2 or None,
+            is_creator=poll.creator,
+            has_unread_votes=poll_results.has_unread_votes,
+            can_view_statistics=poll_results.can_view_stats,
             client=client
         )
 
@@ -205,9 +318,10 @@ class Poll(Object, Update):
         if update.poll is not None:
             return await Poll._parse(client, update, users)
 
+        # Only the results are known: the ids refer to the options built from them, in their order
         results = update.results.results
         chosen_option_id = None
-        correct_option_id = None
+        correct_option_ids = []
         options = []
 
         for i, result in enumerate(results):
@@ -215,12 +329,12 @@ class Poll(Object, Update):
                 chosen_option_id = i
 
             if result.correct:
-                correct_option_id = i
+                correct_option_ids.append(i)
 
             options.append(
                 types.PollOption(
                     text="",
-                    voter_count=result.voters,
+                    voter_count=result.voters or 0,
                     data=result.option
                 )
             )
@@ -242,7 +356,8 @@ class Poll(Object, Update):
             total_voter_count=update.results.total_voters,
             is_closed=False,
             chosen_option_id=chosen_option_id,
-            correct_option_id=correct_option_id,
+            correct_option_id=correct_option_ids[0] if correct_option_ids else None,
+            correct_option_ids=correct_option_ids or None,
             recent_voters=recent_voters if len(recent_voters) > 0 else None,
             client=client
         )

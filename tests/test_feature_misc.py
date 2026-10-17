@@ -1,0 +1,788 @@
+#  Pyrofork - Telegram MTProto API Client Library for Python
+#  Copyright (C) 2022-present Mayuri-Chan <https://github.com/Mayuri-Chan>
+#
+#  This file is part of Pyrofork.
+#
+#  Pyrofork is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU Lesser General Public License as published
+#  by the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  Pyrofork is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Lesser General Public License for more details.
+#
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
+
+"""Offline tests for the misc Layer 221-230 additions and the official apps' internal APIs (worker E)."""
+
+import asyncio
+
+import pytest
+
+from pyrogram import enums, errors, raw, types, utils
+from tests import test_layer_roundtrip
+from tests.test_layer_roundtrip import call, roundtrip, empty_updates, PEERS
+
+CHANNEL = PEERS[-100123]
+BASIC_GROUP = PEERS[-45]
+USER = PEERS[7]
+
+CLIENTS = []
+
+
+def offline_client(peers, respond):
+    """test_layer_roundtrip.offline_client, remembering the client to close the event loop it created."""
+    client = test_layer_roundtrip.offline_client(peers, respond)
+    CLIENTS.append(client)
+    return client
+
+
+@pytest.fixture(autouse=True)
+def close_client_loops():
+    # Every Client sets a new event loop that asyncio.run() then leaves unclosed: close them, so that their
+    # garbage collection doesn't emit unraisable exception warnings in later tests.
+    yield
+    while CLIENTS:
+        loop = CLIENTS.pop().loop
+        if not loop.is_running() and not loop.is_closed():
+            loop.close()
+    asyncio.set_event_loop(None)
+
+
+def raw_user(user_id=7, **kwargs):
+    return raw.types.User(id=user_id, access_hash=2, first_name="A", **kwargs)
+
+
+def storage_client(respond, peers=PEERS):
+    """An offline client with an opened in-memory storage, for methods that cache peers or the session."""
+    client = offline_client(peers, respond)
+    call(lambda: client.storage.open())
+    return client
+
+
+# get_chat_owner_after_leaving
+
+@pytest.mark.parametrize("chat_id, peer", [(-100123, CHANNEL), (-45, BASIC_GROUP)])
+def test_get_chat_owner_after_leaving(chat_id, peer):
+    client = storage_client(lambda q: raw_user(8))
+    user = call(lambda: client.get_chat_owner_after_leaving(chat_id))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.GetFutureChatCreatorAfterLeave)
+    assert request.peer.write() == peer.write()
+    assert isinstance(user, types.User) and user.id == 8 and user.first_name == "A"
+
+
+def test_get_chat_owner_after_leaving_without_candidate():
+    client = storage_client(lambda q: raw.types.UserEmpty(id=0))
+    assert call(lambda: client.get_chat_owner_after_leaving(-100123)) is None
+
+
+def test_get_chat_owner_after_leaving_rejects_private_chats():
+    client = offline_client(PEERS, lambda q: raw_user())
+    with pytest.raises(ValueError):
+        call(lambda: client.get_chat_owner_after_leaving(7))
+    assert client.sent == []
+
+
+# get_personal_chat_history
+
+RAW_CHANNEL = raw.types.Channel(id=123, access_hash=1, title="Personal", photo=raw.types.ChatPhotoEmpty(), date=0,
+                                broadcast=True)
+
+
+def channel_post(message_id, text):
+    return raw.types.Message(id=message_id, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message=text)
+
+
+def test_get_personal_chat_history():
+    client = offline_client(PEERS, lambda q: raw.types.messages.Messages(
+        messages=[channel_post(11, "new"), channel_post(10, "old")], topics=[], chats=[RAW_CHANNEL], users=[]
+    ))
+    messages = call(lambda: client.get_personal_chat_history(7, limit=2))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.GetPersonalChannelHistory)
+    assert request.user_id.write() == USER.write()
+    assert (request.limit, request.max_id, request.min_id, request.hash) == (2, (1 << 31) - 1, 0, 0)
+    assert [(m.id, m.text) for m in messages] == [(11, "new"), (10, "old")]
+    assert all(m.chat.id == utils.get_channel_id(123) and m.chat.title == "Personal" for m in messages)
+
+
+def test_get_personal_chat_history_rejects_non_positive_limit():
+    client = offline_client(PEERS, lambda q: None)
+    with pytest.raises(ValueError):
+        call(lambda: client.get_personal_chat_history(7, limit=0))
+
+
+# delete_message_reactions_from_sender / delete_all_recent_message_reactions_from_sender
+
+def test_delete_message_reactions_from_sender():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    assert call(lambda: client.delete_message_reactions_from_sender(-100123, 42, 7)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.DeleteParticipantReaction)
+    assert request.peer.write() == CHANNEL.write() and request.msg_id == 42
+    assert request.participant.write() == USER.write()
+
+
+def test_delete_message_reactions_from_sender_without_reactions():
+    def respond(query):
+        raise errors.MessageNotModified()
+
+    client = offline_client(PEERS, respond)
+    assert call(lambda: client.delete_message_reactions_from_sender(-100123, 42, 7)) is True
+
+
+def test_delete_all_recent_message_reactions_from_sender():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.delete_all_recent_message_reactions_from_sender(-45, -100123)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.DeleteParticipantReactions)
+    assert request.peer.write() == BASIC_GROUP.write()
+    assert request.participant.write() == CHANNEL.write()
+
+
+# URL authorization: login buttons, external links and OAuth requests
+
+RAW_BOT = raw.types.User(id=99, access_hash=3, first_name="Login", username="loginbot", bot=True, bot_info_version=1)
+OAUTH_LINK = "tg://oauth?token=abc"
+
+
+def url_auth_request(**kwargs):
+    return raw.types.UrlAuthResultRequest(bot=RAW_BOT, domain="example.org", **kwargs)
+
+
+def login_button_client(respond, button_id=3):
+    client = offline_client(PEERS, respond)
+    client.message_requests = []
+
+    async def get_messages(chat_id, message_ids, replies=1):
+        client.message_requests.append((chat_id, message_ids, replies))
+        return types.Message(id=message_ids, reply_markup=types.InlineKeyboardMarkup([[
+            types.InlineKeyboardButton("cb", callback_data="x"),
+            types.InlineKeyboardButton("login", login_url=types.LoginUrl(
+                url="https://example.org/login", button_id=button_id
+            )),
+        ]]))
+
+    client.get_messages = get_messages
+    return client
+
+
+def test_login_url_info_parsing():
+    request = roundtrip(url_auth_request(request_write_access=True, request_phone_number=True))
+    info = types.LoginUrlInfo._parse(None, request, "https://example.org/login")
+    assert isinstance(info, types.LoginUrlInfoRequestConfirmation) and isinstance(info, types.LoginUrlInfo)
+    assert (info.url, info.domain) == ("https://example.org/login", "example.org")
+    assert info.bot.id == 99 and info.bot.is_bot
+    assert info.request_write_access and info.request_phone_number_access
+
+    accepted = types.LoginUrlInfo._parse(None, roundtrip(raw.types.UrlAuthResultAccepted(url="https://a/b")), "x")
+    assert isinstance(accepted, types.LoginUrlInfoOpen)
+    assert (accepted.url, accepted.skip_confirmation) == ("https://a/b", True)
+
+    # Already logged in, nothing to open: just a notification about the login has to be shown
+    accepted = types.LoginUrlInfo._parse(None, roundtrip(raw.types.UrlAuthResultAccepted()), "x")
+    assert (accepted.url, accepted.skip_confirmation) == (None, True)
+
+    default = types.LoginUrlInfo._parse(None, roundtrip(raw.types.UrlAuthResultDefault()), "https://example.org")
+    assert isinstance(default, types.LoginUrlInfoOpen)
+    assert (default.url, default.skip_confirmation) == ("https://example.org", False)
+
+
+def test_get_login_url_info():
+    client = login_button_client(lambda q: url_auth_request(request_write_access=True))
+    info = call(lambda: client.get_login_url_info(-100123, 10, 3))
+
+    assert client.message_requests == [(-100123, 10, 0)]
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.RequestUrlAuth)
+    assert request.peer.write() == CHANNEL.write() and (request.msg_id, request.button_id) == (10, 3)
+    assert request.url is None and request.in_app_origin is None
+    assert isinstance(info, types.LoginUrlInfoRequestConfirmation)
+    assert info.url == "https://example.org/login" and info.request_write_access
+    assert not info.request_phone_number_access
+
+
+def test_get_login_url_info_unknown_button():
+    client = login_button_client(lambda q: url_auth_request(), button_id=4)
+    with pytest.raises(ValueError):
+        call(lambda: client.get_login_url_info(-100123, 10, 3))
+    assert client.sent == []
+
+
+@pytest.mark.parametrize("result, expected", [
+    (raw.types.UrlAuthResultAccepted(url="https://example.org/login?hash=1"), "https://example.org/login?hash=1"),
+    (raw.types.UrlAuthResultAccepted(), None),
+    (raw.types.UrlAuthResultDefault(), "https://example.org/login"),
+])
+def test_get_login_url(result, expected):
+    client = login_button_client(lambda q: result)
+    assert call(lambda: client.get_login_url(-100123, 10, 3, allow_write_access=True)) == expected
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.AcceptUrlAuth)
+    assert request.peer.write() == CHANNEL.write() and (request.msg_id, request.button_id) == (10, 3)
+    assert request.write_allowed and not request.share_phone_number
+    assert request.url is None and request.match_code is None
+
+
+def test_get_external_link_info():
+    client = offline_client(PEERS, lambda q: raw.types.UrlAuthResultDefault())
+    info = call(lambda: client.get_external_link_info("https://example.telegram.org"))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.RequestUrlAuth)
+    assert request.url == "https://example.telegram.org" and request.peer is None
+    assert isinstance(info, types.LoginUrlInfoOpen)
+    assert (info.url, info.skip_confirmation) == ("https://example.telegram.org", False)
+
+
+def raise_error(error):
+    def respond(query):
+        raise error
+    return respond
+
+
+@pytest.mark.parametrize("error", [errors.BotInvalid(), errors.ChatWriteForbidden()])
+def test_login_url_info_of_links_that_cant_log_in(error):
+    # As TDLib does: such buttons and links are opened as ordinary links
+    client = login_button_client(raise_error(error))
+    info = call(lambda: client.get_login_url_info(-100123, 10, 3))
+    assert isinstance(info, types.LoginUrlInfoOpen)
+    assert (info.url, info.skip_confirmation) == ("https://example.org/login", False)
+
+    info = call(lambda: client.get_external_link_info("https://example.org"))
+    assert isinstance(info, types.LoginUrlInfoOpen)
+    assert (info.url, info.skip_confirmation) == ("https://example.org", False)
+    assert len(client.sent) == 2
+
+
+@pytest.mark.parametrize("error", [errors.UrlExpired, errors.UrlInvalid, errors.FloodWait, errors.AuthKeyUnregistered])
+def test_login_url_info_errors(error):
+    client = login_button_client(raise_error(error()))
+    with pytest.raises(error):
+        call(lambda: client.get_login_url_info(-100123, 10, 3))
+    with pytest.raises(error):
+        call(lambda: client.get_external_link_info("https://example.org"))
+
+
+def test_get_external_link():
+    client = offline_client(PEERS, lambda q: raw.types.UrlAuthResultAccepted())
+    link = "https://example.telegram.org"
+    assert call(lambda: client.get_external_link(link, allow_phone_number_access=True)) is None
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.AcceptUrlAuth)
+    assert request.url == link and request.share_phone_number and not request.write_allowed
+    assert request.peer is None and request.msg_id is None and request.button_id is None
+
+
+def test_get_oauth_link_info():
+    client = offline_client(PEERS, lambda q: url_auth_request(
+        request_write_access=True, request_phone_number=True, match_codes_first=True, is_app=True,
+        browser="Firefox", platform="Linux", ip="1.2.3.4", region="Somewhere",
+        match_codes=["A", "B"], user_id_hint=7, verified_app_name="App"
+    ))
+    info = call(lambda: client.get_oauth_link_info(OAUTH_LINK, in_app_origin="https://app.example.org"))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.RequestUrlAuth)
+    assert request.url == OAUTH_LINK and request.in_app_origin == "https://app.example.org"
+    assert request.peer is None
+    assert isinstance(info, types.OauthLinkInfo)
+    assert (info.url, info.domain, info.bot.id, info.user_id) == (OAUTH_LINK, "example.org", 99, 7)
+    assert info.is_from_app and info.verified_app_name == "App"
+    assert info.request_write_access and info.request_phone_number_access
+    assert (info.browser, info.platform, info.ip_address, info.location) == ("Firefox", "Linux", "1.2.3.4", "Somewhere")
+    assert info.match_code_first and info.match_codes == ["A", "B"]
+
+
+@pytest.mark.parametrize("link, expected", [
+    ("TG:oauth?token=abc#fragment", OAUTH_LINK),
+    ("tg://oauth/?token=a%2Bb+c&other=1&token=d", "tg://oauth?token=a%2Bb%20c"),
+    ("tg://resolve?domain=oauth&startapp=xyz&mode=compact", "tg://resolve?domain=oauth&startapp=xyz"),
+])
+def test_get_oauth_link_info_normalizes_the_link(link, expected):
+    client = offline_client(PEERS, lambda q: url_auth_request())
+    info = call(lambda: client.get_oauth_link_info(link))
+    assert client.sent[-1].url == expected and info.url == expected
+
+
+@pytest.mark.parametrize("link", [
+    "https://t.me/oauth?startapp=xyz", "tg://oauth", "tg://oauth?token=", "tg://login?token=abc",
+    "tg://oauth/extra?token=abc", "tg://resolve?domain=oauth", "tg://resolve?domain=other&startapp=xyz",
+    "tg://resolve?domain=oauth&post=1&startapp=xyz",
+])
+def test_get_oauth_link_info_rejects_other_links(link):
+    client = offline_client(PEERS, lambda q: url_auth_request())
+    with pytest.raises(ValueError):
+        call(lambda: client.get_oauth_link_info(link))
+    assert client.sent == []
+
+
+def test_oauth_link_info_minimal_request():
+    info = types.OauthLinkInfo._parse(None, roundtrip(url_auth_request()), OAUTH_LINK)
+    assert info.user_id is None and info.match_codes is None and info.browser is None
+    assert not info.is_from_app and not info.match_code_first
+
+
+@pytest.mark.parametrize("result", [raw.types.UrlAuthResultDefault(), raw.types.UrlAuthResultAccepted(url="x")])
+def test_get_oauth_link_info_expired(result):
+    client = offline_client(PEERS, lambda q: result)
+    with pytest.raises(errors.UrlExpired):
+        call(lambda: client.get_oauth_link_info(OAUTH_LINK))
+    assert client.sent[-1].in_app_origin is None
+
+
+def test_check_oauth_request_match_code():
+    client = offline_client(PEERS, lambda q: False)
+    assert call(lambda: client.check_oauth_request_match_code(OAUTH_LINK, "A")) is False
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.CheckUrlAuthMatchCode)
+    assert (request.url, request.match_code) == (OAUTH_LINK, "A")
+
+
+def test_accept_oauth_request():
+    client = offline_client(PEERS, lambda q: raw.types.UrlAuthResultAccepted(url="https://example.org/done"))
+    url = call(lambda: client.accept_oauth_request(
+        OAUTH_LINK, match_code="A", allow_write_access=True, allow_phone_number_access=True
+    ))
+    assert url == "https://example.org/done"
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.AcceptUrlAuth)
+    assert (request.url, request.match_code) == (OAUTH_LINK, "A")
+    assert request.write_allowed and request.share_phone_number and request.peer is None
+
+
+def test_accept_oauth_request_unexpected_confirmation():
+    client = offline_client(PEERS, lambda q: url_auth_request())
+    with pytest.raises(ValueError):
+        call(lambda: client.accept_oauth_request(OAUTH_LINK))
+
+
+def test_decline_oauth_request():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.decline_oauth_request(OAUTH_LINK)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.DeclineUrlAuth) and request.url == OAUTH_LINK
+
+
+# get_poll_vote_statistics / StatisticalGraph
+
+@pytest.mark.parametrize("graph, cls, fields", [
+    (raw.types.StatsGraph(json=raw.types.DataJSON(data='{"columns": []}'), zoom_token="zoom"),
+     types.StatisticalGraphData, {"json_data": '{"columns": []}', "zoom_token": "zoom"}),
+    (raw.types.StatsGraph(json=raw.types.DataJSON(data="{}")),
+     types.StatisticalGraphData, {"json_data": "{}", "zoom_token": None}),
+    (raw.types.StatsGraphAsync(token="async"), types.StatisticalGraphAsync, {"token": "async"}),
+    (raw.types.StatsGraphError(error="Not enough data"), types.StatisticalGraphError,
+     {"error_message": "Not enough data"}),
+])
+def test_statistical_graph(graph, cls, fields):
+    parsed = types.StatisticalGraph._parse(None, roundtrip(graph))
+    assert isinstance(parsed, cls) and isinstance(parsed, types.StatisticalGraph)
+    assert {name: getattr(parsed, name) for name in fields} == fields
+
+
+def test_get_poll_vote_statistics():
+    client = offline_client(PEERS, lambda q: raw.types.stats.PollStats(
+        votes_graph=raw.types.StatsGraph(json=raw.types.DataJSON(data='{"x": 1}'))
+    ))
+    statistics = call(lambda: client.get_poll_vote_statistics(-100123, 15, is_dark=True))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.stats.GetPollStats)
+    assert request.peer.write() == CHANNEL.write() and request.msg_id == 15 and request.dark
+    assert isinstance(statistics, types.PollVoteStatistics)
+    assert isinstance(statistics.vote_graph, types.StatisticalGraphData)
+    assert statistics.vote_graph.json_data == '{"x": 1}'
+
+
+# get_story_album_stories
+
+def collect(make_agen):
+    """Run an async generator method inside a running loop and collect what it yields."""
+    async def main():
+        return [item async for item in make_agen()]
+    return asyncio.run(main())
+
+
+def story_item(story_id):
+    return raw.types.StoryItem(id=story_id, date=1, expire_date=2, media=raw.types.MessageMediaEmpty(),
+                               caption=f"story {story_id}", entities=[])
+
+
+def album_client(pages):
+    def respond(query):
+        if isinstance(query, raw.functions.channels.GetChannels):
+            return raw.types.messages.Chats(chats=[RAW_CHANNEL])
+        return raw.types.stories.Stories(count=3, stories=pages[query.offset], chats=[], users=[])
+
+    return offline_client({**PEERS, utils.get_channel_id(123): CHANNEL}, respond)
+
+
+def test_get_story_album_stories():
+    client = album_client({0: [story_item(1), story_item(2)], 2: [story_item(3)]})
+    stories = collect(lambda: client.get_story_album_stories(-100123, 5))
+
+    requests = [q for q in client.sent if isinstance(q, raw.functions.stories.GetAlbumStories)]
+    assert [(q.album_id, q.offset, q.limit) for q in requests] == [(5, 0, 100), (5, 2, 100)]
+    assert all(q.peer.write() == CHANNEL.write() for q in requests)
+    assert [(s.id, s.caption) for s in stories] == [(1, "story 1"), (2, "story 2"), (3, "story 3")]
+    assert all(isinstance(s, types.Story) and s.sender_chat.id == utils.get_channel_id(123) for s in stories)
+
+
+def test_get_story_album_stories_limit_and_offset():
+    client = album_client({1: [story_item(2), story_item(3)]})
+    stories = collect(lambda: client.get_story_album_stories(-100123, 5, limit=1, offset=1))
+
+    requests = [q for q in client.sent if isinstance(q, raw.functions.stories.GetAlbumStories)]
+    assert [(q.offset, q.limit) for q in requests] == [(1, 1)]
+    assert [s.id for s in stories] == [2]
+
+
+# search_global / search_global_count: community_id
+
+COMMUNITY = raw.types.InputChannel(channel_id=123, access_hash=1)
+
+
+def test_search_global_count_in_community():
+    client = offline_client(PEERS, lambda q: raw.types.messages.MessagesSlice(
+        count=12, messages=[], topics=[], chats=[], users=[]
+    ))
+    assert call(lambda: client.search_global_count("hi", community_id=-100123)) == 12
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SearchGlobal)
+    assert request.q == "hi" and request.community.write() == COMMUNITY.write()
+
+
+def test_search_global_in_community():
+    client = offline_client(PEERS, lambda q: raw.types.messages.Messages(messages=[], topics=[], chats=[], users=[]))
+    assert collect(lambda: client.search_global("hi", community_id=-100123)) == []
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SearchGlobal)
+    assert request.community.write() == COMMUNITY.write()
+
+
+def test_search_global_without_community():
+    client = offline_client(PEERS, lambda q: raw.types.messages.Messages(messages=[], topics=[], chats=[], users=[]))
+    assert call(lambda: client.search_global_count("hi")) == 0
+    assert client.sent[-1].community is None
+
+    with pytest.raises(ValueError):
+        call(lambda: client.search_global_count("hi", community_id=7))
+
+
+# Live drafts: send_text_message_draft, stop_pending_message, PendingMessage, MessageDraftStopped
+
+def test_send_text_message_draft():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.send_text_message_draft(
+        7, 11, "Hello **world**", message_thread_id=5, can_stop=True
+    )) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SetTyping)
+    assert request.peer.write() == USER.write() and request.top_msg_id == 5
+    action = request.action
+    assert isinstance(action, raw.types.SendMessageTextDraftAction)
+    assert action.random_id == 11 and action.can_stop and not action.keep_on_stop
+    assert action.text.text == "Hello world"
+    [entity] = action.text.entities
+    assert isinstance(entity, raw.types.MessageEntityBold) and (entity.offset, entity.length) == (6, 5)
+
+
+def test_send_text_message_draft_placeholder():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.send_text_message_draft(7, 11, keep_on_stop=True)) is True
+
+    request = client.sent[-1]
+    assert request.top_msg_id is None
+    assert request.action.text.text == "" and request.action.text.entities == []
+    assert request.action.keep_on_stop and not request.action.can_stop
+
+
+def test_stop_pending_message():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.stop_pending_message(7, 11, message_thread_id=5)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.SetTyping)
+    assert request.peer.write() == USER.write() and request.top_msg_id == 5
+    assert isinstance(request.action, raw.types.SendMessageStopDraftAction) and request.action.random_id == 11
+
+
+def test_pending_message_parsing():
+    update = roundtrip(raw.types.UpdateUserTyping(
+        user_id=99, top_msg_id=5,
+        action=raw.types.SendMessageTextDraftAction(
+            random_id=11, can_stop=True, keep_on_stop=True,
+            text=raw.types.TextWithEntities(text="Hello world", entities=[
+                raw.types.MessageEntityItalic(offset=0, length=5)
+            ])
+        )
+    ))
+    pending = types.PendingMessage._parse(None, update, {99: roundtrip(RAW_BOT)})
+
+    assert isinstance(pending, types.PendingMessage)
+    assert pending.chat.id == 99 and pending.chat.type == enums.ChatType.BOT
+    assert (pending.draft_id, pending.message_thread_id) == (11, 5)
+    assert pending.text == "Hello world" and pending.can_stop and pending.keep_on_stop
+    [entity] = pending.entities
+    assert entity.type == enums.MessageEntityType.ITALIC and (entity.offset, entity.length) == (0, 5)
+
+    placeholder = types.PendingMessage._parse(None, roundtrip(raw.types.UpdateUserTyping(
+        user_id=99, action=raw.types.SendMessageTextDraftAction(
+            random_id=12, text=raw.types.TextWithEntities(text="", entities=[])
+        )
+    )), {})
+    assert placeholder.text == "" and placeholder.entities is None and not placeholder.can_stop
+    assert placeholder.chat.id == 99 and placeholder.message_thread_id is None
+
+    typing = roundtrip(raw.types.UpdateUserTyping(user_id=99, action=raw.types.SendMessageTypingAction()))
+    assert types.PendingMessage._parse(None, typing, {}) is None
+
+
+def test_message_draft_stopped_parsing():
+    update = roundtrip(raw.types.UpdateUserTyping(
+        user_id=7, top_msg_id=5, action=raw.types.SendMessageStopDraftAction(random_id=11)
+    ))
+    stopped = types.MessageDraftStopped._parse(None, update, {})
+
+    assert isinstance(stopped, types.MessageDraftStopped)
+    assert stopped.chat.id == 7 and stopped.chat.type == enums.ChatType.PRIVATE
+    assert (stopped.draft_id, stopped.message_thread_id) == (11, 5)
+
+    invalid = roundtrip(raw.types.UpdateUserTyping(user_id=7, action=raw.types.SendMessageStopDraftAction(random_id=0)))
+    assert types.MessageDraftStopped._parse(None, invalid, {}) is None
+    draft = roundtrip(raw.types.UpdateUserTyping(user_id=7, action=raw.types.SendMessageTextDraftAction(
+        random_id=1, text=raw.types.TextWithEntities(text="x", entities=[])
+    )))
+    assert types.MessageDraftStopped._parse(None, draft, {}) is None
+
+
+# send_message_view_metrics
+
+def test_send_message_view_metrics():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.send_message_view_metrics(-100123, 42, 2500, 2000, 1500, 1000)) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.messages.ReportReadMetrics)
+    assert request.peer.write() == CHANNEL.write()
+    [metric] = request.metrics
+    assert isinstance(metric, raw.types.InputMessageReadMetric)
+    assert (metric.msg_id, metric.time_in_view_ms, metric.active_time_in_view_ms) == (42, 2500, 2000)
+    assert (metric.height_to_viewport_ratio_permille, metric.seen_range_ratio_permille) == (1500, 1000)
+    assert metric.view_id != 0
+
+    call(lambda: client.send_message_view_metrics(-100123, 42, 2500, 2000, 1500, 1000))
+    assert client.sent[-1].metrics[0].view_id != metric.view_id
+
+
+@pytest.mark.parametrize("metrics", [(-1, 0, 0, 0), (0, -1, 0, 0), (0, 0, -1, 0), (0, 0, 0, 1001), (0, 0, 0, -1)])
+def test_send_message_view_metrics_rejects_invalid_metrics(metrics):
+    client = offline_client(PEERS, lambda q: True)
+    with pytest.raises(ValueError):
+        call(lambda: client.send_message_view_metrics(-100123, 42, *metrics))
+    assert client.sent == []
+
+
+# Firebase Phone Number Verification login, web tokens
+
+def test_firebase_pnv_intent_parsing():
+    intent = types.FirebasePnvIntent._parse(roundtrip(raw.types.auth.FirebasePnvIntent(
+        nonce="nonce", digital_credential_payload="payload"
+    )))
+    assert (intent.nonce, intent.digital_credential_payload) == ("nonce", "payload")
+
+
+def test_init_firebase_pnv_login():
+    client = offline_client(PEERS, lambda q: raw.types.auth.FirebasePnvIntent(
+        nonce="nonce", digital_credential_payload="payload"
+    ))
+    intent = call(lambda: client.init_firebase_pnv_login(except_ids=[5, 6]))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.auth.InitFirebasePnvLogin)
+    assert (request.api_id, request.api_hash, request.except_ids) == (1, "x", [5, 6])
+    assert isinstance(intent, types.FirebasePnvIntent) and intent.nonce == "nonce"
+
+    call(lambda: client.init_firebase_pnv_login())
+    assert client.sent[-1].except_ids == []  # an absent flag vector is read back as []
+
+
+def test_init_firebase_pnv_login_migrates(monkeypatch):
+    from pyrogram.methods.auth import init_firebase_pnv_login
+    events = []
+
+    class FakeAuth:
+        def __init__(self, client, dc_id, test_mode):
+            events.append(("auth", dc_id))
+
+        async def create(self):
+            return b"k" * 256
+
+    class FakeSession:
+        def __init__(self, client, dc_id, auth_key, test_mode):
+            self.dc_id = dc_id
+
+        async def start(self):
+            events.append(("start", self.dc_id))
+
+        async def stop(self):
+            events.append(("stop", self.dc_id))
+
+    monkeypatch.setattr(init_firebase_pnv_login, "Auth", FakeAuth)
+    monkeypatch.setattr(init_firebase_pnv_login, "Session", FakeSession)
+    answers = [errors.PhoneMigrate(value=4), raw.types.auth.FirebasePnvIntent(nonce="n", digital_credential_payload="")]
+
+    def respond(query):
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    client = storage_client(respond)
+    client.session = FakeSession(client, 2, None, False)
+    intent = call(lambda: client.init_firebase_pnv_login())
+
+    assert intent.nonce == "n" and len(client.sent) == 2
+    assert events == [("stop", 2), ("auth", 4), ("start", 4)]
+    assert call(lambda: client.storage.dc_id()) == 4 and call(lambda: client.storage.auth_key()) == b"k" * 256
+
+
+def test_finish_firebase_pnv_login():
+    client = storage_client(lambda q: raw.types.auth.Authorization(user=raw_user(7)))
+    user = call(lambda: client.finish_firebase_pnv_login("google-token"))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.auth.FinishFirebasePnvLogin) and request.google_token == "google-token"
+    assert isinstance(user, types.User) and user.id == 7
+    assert call(lambda: client.storage.user_id()) == 7 and call(lambda: client.storage.is_bot()) == 0  # False
+
+
+def test_finish_firebase_pnv_login_sign_up_required():
+    terms = raw.types.help.TermsOfService(id=raw.types.DataJSON(data="tos"), text="Terms", entities=[])
+    client = storage_client(lambda q: raw.types.auth.AuthorizationSignUpRequired(terms_of_service=terms))
+    terms_of_service = call(lambda: client.finish_firebase_pnv_login("google-token"))
+    assert isinstance(terms_of_service, types.TermsOfService)
+    assert (terms_of_service.id, terms_of_service.text) == ("tos", "Terms")
+
+    client = storage_client(lambda q: raw.types.auth.AuthorizationSignUpRequired())
+    assert call(lambda: client.finish_firebase_pnv_login("google-token")) is False
+
+
+def test_firebase_pnv_sign_up():
+    client = storage_client(lambda q: raw.types.auth.Authorization(user=raw_user(8)))
+    user = call(lambda: client.firebase_pnv_sign_up("First", "Last", disable_notification=True))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.auth.FirebasePnvSignUp)
+    assert (request.first_name, request.last_name, request.no_joined_notifications) == ("First", "Last", True)
+    assert user.id == 8 and call(lambda: client.storage.user_id()) == 8
+
+
+def test_dismiss_web_token():
+    client = offline_client(PEERS, lambda q: True)
+    assert call(lambda: client.dismiss_web_token("token")) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.auth.CancelWebTokenAuthorization)
+    assert request.web_auth_token == "token"
+
+
+# Web browser settings
+
+def web_domain_exception(domain, favicon=None):
+    return raw.types.WebDomainException(domain=domain, url=f"https://{domain}/page", title=domain.title(),
+                                        favicon=favicon)
+
+
+def web_browser_settings(**kwargs):
+    return raw.types.account.WebBrowserSettings(
+        external_exceptions=[web_domain_exception("external.org", favicon=5)],
+        inapp_exceptions=[web_domain_exception("inapp.org")], hash=1, **kwargs
+    )
+
+
+def test_web_domain_exception_parsing():
+    exception = types.WebDomainException._parse(roundtrip(web_domain_exception("example.org", favicon=77)))
+    assert (exception.url, exception.domain, exception.title) == ("https://example.org/page", "example.org", "Example.Org")
+    assert exception.favicon_custom_emoji_id == 77
+    assert types.WebDomainException._parse(roundtrip(web_domain_exception("x.org"))).favicon_custom_emoji_id is None
+
+
+def test_web_browser_settings_parsing():
+    settings = types.WebBrowserSettings._parse(roundtrip(web_browser_settings(open_external_browser=True)))
+    assert settings.open_external_browser is True and settings.display_close_button is False
+    assert [e.domain for e in settings.external_exceptions] == ["external.org"]
+    assert settings.external_exceptions[0].favicon_custom_emoji_id == 5
+    assert [e.domain for e in settings.in_app_exceptions] == ["inapp.org"]
+
+    assert types.WebBrowserSettings._parse(roundtrip(raw.types.account.WebBrowserSettingsNotModified())) is None
+
+
+def test_get_web_browser_settings():
+    client = offline_client(PEERS, lambda q: web_browser_settings(display_close_button=True))
+    settings = call(lambda: client.get_web_browser_settings())
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.account.GetWebBrowserSettings) and request.hash == 0
+    assert isinstance(settings, types.WebBrowserSettings)
+    assert settings.display_close_button and not settings.open_external_browser
+
+
+def test_change_web_browser_settings():
+    client = offline_client(PEERS, lambda q: web_browser_settings(open_external_browser=True))
+    settings = call(lambda: client.change_web_browser_settings(True, False))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.account.UpdateWebBrowserSettings)
+    assert request.open_external_browser and not request.display_close_button
+    assert settings.open_external_browser
+
+
+@pytest.mark.parametrize("open_external_browser", [True, False])
+def test_add_web_browser_settings_exception(open_external_browser):
+    client = offline_client(PEERS, lambda q: empty_updates(updates=[raw.types.UpdateWebBrowserException(
+        exception=web_domain_exception("example.org"), open_external_browser=open_external_browser
+    )]))
+    assert call(lambda: client.add_web_browser_settings_exception("https://example.org", open_external_browser))
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.account.ToggleWebBrowserSettingsException)
+    assert request.url == "https://example.org" and not request.delete
+    # The Bool is always sent, even when False: it chooses the external or the in-app browser
+    assert request.open_external_browser is open_external_browser
+
+
+def test_remove_web_browser_settings_exception():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    assert call(lambda: client.remove_web_browser_settings_exception("https://example.org")) is True
+
+    request = client.sent[-1]
+    assert isinstance(request, raw.functions.account.ToggleWebBrowserSettingsException)
+    assert request.url == "https://example.org" and request.delete and request.open_external_browser is None
+
+
+def test_remove_all_web_browser_settings_exceptions():
+    client = offline_client(PEERS, lambda q: raw.types.account.WebBrowserSettings(
+        external_exceptions=[], inapp_exceptions=[], hash=2
+    ))
+    settings = call(lambda: client.remove_all_web_browser_settings_exceptions())
+
+    assert isinstance(client.sent[-1], raw.functions.account.DeleteWebBrowserSettingsExceptions)
+    assert settings.external_exceptions == [] and settings.in_app_exceptions == []

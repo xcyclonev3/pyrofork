@@ -141,3 +141,36 @@ class MessageServiceType(AutoName):
 
     TODO_TASKS_COMPLETION = auto()
     "To-Do tasks completion/incompletion"
+
+    POLL_OPTION_ADDED = auto()
+    "Poll option added"
+
+    POLL_OPTION_DELETED = auto()
+    "Poll option deleted"
+
+    CHAT_ADDED_TO_COMMUNITY = auto()
+    "Chat added to a community"
+
+    CHAT_REMOVED_FROM_COMMUNITY = auto()
+    "Chat removed from its community"
+
+    MANAGED_BOT_CREATED = auto()
+    "Managed bot created"
+
+    CHAT_OWNER_LEFT = auto()
+    "Chat owner left"
+
+    CHAT_OWNER_CHANGED = auto()
+    "Chat owner changed"
+
+    CHAT_HAS_PROTECTED_CONTENT_TOGGLED = auto()
+    "Chat content protection changed"
+
+    CHAT_HAS_PROTECTED_CONTENT_DISABLE_REQUESTED = auto()
+    "Request to disable the chat content protection"
+
+    TON_WALLET_TRANSFER = auto()
+    "TON wallet transfer"
+
+    TON_CONNECT_REQUEST = auto()
+    "TON Connect request"

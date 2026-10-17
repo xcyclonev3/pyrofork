@@ -140,6 +140,32 @@ ChatJoinRequest
 
     {chat_join_request_toctree}
 
+GuestQuery
+----------
+
+.. hlist::
+    :columns: 2
+
+    {guest_query_hlist}
+
+.. toctree::
+    :hidden:
+
+    {guest_query_toctree}
+
+EphemeralMessage
+----------------
+
+.. hlist::
+    :columns: 2
+
+    {ephemeral_message_hlist}
+
+.. toctree::
+    :hidden:
+
+    {ephemeral_message_toctree}
+
 Folder
 ---------------
 

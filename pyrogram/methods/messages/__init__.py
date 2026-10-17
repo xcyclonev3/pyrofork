@@ -17,21 +17,39 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from .add_poll_option import AddPollOption
 from .add_task_to_todo import AddTaskToTodo
+from .add_text_composition_style import AddTextCompositionStyle
+from .compose_rich_message_with_ai import ComposeRichMessageWithAi
+from .compose_text_with_ai import ComposeTextWithAi
 from .copy_media_group import CopyMediaGroup
 from .copy_message import CopyMessage
+from .create_rich_message_with_ai import CreateRichMessageWithAi
+from .create_text_composition_style import CreateTextCompositionStyle
+from .delete_all_recent_message_reactions_from_sender import DeleteAllRecentMessageReactionsFromSender
 from .delete_chat_history import DeleteChatHistory
+from .delete_ephemeral_message import DeleteEphemeralMessage
+from .delete_message_reactions_from_sender import DeleteMessageReactionsFromSender
 from .delete_messages import DeleteMessages
+from .delete_poll_option import DeletePollOption
 from .delete_scheduled_messages import DeleteScheduledMessages
+from .delete_text_composition_style import DeleteTextCompositionStyle
 from .download_media import DownloadMedia
+from .edit_ephemeral_message import EditEphemeralMessage
+from .edit_ephemeral_message_caption import EditEphemeralMessageCaption
 from .edit_inline_caption import EditInlineCaption
 from .edit_inline_media import EditInlineMedia
 from .edit_inline_reply_markup import EditInlineReplyMarkup
+from .edit_inline_rich_message import EditInlineRichMessage
 from .edit_inline_text import EditInlineText
 from .edit_message_caption import EditMessageCaption
 from .edit_message_media import EditMessageMedia
 from .edit_message_reply_markup import EditMessageReplyMarkup
+from .edit_message_rich_message import EditMessageRichMessage
 from .edit_message_text import EditMessageText
+from .edit_text_composition_style import EditTextCompositionStyle
+from .fix_rich_message_with_ai import FixRichMessageWithAi
+from .fix_text_with_ai import FixTextWithAi
 from .forward_media_group import ForwardMediaGroup
 from .forward_messages import ForwardMessages
 from .get_available_effects import GetAvailableEffects
@@ -41,11 +59,23 @@ from .get_custom_emoji_stickers import GetCustomEmojiStickers
 from .get_discussion_message import GetDiscussionMessage
 from .get_discussion_replies import GetDiscussionReplies
 from .get_discussion_replies_count import GetDiscussionRepliesCount
+from .get_full_rich_message import GetFullRichMessage
 from .get_media_group import GetMediaGroup
 from .get_messages import GetMessages
 from .get_message_read_participants import GetMessageReadParticipants
+from .get_personal_chat_history import GetPersonalChatHistory
+from .get_poll_vote_statistics import GetPollVoteStatistics
 from .get_scheduled_messages import GetScheduledMessages
+from .get_stake_dice_state import GetStakeDiceState
+from .get_text_composition_style_example import GetTextCompositionStyleExample
+from .get_text_composition_styles import GetTextCompositionStyles
+from .get_unread_poll_votes import GetUnreadPollVotes
+from .listen_to_audio import ListenToAudio
+from .read_all_chat_poll_votes import ReadAllChatPollVotes
 from .read_chat_history import ReadChatHistory
+from .remove_text_composition_style import RemoveTextCompositionStyle
+from .report_ephemeral_message import ReportEphemeralMessage
+from .request_ephemeral_callback_answer import RequestEphemeralCallbackAnswer
 from .retract_vote import RetractVote
 from .search_global import SearchGlobal
 from .search_global_count import SearchGlobalCount
@@ -53,6 +83,14 @@ from .search_global_hashtag_messages import SearchGlobalHashtagMessages
 from .search_global_hashtag_messages_count import SearchGlobalHashtagMessagesCount
 from .search_messages import SearchMessages
 from .search_messages_count import SearchMessagesCount
+from .search_text_composition_style import SearchTextCompositionStyle
+from .send_ephemeral_message import SendEphemeralMessage
+from .send_message_view_metrics import SendMessageViewMetrics
+from .send_rich_message import SendRichMessage
+from .send_rich_message_draft import SendRichMessageDraft
+from .send_stake_dice import SendStakeDice
+from .send_text_message_draft import SendTextMessageDraft
+from .set_chat_draft_message import SetChatDraftMessage
 from .set_todo_tasks_completion import SetTodoTasksCompletion
 from .send_animation import SendAnimation
 from .send_audio import SendAudio
@@ -75,8 +113,12 @@ from .send_video_note import SendVideoNote
 from .send_voice import SendVoice
 from .send_web_page import SendWebPage
 from .start_bot import StartBot
+from .stop_pending_message import StopPendingMessage
 from .stop_poll import StopPoll
 from .stream_media import StreamMedia
+from .summarize_message import SummarizeMessage
+from .translate_message_rich_message import TranslateMessageRichMessage
+from .translate_rich_message import TranslateRichMessage
 from .vote_poll import VotePoll
 from .transcribe_audio import TranscribeAudio
 from .translate_text import TranslateText
@@ -144,6 +186,48 @@ class Messages(
     GetCustomEmojiStickers,
     TranscribeAudio,
     TranslateText,
-    StartBot
+    StartBot,
+    AddPollOption,
+    DeletePollOption,
+    GetUnreadPollVotes,
+    ReadAllChatPollVotes,
+    GetStakeDiceState,
+    SendStakeDice,
+    GetTextCompositionStyles,
+    CreateTextCompositionStyle,
+    EditTextCompositionStyle,
+    DeleteTextCompositionStyle,
+    SearchTextCompositionStyle,
+    GetTextCompositionStyleExample,
+    AddTextCompositionStyle,
+    RemoveTextCompositionStyle,
+    ComposeTextWithAi,
+    FixTextWithAi,
+    SummarizeMessage,
+    ListenToAudio,
+    GetPersonalChatHistory,
+    DeleteMessageReactionsFromSender,
+    DeleteAllRecentMessageReactionsFromSender,
+    GetPollVoteStatistics,
+    SendTextMessageDraft,
+    StopPendingMessage,
+    SendMessageViewMetrics,
+    SendRichMessage,
+    EditMessageRichMessage,
+    EditInlineRichMessage,
+    GetFullRichMessage,
+    TranslateRichMessage,
+    TranslateMessageRichMessage,
+    ComposeRichMessageWithAi,
+    CreateRichMessageWithAi,
+    FixRichMessageWithAi,
+    SendRichMessageDraft,
+    SetChatDraftMessage,
+    SendEphemeralMessage,
+    EditEphemeralMessage,
+    EditEphemeralMessageCaption,
+    DeleteEphemeralMessage,
+    RequestEphemeralCallbackAnswer,
+    ReportEphemeralMessage
 ):
     pass

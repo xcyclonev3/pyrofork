@@ -25,8 +25,9 @@ class Client:
 
 
 class User:
-    def __init__(self, username: str = None):
+    def __init__(self, username: str = None, usernames: list = None):
         self.username = username
+        self.usernames = usernames
 
 
 class Message:

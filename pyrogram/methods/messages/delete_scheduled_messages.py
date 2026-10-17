@@ -60,10 +60,24 @@ class DeleteScheduledMessages:
         message_ids = list(message_ids) if is_iterable else [message_ids]
 
         r = await self.invoke(
-            raw.functions.channels.DeleteMessages(
+            raw.functions.messages.DeleteScheduledMessages(
                 peer=peer,
                 id=message_ids
             )
         )
 
-        return r.messages if is_iterable else r.messages[0]
+        if isinstance(r, (raw.types.Updates, raw.types.UpdatesCombined)):
+            updates = r.updates
+        elif isinstance(r, raw.types.UpdateShort):
+            updates = [r.update]
+        else:
+            updates = []  # updatesTooLong: the deleted messages are unknown
+
+        deleted_ids = [
+            i
+            for update in updates
+            if isinstance(update, raw.types.UpdateDeleteScheduledMessages)
+            for i in update.messages
+        ]
+
+        return deleted_ids if is_iterable else (deleted_ids[0] if deleted_ids else None)

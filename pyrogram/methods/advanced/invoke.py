@@ -87,4 +87,11 @@ class Invoke:
         await self.fetch_peers(getattr(r, "users", []))
         await self.fetch_peers(getattr(r, "chats", []))
 
+        # Some results wrap an Updates object (e.g. messages.chatInviteJoinResultOk, payments.paymentResult)
+        nested_updates = getattr(r, "updates", None)
+
+        if isinstance(nested_updates, (raw.types.Updates, raw.types.UpdatesCombined)):
+            await self.fetch_peers(nested_updates.users)
+            await self.fetch_peers(nested_updates.chats)
+
         return r
