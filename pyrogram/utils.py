@@ -422,8 +422,22 @@ async def get_input_poll_media(
     """The InputMedia of a media attached to a poll, to one of its options or to a quiz explanation.
 
     As in send_media_group: file ids and URLs are sent as they are, local or in-memory files are uploaded to
-    the chat with messages.uploadMedia first.
+    the chat with messages.uploadMedia first. Photos keep their live video, like TDLib's inputPollMediaPhoto.
     """
+    input_media = await _get_input_poll_media(client, peer, media)
+    live_video = getattr(media, "live_video", None) if isinstance(media, types.InputMediaPhoto) else None
+
+    if input_media is not None and live_video is not None:
+        input_media = await add_live_photo_video(client, peer, input_media, live_video)
+
+    return input_media
+
+
+async def _get_input_poll_media(
+    client: "pyrogram.Client",
+    peer: "raw.base.InputPeer",
+    media: Optional["types.InputMedia"]
+) -> Optional["raw.base.InputMedia"]:
     if media is None:
         return None
 
@@ -827,6 +841,11 @@ async def get_input_message_content(
             if kind == "photo"
             else raw.types.InputMediaDocument(id=uploaded, spoiler=spoiler)
         )
+
+        if kind == "photo" and getattr(media, "live_video", None) is not None:
+            peer = await client.resolve_peer(chat_id) if chat_id is not None else raw.types.InputPeerSelf()
+            input_media = await add_live_photo_video(client, peer, input_media, media.live_video)
+
         caption = await parse_text_entities(client, media.caption or "", media.parse_mode, media.caption_entities)
 
         return dict(message=caption["message"], entities=caption["entities"], media=input_media, rich_message=None)

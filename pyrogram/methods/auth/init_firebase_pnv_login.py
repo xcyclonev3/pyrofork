@@ -20,6 +20,8 @@ from typing import List, Optional
 
 import pyrogram
 from pyrogram import raw, types
+from pyrogram.errors import NetworkMigrate, PhoneMigrate
+from pyrogram.session import Auth, Session
 
 
 class InitFirebasePnvLogin:
@@ -48,12 +50,31 @@ class InitFirebasePnvLogin:
 
                 intent = await app.init_firebase_pnv_login()
         """
-        r = await self.invoke(
-            raw.functions.auth.InitFirebasePnvLogin(
-                api_id=self.api_id,
-                api_hash=self.api_hash,
-                except_ids=except_ids
-            )
-        )
+        while True:
+            try:
+                r = await self.invoke(
+                    raw.functions.auth.InitFirebasePnvLogin(
+                        api_id=self.api_id,
+                        api_hash=self.api_hash,
+                        except_ids=except_ids
+                    )
+                )
+            except (PhoneMigrate, NetworkMigrate) as e:
+                # Like send_code: the login must start on the data center of the user
+                await self.session.stop()
 
-        return types.FirebasePnvIntent._parse(r)
+                await self.storage.dc_id(e.value)
+                await self.storage.auth_key(
+                    await Auth(
+                        self, await self.storage.dc_id(),
+                        await self.storage.test_mode()
+                    ).create()
+                )
+                self.session = Session(
+                    self, await self.storage.dc_id(),
+                    await self.storage.auth_key(), await self.storage.test_mode()
+                )
+
+                await self.session.start()
+            else:
+                return types.FirebasePnvIntent._parse(r)

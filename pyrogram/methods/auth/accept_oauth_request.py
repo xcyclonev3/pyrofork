@@ -36,7 +36,7 @@ class AcceptOauthRequest:
 
         Parameters:
             url (``str``):
-                The OAuth deep link.
+                The OAuth deep link, as returned in *url* of :obj:`~pyrogram.types.OauthLinkInfo`.
 
             match_code (``str``, *optional*):
                 The code chosen by the user among :obj:`~pyrogram.types.OauthLinkInfo` *match_codes*.

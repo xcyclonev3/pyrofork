@@ -16,6 +16,8 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import Optional
+
 import pyrogram
 from .login_url_info import LoginUrlInfo
 
@@ -24,17 +26,19 @@ class LoginUrlInfoOpen(LoginUrlInfo):
     """An HTTP URL needs to be opened.
 
     Parameters:
-        url (``str``):
-            The URL to open.
-
         skip_confirmation (``bool``):
             True, if there is no need to show an ordinary open URL confirmation.
+
+        url (``str``, *optional*):
+            The URL to open.
+            None, if the user is already logged in and just a notification about the successful login has to be
+            shown.
     """
 
     def __init__(
         self,
         *,
-        url: str,
+        url: Optional[str] = None,
         skip_confirmation: bool,
         client: "pyrogram.Client" = None
     ):

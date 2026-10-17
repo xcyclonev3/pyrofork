@@ -227,7 +227,7 @@ class EditInlineMedia:
                     access_hash=uploaded_media.document.access_hash,
                     file_reference=uploaded_media.document.file_reference
                 ),
-                spoiler=getattr(media, "has_spoiler", None)
+                spoiler=media.spoiler
             )
         else:
             actual_media = media

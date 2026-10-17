@@ -17,7 +17,7 @@
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
 import pyrogram
-from pyrogram import raw, types
+from pyrogram import errors, raw, types
 
 
 class GetExternalLinkInfo:
@@ -31,6 +31,10 @@ class GetExternalLinkInfo:
         authorization confirmation is needed, ask the user and then get the URL to open with
         :meth:`~pyrogram.Client.get_external_link`.
 
+        Unlike the official apps, which only ask Telegram about the links to those websites, the link is always sent
+        to Telegram. Like in the official apps, a link that can't be used to log in is returned as an ordinary link
+        to open.
+
         .. include:: /_includes/usable-by/users.rst
 
         Parameters:
@@ -41,13 +45,23 @@ class GetExternalLinkInfo:
             :obj:`~pyrogram.types.LoginUrlInfoOpen` | :obj:`~pyrogram.types.LoginUrlInfoRequestConfirmation`: On
             success, what to do with the link is returned.
 
+        Raises:
+            UrlExpired: In case the authorization link has expired.
+            UrlInvalid: In case the authorization link is invalid.
+
         Example:
             .. code-block:: python
 
                 info = await app.get_external_link_info("https://example.telegram.org")
         """
-        r = await self.invoke(
-            raw.functions.messages.RequestUrlAuth(url=link)
-        )
+        try:
+            r = await self.invoke(
+                raw.functions.messages.RequestUrlAuth(url=link)
+            )
+        except (errors.UrlExpired, errors.UrlInvalid):
+            raise
+        except (errors.BadRequest, errors.Forbidden):
+            # As TDLib does: a link that can't be used to log in is opened as an ordinary link
+            return types.LoginUrlInfoOpen(url=link, skip_confirmation=False, client=self)
 
         return types.LoginUrlInfo._parse(self, r, link)

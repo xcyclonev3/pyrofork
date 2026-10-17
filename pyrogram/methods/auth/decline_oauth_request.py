@@ -31,7 +31,7 @@ class DeclineOauthRequest:
 
         Parameters:
             url (``str``):
-                The OAuth deep link.
+                The OAuth deep link, as returned in *url* of :obj:`~pyrogram.types.OauthLinkInfo`.
 
         Returns:
             ``bool``: On success, True is returned.

@@ -19,7 +19,7 @@
 from typing import Union
 
 import pyrogram
-from pyrogram import raw, types
+from pyrogram import errors, raw, types
 
 
 async def get_login_button_url(
@@ -56,6 +56,7 @@ class GetLoginUrlInfo:
 
         Call it when the user presses the button: if an authorization confirmation is needed, ask the user and then
         get the URL to open with :meth:`~pyrogram.Client.get_login_url`.
+        Like in the official apps, a button that can't be used to log in is returned as an ordinary link to open.
 
         .. include:: /_includes/usable-by/users.rst
 
@@ -75,6 +76,8 @@ class GetLoginUrlInfo:
 
         Raises:
             ValueError: In case the message has no login button with the given identifier.
+            UrlExpired: In case the authorization link of the button has expired.
+            UrlInvalid: In case the authorization link of the button is invalid.
 
         Example:
             .. code-block:: python
@@ -89,12 +92,20 @@ class GetLoginUrlInfo:
         """
         url = await get_login_button_url(self, chat_id, message_id, button_id)
 
-        r = await self.invoke(
-            raw.functions.messages.RequestUrlAuth(
-                peer=await self.resolve_peer(chat_id),
-                msg_id=message_id,
-                button_id=button_id
+        peer = await self.resolve_peer(chat_id)
+
+        try:
+            r = await self.invoke(
+                raw.functions.messages.RequestUrlAuth(
+                    peer=peer,
+                    msg_id=message_id,
+                    button_id=button_id
+                )
             )
-        )
+        except (errors.UrlExpired, errors.UrlInvalid):
+            raise
+        except (errors.BadRequest, errors.Forbidden):
+            # As TDLib does: a button that can't be used to log in is opened as an ordinary URL button
+            return types.LoginUrlInfoOpen(url=url, skip_confirmation=False, client=self)
 
         return types.LoginUrlInfo._parse(self, r, url)

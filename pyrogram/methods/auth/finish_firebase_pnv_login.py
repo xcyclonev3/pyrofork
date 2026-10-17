@@ -57,10 +57,14 @@ class FinishFirebasePnvLogin:
             :obj:`~pyrogram.types.User` | :obj:`~pyrogram.types.TermsOfService` | ``bool``: In case the
             authorization completed, the user is returned. In case the phone number is not registered on Telegram,
             the Terms of Service to accept (or False if there are none) are returned: register the account with
-            :meth:`~pyrogram.Client.firebase_pnv_sign_up`.
+            :meth:`~pyrogram.Client.firebase_pnv_sign_up`, then accept them with
+            ``raw.functions.help.AcceptTermsOfService(id=raw.types.DataJSON(data=terms.id))``.
 
         Raises:
             SessionPasswordNeeded: In case a password is needed to sign in.
+            PhoneMigrate | UserMigrate: In case the account is on another data center. The verification is bound to
+                the data center of :meth:`~pyrogram.Client.init_firebase_pnv_login`, so the login can't simply be
+                finished there: log in with :meth:`~pyrogram.Client.send_code` instead.
 
         Example:
             .. code-block:: python

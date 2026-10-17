@@ -54,10 +54,13 @@ class GetLoginUrl:
                 Pass True to allow the bot to send messages to the current user.
 
             allow_phone_number_access (``bool``, *optional*):
-                Pass True to share the phone number of the current user with the bot, if it was requested.
+                Pass True to share the phone number of the current user with the bot, if it was requested (see
+                *request_phone_number_access* of :obj:`~pyrogram.types.LoginUrlInfoRequestConfirmation`).
+                Login buttons can't request the phone number at the moment.
 
         Returns:
-            ``str``: On success, the URL to open is returned.
+            ``str`` | ``None``: On success, the URL to open is returned, or None if just a notification about the
+            successful login has to be shown.
 
         Raises:
             ValueError: In case the message has no login button with the given identifier.

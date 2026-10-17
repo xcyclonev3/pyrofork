@@ -376,6 +376,8 @@ def fake_uploads(client):
     saved = []
 
     async def save_file(path, *args, **kwargs):
+        if path is None:
+            return None  # like Client.save_file, e.g. for a missing thumbnail
         saved.append(path)
         return raw.types.InputFile(id=len(saved), parts=1, name=os.path.basename(path), md5_checksum="")
 
@@ -562,6 +564,65 @@ def test_edit_inline_media_uploads_static_photo(tmp_path):
     assert isinstance(upload.media, raw.types.InputMediaUploadedPhoto) and not upload.media.live_photo
     assert isinstance(request.media, raw.types.InputMediaPhoto) and request.media.spoiler
     assert not request.media.live_photo and request.media.video is None
+
+
+def test_edit_inline_media_uploads_video_with_spoiler(tmp_path):
+    video = tmp_path / "clip.mp4"
+    video.write_bytes(b"mp4")
+    client = inline_client(lambda q: upload_respond(q) if isinstance(q, raw.functions.messages.UploadMedia) else True)
+    fake_uploads(client)
+    call(lambda: client.edit_inline_media(inline_message_id(), types.InputMediaVideo(str(video), has_spoiler=True)))
+
+    upload, request = client.sent
+    assert isinstance(upload.media, raw.types.InputMediaUploadedDocument) and upload.media.spoiler
+    # the uploaded video keeps its spoiler (it used to be dropped)
+    assert isinstance(request.media, raw.types.InputMediaDocument) and request.media.spoiler
+    assert request.media.id.id == 3001
+
+
+def test_send_poll_media_with_live_photos():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    call(lambda: client.send_poll(
+        -100123, "Q?",
+        [types.PollOption("a", media=types.InputMediaPhoto(photo_file_id(2002), live_video=LIVE_VIDEO_ID)),
+         types.PollOption("b")],
+        media=types.InputMediaPhoto(photo_file_id(2001), live_video=LIVE_VIDEO_ID)
+    ))
+
+    [request] = client.sent
+    assert_live_photo_media(request.media.attached_media, raw.types.InputMediaPhoto)
+    first, second = request.media.poll.answers
+    assert_live_photo_media(first.media, raw.types.InputMediaPhoto)
+    assert first.media.id.id == 2002 and second.media is None
+
+
+def test_poll_media_uploads_live_video(tmp_path):
+    video = tmp_path / "live.mp4"
+    video.write_bytes(b"mp4")
+    client = offline_client(PEERS, upload_respond)
+    saved = fake_uploads(client)
+    media = call(lambda: utils.get_input_poll_media(
+        client, PEERS[-100123], types.InputMediaPhoto("https://example.org/photo.jpg", live_video=str(video))
+    ))
+
+    assert saved == [str(video)]
+    video_upload, photo_upload = client.sent
+    assert video_upload.peer.write() == PEERS[-100123].write()
+    assert isinstance(video_upload.media, raw.types.InputMediaUploadedDocument)
+    assert isinstance(photo_upload.media, raw.types.InputMediaPhotoExternal)
+    assert_live_photo_media(media, raw.types.InputMediaPhoto)
+    assert media.id.id == 2001
+
+
+def test_ephemeral_and_welcome_media_keep_live_video():
+    client = offline_client(PEERS, upload_respond)
+    content = call(lambda: utils.get_input_message_content(
+        client, -100123, media=types.InputMediaPhoto(photo_file_id(2001), caption="live", live_video=LIVE_VIDEO_ID)
+    ))
+
+    assert client.sent == []  # file ids: nothing to upload
+    assert_live_photo_media(content["media"], raw.types.InputMediaPhoto)
+    assert content["media"].id.id == 2001 and content["message"] == "live"
 
 
 def test_send_cached_media_with_live_video():

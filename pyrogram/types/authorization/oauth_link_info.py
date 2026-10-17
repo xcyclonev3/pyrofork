@@ -32,7 +32,8 @@ class OauthLinkInfo(Object):
 
     Parameters:
         url (``str``):
-            The OAuth link the information is about.
+            The OAuth link the information is about, without the parameters Telegram doesn't need.
+            Pass it to the methods processing the request.
 
         domain (``str``):
             The domain of the website on which the user authorizes.

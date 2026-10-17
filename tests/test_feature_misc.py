@@ -187,6 +187,10 @@ def test_login_url_info_parsing():
     assert isinstance(accepted, types.LoginUrlInfoOpen)
     assert (accepted.url, accepted.skip_confirmation) == ("https://a/b", True)
 
+    # Already logged in, nothing to open: just a notification about the login has to be shown
+    accepted = types.LoginUrlInfo._parse(None, roundtrip(raw.types.UrlAuthResultAccepted()), "x")
+    assert (accepted.url, accepted.skip_confirmation) == (None, True)
+
     default = types.LoginUrlInfo._parse(None, roundtrip(raw.types.UrlAuthResultDefault()), "https://example.org")
     assert isinstance(default, types.LoginUrlInfoOpen)
     assert (default.url, default.skip_confirmation) == ("https://example.org", False)
@@ -215,6 +219,7 @@ def test_get_login_url_info_unknown_button():
 
 @pytest.mark.parametrize("result, expected", [
     (raw.types.UrlAuthResultAccepted(url="https://example.org/login?hash=1"), "https://example.org/login?hash=1"),
+    (raw.types.UrlAuthResultAccepted(), None),
     (raw.types.UrlAuthResultDefault(), "https://example.org/login"),
 ])
 def test_get_login_url(result, expected):
@@ -237,6 +242,35 @@ def test_get_external_link_info():
     assert request.url == "https://example.telegram.org" and request.peer is None
     assert isinstance(info, types.LoginUrlInfoOpen)
     assert (info.url, info.skip_confirmation) == ("https://example.telegram.org", False)
+
+
+def raise_error(error):
+    def respond(query):
+        raise error
+    return respond
+
+
+@pytest.mark.parametrize("error", [errors.BotInvalid(), errors.ChatWriteForbidden()])
+def test_login_url_info_of_links_that_cant_log_in(error):
+    # As TDLib does: such buttons and links are opened as ordinary links
+    client = login_button_client(raise_error(error))
+    info = call(lambda: client.get_login_url_info(-100123, 10, 3))
+    assert isinstance(info, types.LoginUrlInfoOpen)
+    assert (info.url, info.skip_confirmation) == ("https://example.org/login", False)
+
+    info = call(lambda: client.get_external_link_info("https://example.org"))
+    assert isinstance(info, types.LoginUrlInfoOpen)
+    assert (info.url, info.skip_confirmation) == ("https://example.org", False)
+    assert len(client.sent) == 2
+
+
+@pytest.mark.parametrize("error", [errors.UrlExpired, errors.UrlInvalid, errors.FloodWait, errors.AuthKeyUnregistered])
+def test_login_url_info_errors(error):
+    client = login_button_client(raise_error(error()))
+    with pytest.raises(error):
+        call(lambda: client.get_login_url_info(-100123, 10, 3))
+    with pytest.raises(error):
+        call(lambda: client.get_external_link_info("https://example.org"))
 
 
 def test_get_external_link():
@@ -268,6 +302,29 @@ def test_get_oauth_link_info():
     assert info.request_write_access and info.request_phone_number_access
     assert (info.browser, info.platform, info.ip_address, info.location) == ("Firefox", "Linux", "1.2.3.4", "Somewhere")
     assert info.match_code_first and info.match_codes == ["A", "B"]
+
+
+@pytest.mark.parametrize("link, expected", [
+    ("TG:oauth?token=abc#fragment", OAUTH_LINK),
+    ("tg://oauth/?token=a%2Bb+c&other=1&token=d", "tg://oauth?token=a%2Bb%20c"),
+    ("tg://resolve?domain=oauth&startapp=xyz&mode=compact", "tg://resolve?domain=oauth&startapp=xyz"),
+])
+def test_get_oauth_link_info_normalizes_the_link(link, expected):
+    client = offline_client(PEERS, lambda q: url_auth_request())
+    info = call(lambda: client.get_oauth_link_info(link))
+    assert client.sent[-1].url == expected and info.url == expected
+
+
+@pytest.mark.parametrize("link", [
+    "https://t.me/oauth?startapp=xyz", "tg://oauth", "tg://oauth?token=", "tg://login?token=abc",
+    "tg://oauth/extra?token=abc", "tg://resolve?domain=oauth", "tg://resolve?domain=other&startapp=xyz",
+    "tg://resolve?domain=oauth&post=1&startapp=xyz",
+])
+def test_get_oauth_link_info_rejects_other_links(link):
+    client = offline_client(PEERS, lambda q: url_auth_request())
+    with pytest.raises(ValueError):
+        call(lambda: client.get_oauth_link_info(link))
+    assert client.sent == []
 
 
 def test_oauth_link_info_minimal_request():
@@ -565,6 +622,46 @@ def test_init_firebase_pnv_login():
 
     call(lambda: client.init_firebase_pnv_login())
     assert client.sent[-1].except_ids == []  # an absent flag vector is read back as []
+
+
+def test_init_firebase_pnv_login_migrates(monkeypatch):
+    from pyrogram.methods.auth import init_firebase_pnv_login
+    events = []
+
+    class FakeAuth:
+        def __init__(self, client, dc_id, test_mode):
+            events.append(("auth", dc_id))
+
+        async def create(self):
+            return b"k" * 256
+
+    class FakeSession:
+        def __init__(self, client, dc_id, auth_key, test_mode):
+            self.dc_id = dc_id
+
+        async def start(self):
+            events.append(("start", self.dc_id))
+
+        async def stop(self):
+            events.append(("stop", self.dc_id))
+
+    monkeypatch.setattr(init_firebase_pnv_login, "Auth", FakeAuth)
+    monkeypatch.setattr(init_firebase_pnv_login, "Session", FakeSession)
+    answers = [errors.PhoneMigrate(value=4), raw.types.auth.FirebasePnvIntent(nonce="n", digital_credential_payload="")]
+
+    def respond(query):
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    client = storage_client(respond)
+    client.session = FakeSession(client, 2, None, False)
+    intent = call(lambda: client.init_firebase_pnv_login())
+
+    assert intent.nonce == "n" and len(client.sent) == 2
+    assert events == [("stop", 2), ("auth", 4), ("start", 4)]
+    assert call(lambda: client.storage.dc_id()) == 4 and call(lambda: client.storage.auth_key()) == b"k" * 256
 
 
 def test_finish_firebase_pnv_login():
