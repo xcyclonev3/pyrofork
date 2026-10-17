@@ -337,7 +337,7 @@ class Session:
         log.info("NetworkTask stopped")
 
     async def send(self, data: TLObject, wait_response: bool = True, timeout: float = WAIT_TIMEOUT, retry: int = 0):
-        message = self.msg_factory(data)
+        message, body = self.msg_factory.new(data)
         msg_id = message.msg_id
 
         if wait_response:
@@ -364,7 +364,8 @@ class Session:
                 self.salt,
                 self.session_id,
                 self.auth_key,
-                self.auth_key_id
+                self.auth_key_id,
+                body
             )
 
             try:

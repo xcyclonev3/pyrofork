@@ -17,6 +17,8 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import Tuple
+
 from pyrogram.raw.core import Message, MsgContainer, TLObject
 from pyrogram.raw.functions import Ping
 from pyrogram.raw.types import MsgsAck, HttpWait
@@ -31,9 +33,13 @@ class MsgFactory:
         self.seq_no = SeqNo()
 
     def __call__(self, body: TLObject) -> Message:
-        return Message(
-            body,
-            MsgId(),
-            self.seq_no(not isinstance(body, not_content_related)),
-            len(body)
-        )
+        return self.new(body)[0]
+
+    def new(self, body: TLObject) -> Tuple[Message, bytes]:
+        """A message for body, and body serialized: its length needs it, and packing the message can reuse it
+        instead of serializing body a second time."""
+        msg_id = MsgId()
+        seq_no = self.seq_no(not isinstance(body, not_content_related))
+        data = body.write()
+
+        return Message(body, msg_id, seq_no, len(data)), data

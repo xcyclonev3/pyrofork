@@ -181,3 +181,84 @@ def test_unpack_rejects_the_same_packets(seed):
             assert new[0] is SecurityCheckMismatch, name
         if name in ("padding 12", "padding 1024"):
             assert isinstance(new, Message), name
+
+
+# Requests are serialized once: MsgFactory.new hands the body to pack
+
+import asyncio  # noqa: E402
+
+from pyrogram.raw.core import MsgContainer  # noqa: E402
+from pyrogram.session import Session  # noqa: E402
+from pyrogram.session.internals import MsgFactory  # noqa: E402
+
+
+def bodies(rng):
+    yield raw.functions.Ping(ping_id=rng.getrandbits(62))
+    yield raw.types.MsgsAck(msg_ids=[rng.getrandbits(62) for _ in range(5)])
+    yield raw.functions.upload.SaveFilePart(file_id=rng.getrandbits(62), file_part=3,
+                                            bytes=rng.randbytes(rng.choice([0, 1, 253, 254, 255, 4096, 524288])))
+    yield raw.functions.messages.SendMessage(peer=raw.types.InputPeerSelf(), message="hé" * rng.randrange(1, 300),
+                                             random_id=rng.getrandbits(62))
+    yield MsgContainer([Message(raw.functions.Ping(ping_id=i), rng.getrandbits(60) * 4, i, 12) for i in range(3)])
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_pack_with_the_serialized_body(monkeypatch, seed):
+    rng = random.Random(seed)
+    auth_key, auth_key_id = keys(rng)
+    factory = MsgFactory()
+
+    for body in bodies(rng):
+        message, data = factory.new(body)
+        assert data == body.write() and message.length == len(data)
+        salt, session_id, padding_seed = rng.getrandbits(63), rng.randbytes(8), rng.getrandbits(32)
+
+        def urandom(n):
+            return random.Random(padding_seed).randbytes(n)
+
+        monkeypatch.setattr(mtproto, "urandom", urandom)
+        with_body = mtproto.pack(message, salt, session_id, auth_key, auth_key_id, data)
+        assert with_body == mtproto.pack(message, salt, session_id, auth_key, auth_key_id)
+        assert with_body == old_pack(message, salt, session_id, auth_key, auth_key_id, urandom)
+
+
+def test_msg_factory_numbers_messages_as_before():
+    old, new = MsgFactory(), MsgFactory()
+    for body in [raw.functions.Ping(ping_id=1), raw.functions.help.GetConfig(), raw.types.MsgsAck(msg_ids=[1]),
+                 raw.functions.help.GetConfig(), raw.functions.help.GetNearestDc()]:
+        a, (b, data) = old(body), new.new(body)
+        assert (a.seq_no, a.length) == (b.seq_no, b.length) and a.body is b.body is body
+        assert b.msg_id > a.msg_id and data == body.write()
+
+
+class Capture:
+    def __init__(self):
+        self.sent = []
+
+    async def send(self, payload):
+        self.sent.append(payload)
+
+
+def test_session_sends_what_message_write_gives():
+    rng = random.Random(7)
+    auth_key, auth_key_id = keys(rng)
+    query = raw.functions.upload.SaveFilePart(file_id=5, file_part=1, bytes=rng.randbytes(70000))
+
+    async def main():
+        session = Session(None, 2, auth_key, False)
+        session.connection = Capture()
+        await session.send(query, wait_response=False)
+        return session
+
+    session = asyncio.run(main())
+    [payload] = session.connection.sent
+    assert payload[:8] == auth_key_id
+    msg_key = payload[8:24]
+    aes_key, aes_iv = kdf(auth_key, msg_key, True)
+    plain = aes.ige256_decrypt(payload[24:], aes_key, aes_iv)
+    assert sha256(auth_key[88:120] + plain).digest()[8:24] == msg_key
+    assert plain[8:16] == session.session_id
+    message = Message(query, int.from_bytes(plain[16:24], "little"), int.from_bytes(plain[24:28], "little"),
+                      len(query.write()))
+    written = message.write()
+    assert plain[16:16 + len(written)] == written and 12 <= len(plain) - 16 - len(written) <= 1024

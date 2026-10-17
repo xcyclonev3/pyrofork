@@ -20,9 +20,10 @@
 from hashlib import sha256
 from io import BytesIO
 from os import urandom
+from typing import Optional
 
 from pyrogram.errors import SecurityCheckMismatch
-from pyrogram.raw.core import Message, Long
+from pyrogram.raw.core import Message, Long, Int
 from . import aes
 
 
@@ -39,11 +40,24 @@ def kdf(auth_key: bytes, msg_key: bytes, outgoing: bool) -> tuple:
     return aes_key, aes_iv
 
 
-def pack(message: Message, salt: int, session_id: bytes, auth_key: bytes, auth_key_id: bytes) -> bytes:
-    message_data = message.write()
-    padding = urandom(-(16 + len(message_data) + 12) % 16 + 12)
+def pack(
+    message: Message,
+    salt: int,
+    session_id: bytes,
+    auth_key: bytes,
+    auth_key_id: bytes,
+    body: Optional[bytes] = None
+) -> bytes:
+    """Encrypt a message. *body* is message.body already serialized (see MsgFactory.new), if available."""
+    if body is None:
+        message_data = (message.write(),)
+    else:
+        # The same bytes as message.write(), without serializing the body again
+        message_data = (Long(message.msg_id), Int(message.seq_no), Int(message.length), body)
+
+    padding = urandom(-(16 + sum(map(len, message_data)) + 12) % 16 + 12)
     # Put together once: the hash and the encryption read the same bytes, no copy each
-    data = b"".join((Long(salt), session_id, message_data, padding))
+    data = b"".join((Long(salt), session_id, *message_data, padding))
 
     # 88 = 88 + 0 (outgoing message)
     msg_key_large = sha256(auth_key[88: 88 + 32])
