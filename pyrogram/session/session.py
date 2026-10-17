@@ -356,29 +356,37 @@ class Session:
 
         log.debug("Sent: %s", message)
 
-        payload = await self.loop.run_in_executor(
-            pyrogram.crypto_executor,
-            mtproto.pack,
-            message,
-            self.salt,
-            self.session_id,
-            self.auth_key,
-            self.auth_key_id
-        )
-
         try:
-            await self.connection.send(payload)
-        except OSError as e:
+            payload = await self.loop.run_in_executor(
+                pyrogram.crypto_executor,
+                mtproto.pack,
+                message,
+                self.salt,
+                self.session_id,
+                self.auth_key,
+                self.auth_key_id
+            )
+
+            try:
+                await self.connection.send(payload)
+            except OSError as e:
+                self.results.pop(msg_id, None)
+                self.result_vectors.pop(msg_id, None)
+                raise e
+
+            if wait_response:
+                try:
+                    await asyncio.wait_for(self.results[msg_id].event.wait(), timeout)
+                except asyncio.TimeoutError:
+                    pass
+        except asyncio.CancelledError:
+            # A cancelled request (e.g. a file part that isn't needed anymore) must not leave its result slot
+            # behind: the session may live on and serve many more requests
             self.results.pop(msg_id, None)
             self.result_vectors.pop(msg_id, None)
-            raise e
+            raise
 
         if wait_response:
-            try:
-                await asyncio.wait_for(self.results[msg_id].event.wait(), timeout)
-            except asyncio.TimeoutError:
-                pass
-
             result = self.results.pop(msg_id).value
             self.result_vectors.pop(msg_id, None)
 
