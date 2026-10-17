@@ -149,20 +149,59 @@ class TCP:
                 raise OSError(e)
 
     async def recv(self, length: int = 0) -> Optional[bytes]:
-        data = b""
+        if length <= 0:
+            return b""
 
-        while len(data) < length:
-            try:
-                chunk = await asyncio.wait_for(
-                    self.reader.read(length - len(data)),
-                    TCP.TIMEOUT
-                )
-            except (OSError, asyncio.TimeoutError):
+        data = None
+
+        while True:
+            chunk = await self._read(length - (len(data) if data else 0))
+
+            if not chunk:
                 return None
-            else:
-                if chunk:
-                    data += chunk
-                else:
-                    return None
 
-        return data
+            if data is None:
+                if len(chunk) == length:
+                    return chunk
+
+                # One buffer for all the reads of a big packet, instead of a new copy of the data per read
+                data = bytearray(chunk)
+            else:
+                data += chunk
+
+            if len(data) >= length:
+                return bytes(data)
+
+    async def _read(self, n: int) -> Optional[bytes]:
+        """Read up to n bytes, or None after TIMEOUT seconds without data or on errors.
+
+        It is asyncio.wait_for(reader.read(n), TIMEOUT) without a new task for every read, which cost more than
+        receiving a small packet.
+        """
+        task = asyncio.current_task()
+        timed_out = False
+
+        def time_out():
+            nonlocal timed_out
+            timed_out = True
+            task.cancel()
+
+        handle = task.get_loop().call_later(TCP.TIMEOUT, time_out)
+
+        try:
+            return await self.reader.read(n)
+        except asyncio.CancelledError:
+            if not timed_out:
+                raise
+
+            # The cancellation came from the timeout and ends here (Python 3.11+ counts cancellations)
+            uncancel = getattr(task, "uncancel", None)
+
+            if uncancel is not None:
+                uncancel()
+
+            return None
+        except OSError:
+            return None
+        finally:
+            handle.cancel()
