@@ -21,6 +21,7 @@ import asyncio
 import cProfile
 import os
 import pstats
+import shutil
 import tempfile
 import time
 from hashlib import sha256
@@ -51,8 +52,9 @@ def packet(session, body, msg_id):
 
 
 async def run(count, profile=False):
+    workdir = tempfile.mkdtemp()
     if os.environ.get("SESSION") == "file":  # a session file, as user accounts and named bots have by default
-        client = pyrogram.Client("bench", api_id=1, api_hash="x", workdir=tempfile.mkdtemp(), workers=4)
+        client = pyrogram.Client("bench", api_id=1, api_hash="x", workdir=workdir, workers=4)
     else:
         client = pyrogram.Client("bench", api_id=1, api_hash="x", in_memory=True, workers=4)
     await client.storage.open()
@@ -93,6 +95,8 @@ async def run(count, profile=False):
         profiler.disable()
         pstats.Stats(profiler).sort_stats("tottime").print_stats(14)
     await client.dispatcher.stop()
+    await client.storage.close()
+    shutil.rmtree(workdir)
     return elapsed / count
 
 

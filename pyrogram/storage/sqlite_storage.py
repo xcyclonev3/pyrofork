@@ -17,7 +17,9 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import inspect
+import logging
 import sqlite3
 import time
 from typing import List, Tuple, Any
@@ -25,6 +27,8 @@ from typing import List, Tuple, Any
 from pyrogram import raw
 from .storage import Storage
 from .. import utils
+
+log = logging.getLogger(__name__)
 
 # language=SQLite
 SCHEMA = """
@@ -121,11 +125,17 @@ def get_input_peer(peer_id: int, access_hash: int, peer_type: str):
 class SQLiteStorage(Storage):
     VERSION = 4
     USERNAME_TTL = 8 * 60 * 60
+    # Changes to the peers and the update states are committed together at most this many seconds after they are
+    # made, and when the storage is saved or closed: each commit writes to the disk, in the event loop.
+    COMMIT_DELAY = 1
 
     def __init__(self, name: str):
         super().__init__(name)
 
         self.conn = None  # type: sqlite3.Connection
+        self.commit_handle = None
+        self.commit_loop = None
+        self.has_usernames_table = False
 
     def create(self):
         with self.conn:
@@ -142,14 +152,39 @@ class SQLiteStorage(Storage):
                 (2, None, None, None, 0, None, None)
             )
 
+        self.has_usernames_table = True
+
+    def commit_soon(self):
+        loop = asyncio.get_running_loop()
+
+        # A commit planned in another (e.g. closed) event loop would never come
+        if self.commit_handle is None or self.commit_loop is not loop:
+            if self.commit_handle is not None:
+                self.commit_handle.cancel()
+
+            self.commit_handle = loop.call_later(self.COMMIT_DELAY, self.commit)
+            self.commit_loop = loop
+
+    def commit(self):
+        if self.commit_handle is not None:
+            self.commit_handle.cancel()
+            self.commit_handle = None
+
+        self.conn.commit()
+
     async def open(self):
         raise NotImplementedError
 
     async def save(self):
         await self.date(int(time.time()))
-        self.conn.commit()
+        self.commit()
 
     async def close(self):
+        try:
+            self.commit()
+        except sqlite3.Error as e:
+            log.warning("Unable to save the last changes of the session: %s", e)
+
         self.conn.close()
 
     async def delete(self):
@@ -161,9 +196,14 @@ class SQLiteStorage(Storage):
             "VALUES (?, ?, ?, ?, ?)",
             peers
         )
+        self.commit_soon()
 
     async def update_usernames(self, usernames: List[Tuple[int, str]]):
-        self.conn.executescript(UNAME_SCHEMA)
+        if not self.has_usernames_table:
+            # Sessions made before the table existed get it once (executescript commits)
+            self.conn.executescript(UNAME_SCHEMA)
+            self.has_usernames_table = True
+
         for user in usernames:
             self.conn.execute(
                 "DELETE FROM usernames WHERE peer_id=?",
@@ -174,6 +214,7 @@ class SQLiteStorage(Storage):
             "VALUES (?, ?)",
             usernames
         )
+        self.commit_soon()
 
     async def update_state(self, value: Tuple[int, int, int, int, int] = object):
         if value == object:
@@ -181,24 +222,26 @@ class SQLiteStorage(Storage):
                 "SELECT id, pts, qts, date, seq FROM update_state"
             ).fetchall()
         else:
-            with self.conn:
-                if isinstance(value, int):
-                    self.conn.execute(
-                        "DELETE FROM update_state WHERE id = ?",
-                        (value,)
-                    )
-                else:
-                    self.conn.execute(
-                        "REPLACE INTO update_state (id, pts, qts, date, seq)"
-                        "VALUES (?, ?, ?, ?, ?)",
-                        value
-                    )
+            if isinstance(value, int):
+                self.conn.execute(
+                    "DELETE FROM update_state WHERE id = ?",
+                    (value,)
+                )
+            else:
+                self.conn.execute(
+                    "REPLACE INTO update_state (id, pts, qts, date, seq)"
+                    "VALUES (?, ?, ?, ?, ?)",
+                    value
+                )
+
+            self.commit_soon()
 
     async def remove_state(self, chat_id):
         self.conn.execute(
             "DELETE FROM update_state WHERE id = ?",
             (chat_id,)
         )
+        self.commit_soon()
 
     async def get_peer_by_id(self, peer_id: int):
         r = self.conn.execute(
