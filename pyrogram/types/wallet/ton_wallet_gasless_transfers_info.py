@@ -66,9 +66,10 @@ class TonWalletGaslessTransfersInfo(Object):
     def _parse(client, info: "raw.types.UpdateWalletGaslessInfo") -> "TonWalletGaslessTransfersInfo":
         return TonWalletGaslessTransfersInfo(
             is_available=info.available,
-            left_count=info.left,
+            # Like TDLib: no transfers are left and there is no relayer while the service isn't available
+            left_count=info.left if info.available else 0,
             min_amount=info.min_amount,
-            relayer_address=info.relayer_address,
+            relayer_address=(info.relayer_address or None) if info.available else None,
             reset_date=utils.timestamp_to_datetime(info.reset_at),
             client=client
         )

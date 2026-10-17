@@ -59,7 +59,7 @@ class GetTonWalletEncryptedSecretPhrasePart:
 
                 data = await app.get_ton_wallet_encrypted_secret_phrase_part(token, public_key, dc_id)
         """
-        session = await get_session(self, dc_id)
+        session = await get_session(self, dc_id, is_media=False)
 
         r = await session.invoke(
             raw.functions.wallet.FetchEncryptedSecretPhrasePart(

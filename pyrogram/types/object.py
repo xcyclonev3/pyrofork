@@ -65,8 +65,11 @@ class Object:
             "raw"
         ]
 
+        # Values that must not end up in logs, as phone numbers do
+        masked = ("phone_number",) + getattr(obj, "MASKED_ATTRIBUTES", ())
+
         filtered_attributes = {
-            attr: ("*" * 9 if attr == "phone_number" else getattr(obj, attr))
+            attr: ("*" * 9 if attr in masked else getattr(obj, attr))
             for attr in filter(
                 lambda x: not x.startswith("_") and x not in attributes_to_hide,
                 obj.__dict__,
@@ -83,10 +86,12 @@ class Object:
         return dumps(self, indent=4, default=Object.default, ensure_ascii=False)
 
     def __repr__(self) -> str:
+        masked = getattr(self, "MASKED_ATTRIBUTES", ())
+
         return "pyrogram.types.{}({})".format(
             self.__class__.__name__,
             ", ".join(
-                f"{attr}={repr(getattr(self, attr))}"
+                f"{attr}={'*' * 9 if attr in masked else repr(getattr(self, attr))}"
                 for attr in filter(lambda x: not x.startswith("_"), self.__dict__)
                 if getattr(self, attr) is not None
             )

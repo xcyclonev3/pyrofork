@@ -79,7 +79,7 @@ class SendTonCenterApiRequest:
             config = await self.invoke(raw.functions.help.GetConfig())
             dc_id = _webfile_dc_ids[self] = config.webfile_dc_id
 
-        session = await get_session(self, dc_id)
+        session = await get_session(self, dc_id, is_media=False)
 
         r = await session.invoke(
             raw.functions.toncenter.PerformApiRequest(

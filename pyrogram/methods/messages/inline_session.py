@@ -24,45 +24,54 @@ from pyrogram.session import Session
 from pyrogram.session.auth import Auth
 
 
-async def get_session(client: "pyrogram.Client", dc_id: int):
+async def get_session(client: "pyrogram.Client", dc_id: int, is_media: bool = True):
+    """A session authorized on another data center, or the client itself on its own data center.
+
+    Media sessions are meant for files; other requests sent to another data center (e.g. TON Center requests) use
+    regular sessions, like TDLib does. A session is kept for later only once it is started and authorized.
+    """
     if dc_id == await client.storage.dc_id():
         return client
 
-    async with client.media_sessions_lock:
-        if client.media_sessions.get(dc_id):
-            return client.media_sessions[dc_id]
+    sessions = client.media_sessions if is_media else client.dc_sessions
 
-        session = client.media_sessions[dc_id] = Session(
+    async with client.media_sessions_lock:
+        if sessions.get(dc_id):
+            return sessions[dc_id]
+
+        session = Session(
             client, dc_id,
             await Auth(client, dc_id, await client.storage.test_mode()).create(),
-            await client.storage.test_mode(), is_media=True
+            await client.storage.test_mode(), is_media=is_media
         )
 
         await session.start()
 
-        if dc_id == await client.storage.dc_id():
-            return session
-        
-        for _ in range(3):
-            exported_auth = await client.invoke(
-                raw.functions.auth.ExportAuthorization(
-                    dc_id=dc_id
-                )
-            )
-
-            try:
-                await session.invoke(
-                    raw.functions.auth.ImportAuthorization(
-                        id=exported_auth.id,
-                        bytes=exported_auth.bytes
+        try:
+            for _ in range(3):
+                exported_auth = await client.invoke(
+                    raw.functions.auth.ExportAuthorization(
+                        dc_id=dc_id
                     )
                 )
-            except AuthBytesInvalid:
-                continue
+
+                try:
+                    await session.invoke(
+                        raw.functions.auth.ImportAuthorization(
+                            id=exported_auth.id,
+                            bytes=exported_auth.bytes
+                        )
+                    )
+                except AuthBytesInvalid:
+                    continue
+                else:
+                    break
             else:
-                break
-        else:
+                raise AuthBytesInvalid
+        except BaseException:
             await session.stop()
-            raise AuthBytesInvalid
+            raise
+
+        sessions[dc_id] = session
 
         return session

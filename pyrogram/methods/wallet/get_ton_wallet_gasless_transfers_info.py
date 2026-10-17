@@ -32,7 +32,7 @@ class GetTonWalletGaslessTransfersInfo:
 
         Returns:
             :obj:`~pyrogram.types.TonWalletGaslessTransfersInfo`: On success, the state of the gasless transfers is
-            returned.
+            returned. None is returned if the server sends no state.
 
         Example:
             .. code-block:: python

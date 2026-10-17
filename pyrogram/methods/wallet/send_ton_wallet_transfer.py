@@ -20,6 +20,7 @@ from typing import Optional, Union
 
 import pyrogram
 from pyrogram import raw, types
+from pyrogram.types.rich_messages.input_rich_message import get_input_user
 
 
 class SendTonWalletTransfer:
@@ -54,6 +55,8 @@ class SendTonWalletTransfer:
 
         Returns:
             :obj:`~pyrogram.types.TonWalletTransferResult`: On success, the result of the transfer is returned.
+            None is returned if the server doesn't report the sent transfer: it may have been made anyway, check
+            :meth:`~pyrogram.Client.get_ton_wallet_transactions` before sending it again.
 
         Example:
             .. code-block:: python
@@ -69,7 +72,7 @@ class SendTonWalletTransfer:
                 data_normal=regular_transfer_data,
                 data_gasless=gasless_transfer_data or None,
                 user_id=(
-                    await self.resolve_peer(user_id)
+                    get_input_user(await self.resolve_peer(user_id))
                     if user_id is not None
                     else raw.types.InputUserEmpty()
                 ),

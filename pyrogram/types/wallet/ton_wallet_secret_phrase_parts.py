@@ -34,6 +34,9 @@ class TonWalletSecretPhraseParts(Object):
             Identifiers of the data centers of the parts.
     """
 
+    # With the session, the token gives the encrypted parts of the secret phrase: keep it out of logs
+    MASKED_ATTRIBUTES = ("token",)
+
     def __init__(
         self,
         *,

@@ -25,12 +25,14 @@ from datetime import datetime
 import pytest
 
 import pyrogram
-from pyrogram import enums, raw, types
+from pyrogram import enums, errors, raw, types
 from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
 
 TWT = enums.TonWalletTransactionType
 RAW_PEER_USER = raw.types.User(id=7, access_hash=2, first_name="Peer")
 
+
+INPUT_USER = raw.types.InputUser(user_id=7, access_hash=2)
 
 def collect(make_gen):
     """Run a Client generator method inside a running loop and collect what it yields."""
@@ -341,11 +343,11 @@ def test_get_user_ton_wallet_addresses():
     address = call(lambda: client.get_user_ton_wallet_addresses(7))
     request = client.sent[-1]
     assert isinstance(request, raw.functions.wallet.GetUserAddresses)
-    assert [p.write() for p in request.id] == [USER.write()] and request.addresses == [] and not request.force
+    assert [p.write() for p in request.id] == [INPUT_USER.write()] and request.addresses == [] and not request.force
     assert isinstance(address, types.UserTonWalletAddress) and address.user.first_name == "Peer"
 
     addresses = call(lambda: client.get_user_ton_wallet_addresses([7, "me"]))
-    assert [p.write() for p in client.sent[-1].id] == [USER.write(), PEERS["me"].write()]
+    assert [p.write() for p in client.sent[-1].id] == [INPUT_USER.write(), raw.types.InputUserSelf().write()]
     assert isinstance(addresses, list) and [a.wallet_address for a in addresses] == ["UQpeer"]
 
 
@@ -362,7 +364,7 @@ def test_create_user_ton_wallet():
     address = call(lambda: client.create_user_ton_wallet(7))
     request = client.sent[-1]
     assert isinstance(request, raw.functions.wallet.GetUserAddresses) and request.force
-    assert [p.write() for p in request.id] == [USER.write()] and request.addresses == []
+    assert [p.write() for p in request.id] == [INPUT_USER.write()] and request.addresses == []
     # The owner is the requested user even when the result doesn't repeat its id, as in TDLib
     assert address.wallet_address == "UQnew" and address.user.id == 7
 
@@ -403,7 +405,7 @@ def test_send_ton_wallet_transfer_to_user():
     request = client.sent[-1]
     assert isinstance(request, raw.functions.wallet.SendTransfer)
     assert (request.data_normal, request.data_gasless) == (b"regular", b"gasless")
-    assert request.user_id.write() == USER.write() and isinstance(request.random_id, int)
+    assert request.user_id.write() == INPUT_USER.write() and isinstance(request.random_id, int)
     assert isinstance(result, types.TonWalletTransferResult) and result.is_gasless and result.msg_hash == "hash"
     assert result.transaction.peer_user.first_name == "Peer"
 
@@ -561,7 +563,8 @@ def fake_get_session(monkeypatch, module_name):
     """Replace get_session() of a method module: record the requested DC and use the offline client itself."""
     used_dcs = []
 
-    async def get_session(client, dc_id):
+    async def get_session(client, dc_id, is_media=True):
+        assert is_media is False  # regular sessions, like TDLib
         used_dcs.append(dc_id)
         return client
 
@@ -990,3 +993,78 @@ def test_update_wallet_ton_connect_pending_disconnect():
     update = roundtrip(raw.types.UpdateWalletTonConnectPendingDisconnect(session_ids=[11, 12]))
     pending = types.TonConnectPendingDisconnect._parse(None, update)
     assert isinstance(pending, types.TonConnectPendingDisconnect) and pending.session_ids == [11, 12]
+
+
+# Review fixes
+
+def test_gasless_transfers_while_unavailable():
+    info = types.TonWalletGaslessTransfersInfo._parse(None, roundtrip(raw.types.UpdateWalletGaslessInfo(
+        available=False, left=3, reset_at=1700000000, min_amount=10, relayer_address="EQr")))
+
+    assert info.is_available is False and info.left_count == 0 and info.relayer_address is None
+
+
+def test_secret_phrase_token_stays_out_of_logs():
+    parts = types.TonWalletSecretPhraseParts(token="secret-token", dc_ids=[1, 3])
+
+    assert "secret-token" not in repr(parts) and "secret-token" not in str(parts)
+    assert parts.token == "secret-token"
+
+
+class FakeSession:
+    def __init__(self, client, dc_id, auth_key, test_mode, is_media=False):
+        self.dc_id, self.is_media, self.stopped = dc_id, is_media, False
+
+    async def start(self):
+        pass
+
+    async def stop(self):
+        self.stopped = True
+
+    async def invoke(self, query):
+        if self.dc_id == 5:
+            raise errors.AuthBytesInvalid()
+
+
+class FakeAuth:
+    def __init__(self, client, dc_id, test_mode):
+        pass
+
+    async def create(self):
+        return b"key"
+
+
+def test_sessions_on_other_data_centers(monkeypatch):
+    import pyrogram.methods.messages.inline_session as inline_session
+
+    monkeypatch.setattr(inline_session, "Session", FakeSession)
+    monkeypatch.setattr(inline_session, "Auth", FakeAuth)
+    created = []
+    monkeypatch.setattr(FakeSession, "start", lambda self: created.append(self) or asyncio.sleep(0))
+
+    async def main():
+        client = pyrogram.Client("wallet", api_id=1, api_hash="x", in_memory=True)
+        await client.storage.open()
+        await client.storage.dc_id(2)
+        await client.storage.test_mode(False)
+
+        async def invoke(query, *args, **kwargs):
+            return raw.types.auth.ExportedAuthorization(id=1, bytes=b"auth")
+
+        client.invoke = invoke
+
+        assert await inline_session.get_session(client, 2) is client
+        regular = await inline_session.get_session(client, 4, is_media=False)
+        media = await inline_session.get_session(client, 4)
+
+        with pytest.raises(errors.AuthBytesInvalid):
+            await inline_session.get_session(client, 5, is_media=False)
+
+        return client, regular, media
+
+    client, regular, media = asyncio.run(main())
+    assert regular.is_media is False and client.dc_sessions == {4: regular}
+    assert media.is_media is True and client.media_sessions == {4: media}
+    # A session that couldn't be authorized is stopped and not kept
+    failed = created[-1]
+    assert failed.dc_id == 5 and failed.stopped and 5 not in client.dc_sessions

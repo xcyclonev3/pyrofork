@@ -20,6 +20,7 @@ from typing import Optional, Union
 
 import pyrogram
 from pyrogram import raw, types
+from pyrogram.types.rich_messages.input_rich_message import get_input_user
 
 
 class CreateUserTonWallet:
@@ -40,6 +41,7 @@ class CreateUserTonWallet:
 
         Returns:
             :obj:`~pyrogram.types.UserTonWalletAddress`: On success, the address of the wallet of the user is returned.
+            None is returned if the server sends no address.
 
         Example:
             .. code-block:: python
@@ -47,7 +49,7 @@ class CreateUserTonWallet:
                 address = await app.create_user_ton_wallet("username")
                 print(address.wallet_address)
         """
-        peer = await self.resolve_peer(user_id)
+        peer = get_input_user(await self.resolve_peer(user_id))
 
         r = await self.invoke(
             raw.functions.wallet.GetUserAddresses(
