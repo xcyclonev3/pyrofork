@@ -20,9 +20,11 @@ Install Pyrofork
 
         $ pip3 install -U pyrofork
 
--   :doc:`TgCrypto <../topics/speedups>`, the C library that speeds up Pyrofork, is installed along with it on CPython.
-    Prebuilt packages exist for Linux and Windows; on other systems, such as macOS or Termux, pip compiles it, which
-    requires a C compiler.
+-   or, with :doc:`TgCrypto <../topics/speedups>` as extra requirement (recommended):
+
+    .. code-block:: text
+
+        $ pip3 install -U pyrofork tgcrypto-pyrofork
 
 Bleeding Edge
 -------------

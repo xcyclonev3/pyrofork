@@ -20,14 +20,18 @@ requires, namely: AES-256-IGE, AES-256-CTR and AES-256-CBC.
 Installation
 ^^^^^^^^^^^^
 
-TgCrypto-pyrofork is a dependency of Pyrofork: pip installs it along with Pyrofork on CPython. Prebuilt packages exist
-for Linux and Windows; on other systems, such as macOS or Termux, pip compiles it, which requires a C compiler.
-
-On other Python implementations, such as PyPy, install it explicitly:
+TgCrypto-pyrofork is optional: install it next to Pyrofork.
 
 .. code-block:: bash
 
     $ pip3 install -U tgcrypto-pyrofork
+
+Prebuilt packages exist for Linux and Windows; on other systems, such as macOS or Termux, pip compiles it, which
+requires a C compiler. To build it from source instead, for example from a fork:
+
+.. code-block:: bash
+
+    $ pip3 install -U "tgcrypto-pyrofork @ git+https://github.com/xcyclonev3/tgcrypto-pyrofork.git"
 
 Usage
 ^^^^^
