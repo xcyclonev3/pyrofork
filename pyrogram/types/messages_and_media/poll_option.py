@@ -83,8 +83,8 @@ class PollOption(Object):
             filter(lambda x: x is not None, [types.MessageEntity._parse(client, e, {}) for e in answer.text.entities])
         )
 
-        added_by_id = utils.get_raw_peer_id(getattr(answer, "added_by", None))
-        added_by = (users or {}).get(added_by_id) or (chats or {}).get(added_by_id)
+        # Users and chats may share raw identifiers: look the author up by the type of the peer
+        author = types.Chat._parse_peer(client, getattr(answer, "added_by", None), users or {}, chats or {})
 
         return PollOption(
             text=answer.text.text,
@@ -92,7 +92,7 @@ class PollOption(Object):
             data=getattr(answer, "option", None),
             entities=entities,
             media=await types.Poll._parse_media(client, getattr(answer, "media", None)),
-            author=types.Chat._parse_chat(client, added_by) if added_by else None,
+            author=author,
             addition_date=utils.timestamp_to_datetime(getattr(answer, "date", None))
         )
 

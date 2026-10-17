@@ -66,7 +66,12 @@ class DeleteScheduledMessages:
             )
         )
 
-        updates = r.updates if isinstance(r, (raw.types.Updates, raw.types.UpdatesCombined)) else [r.update]
+        if isinstance(r, (raw.types.Updates, raw.types.UpdatesCombined)):
+            updates = r.updates
+        elif isinstance(r, raw.types.UpdateShort):
+            updates = [r.update]
+        else:
+            updates = []  # updatesTooLong: the deleted messages are unknown
 
         deleted_ids = [
             i

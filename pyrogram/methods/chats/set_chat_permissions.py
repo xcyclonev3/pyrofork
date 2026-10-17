@@ -46,6 +46,8 @@ class SetChatPermissions:
 
             permissions (:obj:`~pyrogram.types.ChatPermissions`):
                 New default chat permissions.
+                Without arguments, :obj:`~pyrogram.types.ChatPermissions` restricts the members completely: like in
+                TDLib, they can't react to messages or change their tags either.
 
         Returns:
             :obj:`~pyrogram.types.Chat`: On success, a chat object is returned.

@@ -38,6 +38,8 @@ class Poll(Object, Update):
 
         options (List of :obj:`~pyrogram.types.PollOption`):
             List of poll options.
+            Poll updates may carry only the new results: then the options have just *voter_count* and *data*, in the
+            order of the results, which may differ from the order of the poll options. Match them by *data*.
 
         question_entities (List of :obj:`~pyrogram.types.MessageEntity`, *optional*):
             Special entities like usernames, URLs, bot commands, etc. that appear in the poll question.
@@ -316,9 +318,10 @@ class Poll(Object, Update):
         if update.poll is not None:
             return await Poll._parse(client, update, users)
 
+        # Only the results are known: the ids refer to the options built from them, in their order
         results = update.results.results
         chosen_option_id = None
-        correct_option_id = None
+        correct_option_ids = []
         options = []
 
         for i, result in enumerate(results):
@@ -326,7 +329,7 @@ class Poll(Object, Update):
                 chosen_option_id = i
 
             if result.correct:
-                correct_option_id = i
+                correct_option_ids.append(i)
 
             options.append(
                 types.PollOption(
@@ -353,7 +356,8 @@ class Poll(Object, Update):
             total_voter_count=update.results.total_voters,
             is_closed=False,
             chosen_option_id=chosen_option_id,
-            correct_option_id=correct_option_id,
+            correct_option_id=correct_option_ids[0] if correct_option_ids else None,
+            correct_option_ids=correct_option_ids or None,
             recent_voters=recent_voters if len(recent_voters) > 0 else None,
             client=client
         )

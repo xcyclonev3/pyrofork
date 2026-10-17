@@ -20,10 +20,13 @@ import asyncio
 import os
 import tempfile
 
+import pytest
+
 import pyrogram
-from pyrogram import enums, raw, types
+from pyrogram import enums, raw, types, utils
 from tests.test_layer_roundtrip import (
-    DOCUMENT_FILE_ID, PEERS, PHOTO_FILE_ID, RAW_USER, call, empty_updates, offline_client, parse_message, roundtrip
+    DOCUMENT_FILE_ID, PEERS, PHOTO_FILE_ID, RAW_CHANNEL, RAW_USER, call, empty_updates, offline_client, parse_message,
+    roundtrip
 )
 
 RAW_PHOTO = raw.types.Photo(id=11, access_hash=12, file_reference=b"r", date=1, dc_id=2, sizes=[
@@ -58,6 +61,43 @@ def test_send_poll_with_layer_230_options():
     assert isinstance(media.attached_media, raw.types.InputMediaPhoto)
     assert isinstance(media.solution_media, raw.types.InputMediaPhotoExternal)
     assert [type(a.media) for a in poll.answers] == [type(None), raw.types.InputMediaDocument, type(None)]
+
+
+def test_send_poll_sends_the_solution_only_for_quizzes():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    call(lambda: client.send_poll(
+        -100123, "Q?", [types.PollOption("a"), types.PollOption("b")], correct_option_id=1,
+        explanation="because", explanation_media=types.InputMediaPhoto(PHOTO_FILE_ID)
+    ))
+
+    media = client.sent[-1].media
+    assert not media.poll.quiz and not media.correct_answers
+    assert media.solution is None and not media.solution_entities and media.solution_media is None
+
+
+def test_send_quiz_with_empty_explanation():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    call(lambda: client.send_poll(
+        -100123, "Q?", [types.PollOption("a"), types.PollOption("b")], type=enums.PollType.QUIZ,
+        correct_option_id=1, explanation="<b></b>", explanation_media=types.InputMediaPhoto(PHOTO_FILE_ID)
+    ))
+
+    media = client.sent[-1].media
+    assert media.poll.quiz and media.correct_answers == [1]
+    assert media.solution is None and not media.solution_entities
+    assert isinstance(media.solution_media, raw.types.InputMediaPhoto)
+
+
+def test_send_poll_explanation_entities_need_an_explanation():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    bold = types.MessageEntity(type=enums.MessageEntityType.BOLD, offset=0, length=1)
+
+    with pytest.raises(ValueError):
+        call(lambda: client.send_poll(
+            -100123, "Q?", [types.PollOption("a"), types.PollOption("b")], type=enums.PollType.QUIZ,
+            correct_option_id=0, explanation_entities=[bold]
+        ))
+    assert client.sent == []
 
 
 def test_send_poll_uploads_local_media(monkeypatch):
@@ -114,6 +154,69 @@ def test_poll_parses_layer_230_fields():
     a, b = poll.options
     assert isinstance(a.media, types.Photo) and a.author is None
     assert b.author.id == 7 and b.addition_date.timestamp() == 1700000000
+
+
+def test_poll_update_with_only_results():
+    # Results need not follow the order of the poll options: the ids refer to the options built from them
+    update = roundtrip(raw.types.UpdateMessagePoll(poll_id=1, results=raw.types.PollResults(
+        total_voters=3,
+        results=[raw.types.PollAnswerVoters(option=b"B", correct=True, voters=1, recent_voters=[]),
+                 raw.types.PollAnswerVoters(option=b"A", chosen=True, correct=True, voters=2, recent_voters=[])]
+    )))
+    poll = asyncio.run(types.Poll._parse_update(None, update, {}))
+
+    assert [(o.data, o.voter_count) for o in poll.options] == [(b"B", 1), (b"A", 2)]
+    assert poll.chosen_option_id == 1 and poll.options[poll.chosen_option_id].data == b"A"
+    assert poll.correct_option_ids == [0, 1] and poll.correct_option_id == 0
+
+
+def test_poll_option_author_by_peer_type():
+    # A channel and a user with the same raw identifier
+    channel = raw.types.Channel(id=7, access_hash=1, title="Channel", photo=raw.types.ChatPhotoEmpty(), date=0)
+    users, chats = {7: roundtrip(RAW_USER)}, {7: roundtrip(channel)}
+
+    for peer, expected in ((raw.types.PeerChannel(channel_id=7), -1000000000007), (raw.types.PeerUser(user_id=7), 7)):
+        answer = roundtrip(raw.types.PollAnswer(text=text("c"), option=b"C", added_by=peer, date=1))
+        option = asyncio.run(types.PollOption._parse(None, answer, users, chats))
+        assert option.author.id == expected
+
+    unknown = raw.types.PeerChat(chat_id=8)
+    answer = roundtrip(raw.types.PollAnswer(text=text("c"), option=b"C", added_by=unknown, date=1))
+    assert asyncio.run(types.PollOption._parse(None, answer, users, chats)).author is None
+
+
+def external_reply(media, chats):
+    reply = roundtrip(raw.types.MessageReplyHeader(
+        reply_to_msg_id=9, reply_to_peer_id=raw.types.PeerChannel(channel_id=123),
+        reply_from=raw.types.MessageFwdHeader(date=1, from_name="Somebody"), reply_media=media
+    ))
+    return asyncio.run(types.ExternalReplyInfo._parse(None, reply, {}, chats))
+
+
+def test_external_reply_to_poll():
+    info = external_reply(raw.types.MessageMediaPoll(
+        poll=raw.types.Poll(id=1, hash=0, question=text("Q?"), answers=[
+            raw.types.PollAnswer(text=text("a"), option=b"A"),
+            raw.types.PollAnswer(text=text("b"), option=b"B", added_by=raw.types.PeerChannel(channel_id=123), date=1),
+        ]),
+        results=raw.types.PollResults(total_voters=1, results=[
+            raw.types.PollAnswerVoters(option=b"A", chosen=True, voters=1, recent_voters=[])
+        ])
+    ), {123: roundtrip(RAW_CHANNEL)})
+
+    assert info.media == enums.MessageMediaType.POLL and isinstance(info.poll, types.Poll)  # used to be a coroutine
+    assert [o.text for o in info.poll.options] == ["a", "b"] and info.poll.chosen_option_id == 0
+    assert info.poll.options[1].author.id == utils.get_channel_id(123)
+
+
+def test_external_reply_to_giveaway():
+    info = external_reply(raw.types.MessageMediaGiveaway(
+        channels=[123], quantity=3, stars=500, until_date=1700000000
+    ), {123: roundtrip(RAW_CHANNEL)})
+
+    assert info.media == enums.MessageMediaType.GIVEAWAY and isinstance(info.giveaway, types.Giveaway)
+    assert info.giveaway.quantity == 3 and info.giveaway.stars == 500
+    assert info.giveaway.chats[0].id == utils.get_channel_id(123)
 
 
 def test_poll_option_service_messages():

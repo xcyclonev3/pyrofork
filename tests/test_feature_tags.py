@@ -67,6 +67,26 @@ def test_new_member_permissions_are_kept():
     assert not rights.send_reactions and rights.edit_rank
 
 
+def test_restrict_chat_member_without_known_chat_permissions():
+    client = offline_client(PEERS, lambda q: empty_updates(chats=[RAW_CHANNEL]))
+
+    async def get_chat(chat_id):
+        return SimpleNamespace(permissions=None)
+
+    client.get_chat = get_chat
+    call(lambda: client.restrict_chat_member(-100123, 7, types.ChatPermissions(can_send_polls=False)))
+    rights = client.sent[-1].banned_rights
+    # The permissions that are not passed fall back to allowed, as in set_chat_permissions
+    assert rights.send_polls and not rights.send_reactions and not rights.edit_rank and not rights.send_photos
+
+
+def test_completely_restricted_members_cant_react_or_change_tags():
+    client = offline_client(PEERS, lambda q: empty_updates(chats=[RAW_CHANNEL]))
+    call(lambda: client.restrict_chat_member(-100123, 7, types.ChatPermissions()))
+    rights = client.sent[-1].banned_rights
+    assert rights.send_messages and rights.send_media and rights.send_reactions and rights.edit_rank
+
+
 def test_member_tag_chat_event_and_filter():
     event = roundtrip(raw.types.ChannelAdminLogEvent(
         id=1, date=1, user_id=7,

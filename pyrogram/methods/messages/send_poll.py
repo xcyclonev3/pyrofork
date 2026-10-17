@@ -123,6 +123,7 @@ class SendPoll:
             explanation (``str``, *optional*):
                 Text that is shown when a user chooses an incorrect answer or taps on the lamp icon in a quiz-style
                 poll, 0-200 characters with at most 2 line feeds after entities parsing.
+                Like the correct options and *explanation_media*, ignored for regular polls.
 
             explanation_parse_mode (:obj:`~pyrogram.enums.ParseMode`, *optional*):
                 By default, texts are parsed using both Markdown and HTML styles.
@@ -236,6 +237,9 @@ class SendPoll:
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent poll message is returned.
 
+        Raises:
+            ValueError: In case *explanation_entities* are passed without *explanation*.
+
         Example:
             .. code-block:: python
 
@@ -263,6 +267,10 @@ class SendPoll:
             parse_mode=parse_mode
         )
 
+        if explanation_entities and not explanation:
+            raise ValueError("explanation_entities can't be passed without explanation")
+
+        is_quiz = type == enums.PollType.QUIZ
         solution, solution_entities = (await utils.parse_text_entities(
             self, explanation, explanation_parse_mode, explanation_entities
         )).values()
@@ -283,6 +291,10 @@ class SendPoll:
         if correct_option_ids is None and correct_option_id is not None:
             correct_option_ids = [correct_option_id]
 
+        if not is_quiz:
+            # As TDLib does: only quizzes have correct options and an explanation
+            correct_option_ids = solution = explanation_media = None
+
         rpc = raw.functions.messages.SendMedia(
             peer=peer,
             media=raw.types.InputMediaPoll(
@@ -293,7 +305,7 @@ class SendPoll:
                     closed=is_closed,
                     public_voters=not is_anonymous,
                     multiple_choice=allows_multiple_answers,
-                    quiz=type == enums.PollType.QUIZ or False,
+                    quiz=is_quiz,
                     open_answers=allow_adding_options,
                     revoting_disabled=True if allows_revoting is False else None,
                     shuffle_answers=shuffle_options,
@@ -307,8 +319,9 @@ class SendPoll:
                 ),
                 correct_answers=correct_option_ids,
                 attached_media=await utils.get_input_poll_media(self, peer, media),
-                solution=solution,
-                solution_entities=solution_entities or [],
+                # Like TDLib, an empty explanation is not sent
+                solution=solution or None,
+                solution_entities=solution_entities if solution else None,
                 solution_media=await utils.get_input_poll_media(self, peer, explanation_media)
             ),
             # Like TDLib, the poll description is the text of the poll message

@@ -57,6 +57,8 @@ OPENING_TAG = "<{}>"
 CLOSING_TAG = "</{}>"
 URL_MARKUP = '<a href="{}">{}</a>'
 EMOJI_MARKUP = '<emoji id={}>{}</emoji>'
+DATE_MARKUP = '<tg-time unix="{}" format="{}">{}</tg-time>'
+DATE_URL_RE = re.compile(r"tg://time\?(.*)")
 FIXED_WIDTH_DELIMS = [CODE_DELIM, PRE_DELIM]
 CODE_TAG_RE = re.compile(r"<code>.*?</code>")
 
@@ -169,6 +171,21 @@ class Markdown:
                 continue
 
             if is_emoji:
+                formatted_date = DATE_URL_RE.match(url)
+
+                if formatted_date:
+                    # As TDLib does, a date needs a valid Unix time and format
+                    query = dict(p.partition("=")[::2] for p in html.unescape(formatted_date.group(1)).split("&"))
+                    unix = utils.get_unix_time(query.get("unix"))
+
+                    if unix is None:
+                        raise ValueError(f"Invalid Unix time specified: {url}")
+
+                    date_format = query.get("format") or ""
+                    utils.get_formatted_date(unix, date_format)
+                    text = utils.replace_once(text, full, DATE_MARKUP.format(unix, date_format, text_url), start)
+                    continue
+
                 emoji = text_url
                 emoji_id = url.lstrip("tg://emoji?id=")
                 text = utils.replace_once(text, full, EMOJI_MARKUP.format(emoji_id, emoji), start)
@@ -270,6 +287,7 @@ class Markdown:
                 elif entity.type == MessageEntityType.FORMATTED_DATE:
                     date_format = utils.get_date_format(entity)
                     url = f"tg://time?unix={entity.date}" + (f"&format={date_format}" if date_format else "")
+                    is_emoji = True  # written like custom emoji: ![22:45](tg://time?unix=...)
                 if url:
                     if is_emoji:
                         insert_at.append((s, i, '!['))

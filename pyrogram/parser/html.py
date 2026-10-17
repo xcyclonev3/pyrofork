@@ -34,7 +34,6 @@ log = logging.getLogger(__name__)
 
 class Parser(HTMLParser):
     MENTION_RE = re.compile(r"tg://user\?id=(\d+)")
-    FORMATTED_DATE_RE = re.compile(r"tg://time\?(.*)")
 
     def __init__(self, client: "pyrogram.Client"):
         super().__init__()
@@ -71,15 +70,10 @@ class Parser(HTMLParser):
             url = attrs.get("href", "")
 
             mention = Parser.MENTION_RE.match(url)
-            formatted_date = Parser.FORMATTED_DATE_RE.match(url)
 
             if mention:
                 entity = raw.types.InputMessageEntityMentionName
                 extra["user_id"] = int(mention.group(1))
-            elif formatted_date:
-                query = dict(p.partition("=")[::2] for p in formatted_date.group(1).split("&"))
-                entity = raw.types.MessageEntityFormattedDate
-                extra.update(utils.get_formatted_date(query.get("unix"), query.get("format")))
             else:
                 entity = raw.types.MessageEntityTextUrl
                 extra["url"] = url
@@ -156,8 +150,11 @@ class HTML:
 
             entities.append(entity)
 
-        # Remove zero-length entities
-        entities = list(filter(lambda x: x.length > 0, entities))
+        # Remove zero-length entities, and formatted dates without a valid Unix time like TDLib does
+        entities = [
+            entity for entity in entities
+            if entity.length > 0 and not (isinstance(entity, raw.types.MessageEntityFormattedDate) and entity.date <= 0)
+        ]
 
         return {
             "message": utils.remove_surrogates(parser.text),

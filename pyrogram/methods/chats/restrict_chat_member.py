@@ -52,6 +52,9 @@ class RestrictChatMember:
 
             permissions (:obj:`~pyrogram.types.ChatPermissions`):
                 New user permissions.
+                Without arguments, :obj:`~pyrogram.types.ChatPermissions` restricts the user completely: like in TDLib,
+                the user can't react to messages or change their tag either.
+                Permissions that are not passed keep the default permissions of the chat.
 
             until_date (:py:obj:`~datetime.datetime`, *optional*):
                 Date when the user will be unbanned.
@@ -117,7 +120,9 @@ class RestrictChatMember:
                 send_reactions=True
                 edit_rank=True
         else:
-            old_permissions = (await self.get_chat(chat_id)).permissions
+            old_permissions = (await self.get_chat(chat_id)).permissions or types.ChatPermissions._parse(
+                raw.types.ChatBannedRights(until_date=0)
+            )
             send_messages = None
             send_media = None
             embed_links=not permissions.can_add_web_page_previews if permissions.can_add_web_page_previews is not None else not old_permissions.can_add_web_page_previews

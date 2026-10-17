@@ -19,6 +19,7 @@
 
 import re
 from struct import unpack
+from typing import Optional
 
 # SMP = Supplementary Multilingual Plane: https://en.wikipedia.org/wiki/Plane_(Unicode)#Overview
 SMP_RE = re.compile(r"[\U00010000-\U0010FFFF]")
@@ -55,7 +56,7 @@ def within_surrogate(text, index, *, length=None):
     )
 
 
-# Date formats of <tg-time format="..."> and tg://time?unix=...&format=... links, as parsed by TDLib
+# Date formats of <tg-time format="..."> and ![...](tg://time?unix=...&format=...), as parsed by TDLib
 # (FormattedDate::get_date_flags): "r" is relative, otherwise any of t/T (time), d/D (date) and w (day of week).
 DATE_FORMAT_FLAGS = {
     "t": "short_time",
@@ -67,25 +68,32 @@ DATE_FORMAT_FLAGS = {
 }
 
 
-def get_formatted_date(unix, date_format) -> dict:
-    """Arguments of :obj:`~pyrogram.raw.types.MessageEntityFormattedDate` for a Unix time and a date format."""
+def get_unix_time(unix) -> Optional[int]:
+    """The Unix time of a formatted date given as a string, or None if it isn't a valid one."""
     try:
         date = int(unix)
     except (TypeError, ValueError):
-        date = 0
+        return None
 
-    if date <= 0:
-        raise ValueError(f"Invalid Unix time for a formatted date: {unix!r}")
+    return date if 0 < date < 2 ** 31 else None
 
+
+def get_formatted_date(unix, date_format) -> dict:
+    """Arguments of :obj:`~pyrogram.raw.types.MessageEntityFormattedDate` for a Unix time and a date format.
+
+    Like in TDLib, an invalid date format is an error, while an invalid Unix time gives date 0: the HTML parser drops
+    such dates.
+    """
     date_format = date_format or ""
 
     if date_format in ("r", "R"):
-        return {"date": date, "relative": True}
-
-    if any(c not in DATE_FORMAT_FLAGS for c in date_format):
+        flags = {"relative": True}
+    elif any(c not in DATE_FORMAT_FLAGS for c in date_format):
         raise ValueError(f"Invalid date format: {date_format!r}")
+    else:
+        flags = {DATE_FORMAT_FLAGS[c]: True for c in date_format}
 
-    return {"date": date, **{DATE_FORMAT_FLAGS[c]: True for c in date_format}}
+    return {"date": get_unix_time(unix) or 0, **flags}
 
 
 def get_date_format(entity) -> str:

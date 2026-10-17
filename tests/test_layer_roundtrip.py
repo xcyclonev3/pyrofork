@@ -562,16 +562,50 @@ def test_formatted_date_html_and_markdown():
     assert isinstance(entity, raw.types.MessageEntityFormattedDate) and entity.date == 1647531900
     assert entity.day_of_week and entity.long_date and entity.long_time and not entity.relative
 
-    [entity] = asyncio.run(Markdown(None).parse("[soon](tg://time?unix=1647531900&format=r)"))["entities"]
+    # The syntax of the Bot API and TDLib: like custom emoji
+    [entity] = asyncio.run(Markdown(None).parse("![soon](tg://time?unix=1647531900&format=r)"))["entities"]
     assert isinstance(entity, raw.types.MessageEntityFormattedDate) and entity.relative
+
+    parsed = asyncio.run(Markdown(None).parse("at ![22:45](tg://time?unix=1647531900&format=t)", strict=True))
+    assert parsed["message"] == "at 22:45"
+    [entity] = parsed["entities"]
+    assert (entity.offset, entity.length, entity.date, entity.short_time) == (3, 5, 1647531900, True)
 
     date = types.MessageEntity(type=ET.FORMATTED_DATE, offset=0, length=8, date=1647531900,
                                day_of_week=True, long_date=True, long_time=True)
     assert HTML.unparse("tomorrow", [date]) == '<tg-time unix="1647531900" format="wDT">tomorrow</tg-time>'
-    assert Markdown.unparse("tomorrow", [date]) == "[tomorrow](tg://time?unix=1647531900&format=wDT)"
+    markdown = Markdown.unparse("tomorrow", [date])
+    assert markdown == "![tomorrow](tg://time?unix=1647531900&format=wDT)"
+    [entity] = asyncio.run(Markdown(None).parse(markdown))["entities"]
+    assert (entity.date, entity.day_of_week, entity.long_date, entity.long_time) == (1647531900, True, True, True)
 
+    # Like in TDLib, a plain link to tg://time is just a link
+    [entity] = asyncio.run(Markdown(None).parse("[soon](tg://time?unix=1647531900)"))["entities"]
+    assert isinstance(entity, raw.types.MessageEntityTextUrl) and entity.url == "tg://time?unix=1647531900"
+
+
+@pytest.mark.parametrize("text", ['<tg-time unix="0">x</tg-time>', '<tg-time unix="abc" format="t">x</tg-time>',
+                                  '<tg-time format="r">x</tg-time>', '<tg-time unix="4294967296">x</tg-time>'])
+def test_formatted_date_without_valid_unix_time_is_dropped(text):
+    from pyrogram.parser.html import HTML
+
+    # As TDLib does for <tg-time>
+    assert asyncio.run(HTML(None).parse(text)) == {"message": "x", "entities": None}
+
+
+@pytest.mark.parametrize("parse_mode, text", [
+    ("html", '<tg-time unix="1647531900" format="x">bad</tg-time>'),
+    ("markdown", "![bad](tg://time?unix=1647531900&format=x)"),
+    ("markdown", "![bad](tg://time?unix=0&format=t)"),
+    ("markdown", "![bad](tg://time?format=t)"),
+])
+def test_invalid_formatted_dates(parse_mode, text):
+    from pyrogram.parser.html import HTML
+    from pyrogram.parser.markdown import Markdown
+
+    parser = HTML(None) if parse_mode == "html" else Markdown(None)
     with pytest.raises(ValueError):
-        asyncio.run(HTML(None).parse('<tg-time unix="1647531900" format="x">bad</tg-time>'))
+        asyncio.run(parser.parse(text))
 
 
 class FakeSession:
@@ -729,6 +763,12 @@ def test_delete_scheduled_messages_short_update():
         date=0
     ))
     assert call(lambda: client.delete_scheduled_messages(-100123, 5)) == 5
+
+
+def test_delete_scheduled_messages_too_many_updates():
+    client = offline_client(PEERS, lambda q: raw.types.UpdatesTooLong())
+    assert call(lambda: client.delete_scheduled_messages(-100123, [5, 6])) == []
+    assert call(lambda: client.delete_scheduled_messages(-100123, 5)) is None
 
 
 from types import SimpleNamespace  # noqa: E402
