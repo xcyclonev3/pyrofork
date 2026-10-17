@@ -26,6 +26,7 @@ import platform
 import re
 import shutil
 import sys
+from collections import deque
 from concurrent.futures.thread import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from hashlib import sha256
@@ -243,6 +244,9 @@ class Client(Methods):
 
     MAX_CONCURRENT_TRANSMISSIONS = 1
     MAX_CACHE_SIZE = 10000
+
+    # Parts of 1 MiB a download requests ahead while it hands out the current one
+    DOWNLOAD_PARTS_IN_FLIGHT = 4
 
     mimetypes = MimeTypes()
     mimetypes.readfp(StringIO(mime_types))
@@ -1232,40 +1236,74 @@ class Client(Methods):
                 )
 
                 if isinstance(r, raw.types.upload.File):
-                    while True:
-                        chunk = r.bytes
+                    # The next parts are requested while the current one is handed out, so that the download isn't
+                    # limited to one part per round trip. Parts are still handed out in order, and a known file size
+                    # keeps the requests to the parts a part by part download would ask for.
+                    pending = deque()
+                    next_offset = offset_bytes + chunk_size
+                    requested = 1
+                    up_to_file_size = file_size > 0
 
-                        yield chunk
+                    def request_next_parts():
+                        nonlocal next_offset, requested
 
-                        current += 1
-                        offset_bytes += chunk_size
+                        while (
+                            len(pending) < self.DOWNLOAD_PARTS_IN_FLIGHT
+                            and requested < total
+                            and (not up_to_file_size or next_offset <= file_size)
+                        ):
+                            pending.append(self.loop.create_task(session.invoke(
+                                raw.functions.upload.GetFile(
+                                    location=location,
+                                    offset=next_offset,
+                                    limit=chunk_size
+                                ),
+                                sleep_threshold=30
+                            )))
+                            next_offset += chunk_size
+                            requested += 1
 
-                        if progress:
-                            func = functools.partial(
-                                progress,
-                                min(offset_bytes, file_size)
-                                if file_size != 0
-                                else offset_bytes,
-                                file_size,
-                                *progress_args
-                            )
+                    try:
+                        while True:
+                            chunk = r.bytes
 
-                            if inspect.iscoroutinefunction(progress):
-                                await func()
-                            else:
-                                await self.loop.run_in_executor(self.executor, func)
+                            if len(chunk) == chunk_size:
+                                request_next_parts()
 
-                        if len(chunk) < chunk_size or current >= total:
-                            break
+                            yield chunk
 
-                        r = await session.invoke(
-                            raw.functions.upload.GetFile(
-                                location=location,
-                                offset=offset_bytes,
-                                limit=chunk_size
-                            ),
-                            sleep_threshold=30
-                        )
+                            current += 1
+                            offset_bytes += chunk_size
+
+                            if progress:
+                                func = functools.partial(
+                                    progress,
+                                    min(offset_bytes, file_size)
+                                    if file_size != 0
+                                    else offset_bytes,
+                                    file_size,
+                                    *progress_args
+                                )
+
+                                if inspect.iscoroutinefunction(progress):
+                                    await func()
+                                else:
+                                    await self.loop.run_in_executor(self.executor, func)
+
+                            if len(chunk) < chunk_size or current >= total:
+                                break
+
+                            if not pending:
+                                # The file is bigger than file_size said: go on past it
+                                up_to_file_size = False
+                                request_next_parts()
+
+                            r = await pending.popleft()
+                    finally:
+                        for task in pending:
+                            task.cancel()
+
+                        await asyncio.gather(*pending, return_exceptions=True)
 
                 elif isinstance(r, raw.types.upload.FileCdnRedirect):
                     cdn_session = Session(

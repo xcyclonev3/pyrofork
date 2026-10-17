@@ -216,3 +216,137 @@ def test_transfer_sessions_are_stopped_on_terminate(transfer_client):
 
     session = asyncio.run(main())
     assert session.stopped
+
+
+# Downloads request the next parts ahead, and behave like a part by part download
+
+DATA = os.urandom(7 * CHUNK + 123)
+
+
+def sequential_download(data, file_size, limit, offset):
+    """What the part by part download did: the parts, the progress values and the offsets it requested."""
+    chunks, progress, requested = [], [], []
+    total = abs(limit) or (1 << 31) - 1
+    offset_bytes = abs(offset) * CHUNK
+    current = 0
+
+    while True:
+        requested.append(offset_bytes)
+        chunk = data[offset_bytes:offset_bytes + CHUNK]
+        chunks.append(chunk)
+        current += 1
+        offset_bytes += CHUNK
+        progress.append(min(offset_bytes, file_size) if file_size != 0 else offset_bytes)
+
+        if len(chunk) < CHUNK or current >= total:
+            return chunks, progress, requested
+
+
+SIZES = [1000, CHUNK - 1, CHUNK, CHUNK + 1, 3 * CHUNK, 5 * CHUNK + 123, 7 * CHUNK]
+
+
+@pytest.mark.parametrize("size", SIZES)
+@pytest.mark.parametrize("hint", ["exact", "unknown", "smaller", "bigger"])
+@pytest.mark.parametrize("limit, offset", [(0, 0), (1, 0), (3, 0), (0, 2), (2, 1)])
+def test_download_matches_the_part_by_part_download(transfer_client, size, hint, limit, offset):
+    file_size = {"exact": size, "unknown": 0, "smaller": max(size // 3, 1), "bigger": size + 3 * CHUNK}[hint]
+    expected_chunks, expected_progress, expected_requests = sequential_download(DATA[:size], file_size, limit, offset)
+
+    async def main():
+        client = transfer_client()
+        await open_storage(client)
+        SERVER.files[1] = DATA[:size]
+        progress = []
+
+        async def on_progress(current, total):
+            assert total == file_size
+            progress.append(current)
+
+        chunks = await download(client, document(1), file_size, limit, offset, on_progress)
+        await asyncio.sleep(0)
+        assert [t for t in asyncio.all_tasks() if t is not asyncio.current_task()] == []  # nothing left running
+        return chunks, progress
+
+    chunks, progress = asyncio.run(main())
+    assert chunks == expected_chunks and progress == expected_progress
+    requested = [offset for _, offset in SERVER.requested]
+    assert requested[:len(expected_requests)] == expected_requests
+    if hint == "exact":
+        # The known size keeps the requests to the parts the part by part download asks for
+        assert requested == expected_requests
+    else:
+        # Without a (right) size, at most the parts in flight are requested past the end
+        assert len(requested) <= len(expected_requests) + pyrogram.Client.DOWNLOAD_PARTS_IN_FLIGHT
+    assert SERVER.max_in_flight <= pyrogram.Client.DOWNLOAD_PARTS_IN_FLIGHT
+
+
+def test_download_hands_out_parts_in_order(transfer_client):
+    async def main():
+        client = transfer_client()
+        await open_storage(client)
+        SERVER.files[1] = DATA
+        # The first parts are the slowest to come
+        SERVER.delays = {CHUNK: 0.05, 2 * CHUNK: 0.03, 3 * CHUNK: 0.01}
+        return await download(client, document(1), len(DATA))
+
+    assert b"".join(asyncio.run(main())) == DATA
+    assert SERVER.max_in_flight == pyrogram.Client.DOWNLOAD_PARTS_IN_FLIGHT
+
+
+@pytest.mark.parametrize("error, raised", [
+    (errors.FileReferenceExpired(), None),  # logged and the download stops, as before
+    (errors.FloodWait(value=60), errors.FloodWait),
+])
+def test_download_error_on_a_part(transfer_client, error, raised):
+    async def main():
+        client = transfer_client()
+        await open_storage(client)
+        SERVER.files[1] = DATA
+        SERVER.failures[(1, 2 * CHUNK)] = error
+        chunks = []
+        try:
+            async for chunk in client.get_file(document(1), len(DATA)):
+                chunks.append(chunk)
+        except Exception as e:
+            assert raised is not None and isinstance(e, raised)
+        else:
+            assert raised is None
+        await asyncio.sleep(0)
+        assert [t for t in asyncio.all_tasks() if t is not asyncio.current_task()] == []
+        return chunks
+
+    # The parts before the failing one are handed out, like the part by part download did
+    assert asyncio.run(main()) == [DATA[:CHUNK], DATA[CHUNK:2 * CHUNK]]
+
+
+def test_download_stopped_early_cancels_the_parts_requested_ahead(transfer_client):
+    async def main():
+        client = transfer_client()
+        await open_storage(client)
+        SERVER.files[1] = DATA
+        SERVER.delays = {offset: 10 for offset in range(CHUNK, len(DATA), CHUNK)}  # never come in time
+        file = client.get_file(document(1), len(DATA))
+        first = await file.__anext__()
+        await file.aclose()
+        assert [t for t in asyncio.all_tasks() if t is not asyncio.current_task()] == []
+        return first
+
+    assert asyncio.run(main()) == DATA[:CHUNK]
+
+
+def test_download_stop_transmission(transfer_client):
+    async def main():
+        client = transfer_client()
+        await open_storage(client)
+        SERVER.files[1] = DATA
+
+        async def on_progress(current, total):
+            if current >= 2 * CHUNK:
+                client.stop_transmission()
+
+        with pytest.raises(pyrogram.StopTransmission):
+            await download(client, document(1), len(DATA), progress=on_progress)
+        await asyncio.sleep(0)
+        assert [t for t in asyncio.all_tasks() if t is not asyncio.current_task()] == []
+
+    asyncio.run(main())
