@@ -40,15 +40,18 @@ def kdf(auth_key: bytes, msg_key: bytes, outgoing: bool) -> tuple:
 
 
 def pack(message: Message, salt: int, session_id: bytes, auth_key: bytes, auth_key_id: bytes) -> bytes:
-    data = Long(salt) + session_id + message.write()
-    padding = urandom(-(len(data) + 12) % 16 + 12)
+    message_data = message.write()
+    padding = urandom(-(16 + len(message_data) + 12) % 16 + 12)
+    # Put together once: the hash and the encryption read the same bytes, no copy each
+    data = b"".join((Long(salt), session_id, message_data, padding))
 
     # 88 = 88 + 0 (outgoing message)
-    msg_key_large = sha256(auth_key[88: 88 + 32] + data + padding).digest()
-    msg_key = msg_key_large[8:24]
+    msg_key_large = sha256(auth_key[88: 88 + 32])
+    msg_key_large.update(data)
+    msg_key = msg_key_large.digest()[8:24]
     aes_key, aes_iv = kdf(auth_key, msg_key, True)
 
-    return auth_key_id + msg_key + aes.ige256_encrypt(data + padding, aes_key, aes_iv)
+    return auth_key_id + msg_key + aes.ige256_encrypt(data, aes_key, aes_iv)
 
 
 def unpack(
@@ -85,17 +88,21 @@ def unpack(
 
     # https://core.telegram.org/mtproto/security_guidelines#checking-sha256-hash-value-of-msg-key
     # 96 = 88 + 8 (incoming message)
+    decrypted = data.getvalue()  # The decrypted bytes themselves, not a copy
+    msg_key_large = sha256(auth_key[96:96 + 32])
+    msg_key_large.update(decrypted)
     SecurityCheckMismatch.check(
-        msg_key == sha256(auth_key[96:96 + 32] + data.getvalue()).digest()[8:24],
+        msg_key == msg_key_large.digest()[8:24],
         "msg_key == sha256(auth_key[96:96 + 32] + data.getvalue()).digest()[8:24]"
     )
 
     # https://core.telegram.org/mtproto/security_guidelines#checking-message-length
-    data.seek(32)  # Get to the payload, skip salt (8) + session_id (8) + msg_id (8) + seq_no (4) + length (4)
-    payload = data.read()
-    padding = payload[message.length:]
-    SecurityCheckMismatch.check(12 <= len(padding) <= 1024, "12 <= len(padding) <= 1024")
-    SecurityCheckMismatch.check(len(payload) % 4 == 0, "len(payload) % 4 == 0")
+    # The payload follows salt (8) + session_id (8) + msg_id (8) + seq_no (4) + length (4). The lengths of the
+    # payload and of payload[message.length:] are computed without copying them
+    payload_length = max(len(decrypted) - 32, 0)
+    padding_length = len(range(payload_length)[message.length:])
+    SecurityCheckMismatch.check(12 <= padding_length <= 1024, "12 <= len(padding) <= 1024")
+    SecurityCheckMismatch.check(payload_length % 4 == 0, "len(payload) % 4 == 0")
 
     # https://core.telegram.org/mtproto/security_guidelines#checking-msg-id
     SecurityCheckMismatch.check(message.msg_id % 2 != 0, "message.msg_id % 2 != 0")
