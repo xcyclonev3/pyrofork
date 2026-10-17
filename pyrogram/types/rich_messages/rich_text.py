@@ -222,7 +222,7 @@ class RichText(Object):
             document = context.documents.get(rich_text.document_id)
 
             return RichTextIcon(
-                document=types.Document._parse(client, document, get_file_name(document)) if document else None,
+                document=types.Document._parse(client, document, get_file_name(document)) if document is not None else None,
                 width=rich_text.w,
                 height=rich_text.h
             )

@@ -16,35 +16,10 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
-import re
-from typing import Optional
+from typing import Union
 
 import pyrogram
 from pyrogram import raw, types
-
-
-async def get_input_ai_compose_tone(
-    client: "pyrogram.Client",
-    style_name: Optional[str]
-) -> Optional["raw.base.InputAiComposeTone"]:
-    """The text composition style (AI compose tone) with the given name, looked up as TDLib does: a default or
-    installed style by its name, any other style by its slug."""
-    if not style_name:
-        return None
-
-    r = await client.invoke(raw.functions.aicompose.GetTones(hash=0))
-
-    for tone in getattr(r, "tones", []):
-        if isinstance(tone, raw.types.AiComposeToneDefault) and tone.tone == style_name:
-            return raw.types.InputAiComposeToneDefault(tone=style_name)
-
-        if isinstance(tone, raw.types.AiComposeTone) and tone.slug == style_name:
-            return raw.types.InputAiComposeToneID(id=tone.id, access_hash=tone.access_hash)
-
-    if re.fullmatch(r"[A-Za-z0-9_-]+", style_name):
-        return raw.types.InputAiComposeToneSlug(slug=style_name)
-
-    raise ValueError(f"Text composition style {style_name!r} not found")
 
 
 async def compose_rich_message(client: "pyrogram.Client", **kwargs) -> "types.RichMessage":
@@ -58,7 +33,7 @@ class ComposeRichMessageWithAi:
         self: "pyrogram.Client",
         rich_message: "types.InputRichMessage",
         translate_to_language_code: str = None,
-        style_name: str = None,
+        style: Union[str, "types.TextCompositionStyle"] = None,
         custom_prompt: str = None,
         add_emojis: bool = None
     ) -> "types.RichMessage":
@@ -76,12 +51,12 @@ class ComposeRichMessageWithAi:
             translate_to_language_code (``str``, *optional*):
                 Language code of the language to which the message will be translated.
 
-            style_name (``str``, *optional*):
-                Name of the style of the resulting message: the name of a default or installed text composition
+            style (``str`` | :obj:`~pyrogram.types.TextCompositionStyle`, *optional*):
+                Style of the resulting message: a style, or the name of a default or installed text composition
                 style, or the slug of another one. Pass None to keep the current style of the message.
 
             custom_prompt (``str``, *optional*):
-                Custom prompt to be used instead of *style_name*.
+                Custom prompt to be used instead of *style*.
 
             add_emojis (``bool``, *optional*):
                 Pass True to add emoji to the message.
@@ -102,10 +77,7 @@ class ComposeRichMessageWithAi:
                     add_emojis=True
                 )
         """
-        if custom_prompt:
-            tone = raw.types.InputAiComposeToneSingleUse(custom_prompt=custom_prompt)
-        else:
-            tone = await get_input_ai_compose_tone(self, style_name)
+        tone = await types.TextCompositionStyle._get_input(self, style, custom_prompt, optional=True)
 
         return await compose_rich_message(
             self,

@@ -33,7 +33,7 @@ class DraftMessage(Object):
             Date the draft was created.
 
         text (``str``, *optional*):
-            Text of the draft; empty for rich message drafts.
+            Text of the draft; None for rich message drafts.
 
         entities (List of :obj:`~pyrogram.types.MessageEntity`, *optional*):
             Special entities like URLs, usernames, bold text, ... that appear in the text.

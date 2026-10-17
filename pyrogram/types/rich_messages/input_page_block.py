@@ -241,7 +241,8 @@ class InputPageBlockListItem(Object):
             True, if the item is checked.
 
         value (``int``, *optional*):
-            Value of the item, used as its number; 0 for unordered lists.
+            Number of the item in an ordered list; it isn't computed automatically (the label of an item without
+            value is "0."). Ignored for unordered lists.
 
         type (``str``, *optional*):
             Type of the item numbering: "a" for lowercase letters, "A" for uppercase letters, "i" for lowercase Roman

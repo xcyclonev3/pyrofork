@@ -21,6 +21,7 @@ from typing import List, Optional, Union
 
 import pyrogram
 from pyrogram import enums, raw, types, utils
+from pyrogram.errors import RPCError
 
 
 class SendRichMessage:
@@ -178,7 +179,7 @@ class SendRichMessage:
             noforwards=protect_content,
             allow_paid_floodskip=allow_paid_broadcast,
             effect=message_effect_id,
-            rich_message=await rich_message.write(self, chat_id)
+            rich_message=await rich_message.write(self, chat_id, business_connection_id)
         )
 
         if business_connection_id is not None:
@@ -192,6 +193,13 @@ class SendRichMessage:
             r = await self.invoke(rpc)
 
         if isinstance(r, raw.types.UpdateShortSentMessage):
+            # Only the id comes back: get the message for its rich message, unless it can't be fetched
+            if business_connection_id is None and schedule_date is None:
+                try:
+                    return await self.get_messages(chat_id, r.id)
+                except RPCError:
+                    pass
+
             peer = await self.resolve_peer(chat_id)
 
             if isinstance(peer, raw.types.InputPeerSelf):

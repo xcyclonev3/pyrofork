@@ -74,7 +74,7 @@ class EditMessageRichMessage:
             peer=await self.resolve_peer(chat_id),
             id=message_id,
             reply_markup=await reply_markup.write(self) if reply_markup else None,
-            rich_message=await rich_message.write(self, chat_id)
+            rich_message=await rich_message.write(self, chat_id, business_connection_id)
         )
 
         if business_connection_id is not None:

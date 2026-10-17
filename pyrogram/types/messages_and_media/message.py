@@ -5240,18 +5240,52 @@ class Message(Object, Update):
                     allow_paid_broadcast=allow_paid_broadcast
                 )
         elif self.rich_message:
-            # Rich messages are copied on the server, as forwards without the author
-            return await self._client.forward_messages(
-                chat_id,
-                from_chat_id=self.chat.id,
-                message_ids=self.id,
-                message_thread_id=message_thread_id,
-                disable_notification=disable_notification,
-                schedule_date=schedule_date,
-                protect_content=protect_content,
-                allow_paid_broadcast=allow_paid_broadcast,
-                drop_author=True
+            # Rich messages can't be sent again from their parsed blocks: they are copied on the server, as forwards
+            # without the author, which keep their reply markup
+            if reply_markup is not object:
+                raise ValueError("The reply markup of a copied rich message can't be changed")
+
+            reply_to = None
+
+            if reply_to_message_id:
+                reply_to = await utils.get_reply_to(
+                    client=self._client,
+                    chat_id=chat_id,
+                    reply_to_message_id=reply_to_message_id,
+                    message_thread_id=message_thread_id,
+                    reply_to_chat_id=reply_to_chat_id,
+                    quote_text=quote_text,
+                    quote_entities=quote_entities,
+                    parse_mode=parse_mode
+                )
+
+            r = await self._client.invoke(
+                raw.functions.messages.ForwardMessages(
+                    to_peer=await self._client.resolve_peer(chat_id),
+                    from_peer=await self._client.resolve_peer(self.chat.id),
+                    id=[self.id],
+                    random_id=[self._client.rnd_id()],
+                    top_msg_id=None if reply_to else message_thread_id,
+                    reply_to=reply_to,
+                    silent=disable_notification or None,
+                    schedule_date=utils.datetime_to_timestamp(schedule_date),
+                    noforwards=protect_content,
+                    allow_paid_floodskip=allow_paid_broadcast,
+                    drop_author=True
+                )
             )
+
+            users = {i.id: i for i in r.users}
+            chats = {i.id: i for i in r.chats}
+
+            for update in r.updates:
+                if isinstance(update, (raw.types.UpdateNewMessage,
+                                       raw.types.UpdateNewChannelMessage,
+                                       raw.types.UpdateNewScheduledMessage)):
+                    return await types.Message._parse(
+                        self._client, update.message, users, chats,
+                        is_scheduled=isinstance(update, raw.types.UpdateNewScheduledMessage)
+                    )
         else:
             raise ValueError("Can't copy this message")
 

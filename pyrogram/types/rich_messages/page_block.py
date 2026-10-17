@@ -171,7 +171,7 @@ class PageBlock(Object):
 
         def photo(photo_id):
             raw_photo = context.photos.get(photo_id) if photo_id else None
-            return types.Photo._parse(client, raw_photo) if raw_photo else None
+            return types.Photo._parse(client, raw_photo) if raw_photo is not None else None
 
         def document(document_id):
             return parse_rich_message_document(client, context.documents.get(document_id))
@@ -248,7 +248,11 @@ class PageBlock(Object):
                 item_type = get_ordered_list_type(item.type) if item.type else base_type
 
                 items.append(PageBlockListItem(
-                    label=item.num + "." if item.num else get_ordered_list_label(value, item_type),
+                    # Like TDLib, the label is the number followed by a dot (once: labels may come with it)
+                    label=(
+                        (item.num if item.num.endswith(".") else item.num + ".") if item.num
+                        else get_ordered_list_label(value, item_type)
+                    ),
                     blocks=item_blocks,
                     has_checkbox=bool(item.checkbox),
                     is_checked=bool(item.checkbox and item.checked),

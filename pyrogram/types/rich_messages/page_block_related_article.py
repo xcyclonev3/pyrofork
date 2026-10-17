@@ -73,7 +73,7 @@ class PageBlockRelatedArticle(Object):
             url=article.url,
             title=article.title,
             description=article.description,
-            photo=types.Photo._parse(client, photo) if photo else None,
+            photo=types.Photo._parse(client, photo) if photo is not None else None,
             author=article.author,
             publish_date=utils.timestamp_to_datetime(article.published_date) if article.published_date else None
         )

@@ -58,9 +58,15 @@ class RichMessageWriter:
     """Builds the raw form of a rich message: uploads its media and collects the photos, documents and users the
     blocks refer to. Not a public type: :meth:`~pyrogram.types.InputRichMessage.write` uses it."""
 
-    def __init__(self, client: "pyrogram.Client", chat_id: Union[int, str] = None):
+    def __init__(
+        self,
+        client: "pyrogram.Client",
+        chat_id: Union[int, str] = None,
+        business_connection_id: str = None
+    ):
         self.client = client
         self.chat_id = chat_id
+        self.business_connection_id = business_connection_id
         self.photos = []
         self.documents = []
         self.users = []
@@ -121,7 +127,9 @@ class RichMessageWriter:
             else:
                 input_media = raw.types.InputMediaUploadedPhoto(file=await client.save_file(file))
 
-            r = await client.invoke(raw.functions.messages.UploadMedia(peer=peer, media=input_media))
+            r = await client.invoke(raw.functions.messages.UploadMedia(
+                peer=peer, media=input_media, business_connection_id=self.business_connection_id
+            ))
 
             return raw.types.InputPhoto(
                 id=r.photo.id,
@@ -167,7 +175,9 @@ class RichMessageWriter:
                 nosound_video=True if kind == "animation" else None
             )
 
-        r = await client.invoke(raw.functions.messages.UploadMedia(peer=peer, media=input_media))
+        r = await client.invoke(raw.functions.messages.UploadMedia(
+            peer=peer, media=input_media, business_connection_id=self.business_connection_id
+        ))
 
         return raw.types.InputDocument(
             id=r.document.id,
@@ -223,14 +233,19 @@ class InputRichMessage(Object):
         self.is_rtl = is_rtl
         self.detect_automatic_blocks = detect_automatic_blocks
 
-    async def write(self, client: "pyrogram.Client", chat_id: Union[int, str] = None) -> "raw.base.InputRichMessage":
-        """Upload the media of the message, if any, to the chat with *chat_id* (or to Saved Messages) and return the
-        raw rich message."""
+    async def write(
+        self,
+        client: "pyrogram.Client",
+        chat_id: Union[int, str] = None,
+        business_connection_id: str = None
+    ) -> "raw.base.InputRichMessage":
+        """Upload the media of the message, if any, to the chat with *chat_id* (or to Saved Messages), through the
+        business connection if any, and return the raw rich message."""
         if self.source is None:
             raise ValueError("The rich message must have a source")
 
         return await self.source.write(
-            RichMessageWriter(client, chat_id),
+            RichMessageWriter(client, chat_id, business_connection_id),
             rtl=self.is_rtl or None,
             noautolink=None if self.detect_automatic_blocks else True
         )

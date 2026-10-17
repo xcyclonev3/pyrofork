@@ -852,7 +852,7 @@ def test_compose_rich_message_with_ai():
         ("pirate", raw.types.InputAiComposeToneID(id=5, access_hash=6)),
         ("some-slug_1", raw.types.InputAiComposeToneSlug(slug="some-slug_1")),
     ]:
-        call(lambda: client.compose_rich_message_with_ai(html_message(), style_name=style_name))
+        call(lambda: client.compose_rich_message_with_ai(html_message(), style=style_name))
         assert isinstance(client.sent[-2], raw.functions.aicompose.GetTones) and client.sent[-2].hash == 0
         assert same(client.sent[-1].tone, tone) and client.sent[-1].translate_to_lang is None
 
@@ -861,7 +861,7 @@ def test_compose_rich_message_with_ai():
     assert len(client.sent) == count + 1 and client.sent[-1].tone is None
 
     with pytest.raises(ValueError, match="not found"):
-        call(lambda: client.compose_rich_message_with_ai(html_message(), style_name="no such style"))
+        call(lambda: client.compose_rich_message_with_ai(html_message(), style="no such style"))
 
 
 def test_create_rich_message_with_ai():
@@ -981,17 +981,30 @@ def test_message_rich_message():
 
 def test_copy_rich_message_forwards_without_author():
     message = received_rich_message()
-    calls = []
+    sent = []
 
-    async def forward_messages(*args, **kwargs):
-        calls.append((args, kwargs))
+    async def resolve_peer(peer_id):
+        return raw.types.InputPeerUser(user_id=7, access_hash=2)
 
-    message._client.forward_messages = forward_messages
-    call(lambda: message.copy("me", disable_notification=True))
+    async def invoke(query, *args, **kwargs):
+        sent.append(roundtrip(query))
+        return roundtrip(empty_updates([raw.types.UpdateNewMessage(
+            message=raw.types.Message(id=20, peer_id=raw.types.PeerUser(user_id=7), date=1, message="",
+                                      rich_message=raw_rich("copied")),
+            pts=1, pts_count=1)], users=[RAW_USER]))
 
-    [(args, kwargs)] = calls
-    assert args == ("me",) and kwargs["from_chat_id"] == 7 and kwargs["message_ids"] == 1
-    assert kwargs["drop_author"] is True and kwargs["disable_notification"] is True
+    message._client.resolve_peer = resolve_peer
+    message._client.invoke = invoke
+    copied = call(lambda: message.copy(7, disable_notification=True, reply_to_message_id=3))
+
+    [request] = sent
+    assert isinstance(request, raw.functions.messages.ForwardMessages) and request.drop_author and request.silent
+    assert request.id == [1] and request.reply_to.reply_to_msg_id == 3
+    assert copied.id == 20 and copied.rich_message.blocks[0].text.text == "copied"
+
+    # Forwards keep their reply markup
+    with pytest.raises(ValueError):
+        call(lambda: message.copy(7, reply_markup=None))
 
 
 def test_drafts_of_dialogs_and_topics():
@@ -1021,3 +1034,33 @@ def test_pending_rich_message():
     assert handler is pyrogram.handlers.PendingMessageHandler
     assert parsed.draft_id == 5 and parsed.text == "" and parsed.can_stop is True
     assert parsed.rich_message.blocks[0].text.text == "streaming"
+
+
+
+def test_rich_message_media_upload_through_business_connection(media_files):
+    client = rich_client()
+    call(lambda: client.send_rich_message(7, types.InputRichMessage(types.RichMessageSourceBlocks([
+        types.InputPageBlockPhoto(media_files["photo.jpg"])
+    ])), business_connection_id="conn"))
+
+    [upload] = requests_of(client, raw.functions.messages.UploadMedia)
+    assert upload.business_connection_id == "conn"
+
+
+def test_ordered_list_labels_get_a_single_dot():
+    rich = parse_rich_message(raw.types.RichMessage(blocks=[raw.types.PageBlockOrderedList(items=[
+        raw.types.PageListOrderedItemText(num="1.", text=plain("sent label"), value=1, type="1"),
+        raw.types.PageListOrderedItemText(num="2", text=plain("server label"), value=2, type="1"),
+    ])], photos=[], documents=[]))
+
+    assert [item.label for item in rich.blocks[0].items] == ["1.", "2."]
+
+
+def test_compose_rich_message_with_a_style_object():
+    style = types.TextCompositionStyle(name="formal", title="Formal", is_custom=False)
+    client = offline_client(PEERS, lambda q: raw.types.messages.ComposedRichMessageWithAI(
+        result=raw_rich("composed")) if isinstance(q, raw.functions.messages.ComposeRichMessageWithAI) else None)
+    call(lambda: client.compose_rich_message_with_ai(html_message(), style=style))
+
+    [request] = client.sent  # no aicompose.getTones: the style is known
+    assert request.tone == raw.types.InputAiComposeToneDefault(tone="formal")
