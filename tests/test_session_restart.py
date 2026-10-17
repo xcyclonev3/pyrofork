@@ -88,3 +88,33 @@ def test_restarts_asked_at_once_restart_once():
     # was connected: AttributeError: 'NoneType' object has no attribute 'read'
     assert len(started) == 1
     assert errors == []
+
+
+def test_an_error_while_receiving_restarts_the_session():
+    async def main():
+        started = []
+        client = pyrogram.Client("receive-error", api_id=1, api_hash="x", in_memory=True)
+        client.protocol_factory = slow_transport(started)
+        await client.storage.open()
+        session = Session(client, 2, AUTH_KEY, False)
+
+        async def send(*args, **kwargs):  # No server: Ping and InitConnection succeed at once
+            return None
+
+        session.send = send
+        await session.start()
+        receiving = session.recv_task
+
+        # Not an OSError, which only means a closed connection: e.g. two loops reading the same connection
+        started[0].reader.set_exception(RuntimeError("read() called while another coroutine is already waiting"))
+        await asyncio.sleep(0.2)  # The session restarts on a new connection
+
+        restarted = session.is_started.is_set()
+        await session.stop()  # Used to raise the error of the receiving loop again, so restarts could never stop it
+        await client.storage.close()
+        return started, receiving, restarted
+
+    started, receiving, restarted = asyncio.run(main())
+    assert len(started) == 2
+    assert restarted
+    assert receiving.done() and receiving.exception() is None

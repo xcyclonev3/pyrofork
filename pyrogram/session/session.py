@@ -344,7 +344,13 @@ class Session:
         log.info("NetworkTask started")
 
         while True:
-            packet = await self.connection.recv()
+            try:
+                packet = await self.connection.recv()
+            except Exception as e:
+                # A connection that can't be read is lost like a closed one. This loop must not die of it: stop()
+                # waits for it and would raise the error again, every time, so the session could never restart
+                log.warning("Unable to receive: %s: %s", type(e).__name__, e)
+                packet = None
 
             if packet is None or len(packet) == 4:
                 if packet:
