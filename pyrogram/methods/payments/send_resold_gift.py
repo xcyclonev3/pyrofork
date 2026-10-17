@@ -18,10 +18,10 @@
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import pyrogram
-from pyrogram import raw, types, utils
+from pyrogram import enums, raw, types, utils
 
 
 class SendResoldGift:
@@ -29,6 +29,10 @@ class SendResoldGift:
         self: "pyrogram.Client",
         gift_link: str,
         new_owner_chat_id: Union[int, str],
+        text: str = None,
+        parse_mode: Optional["enums.ParseMode"] = None,
+        entities: List["types.MessageEntity"] = None,
+        is_private: bool = None
     ) -> Optional["types.Message"]:
         """Send an upgraded gift that is available for resale to another user or channel chat.
 
@@ -46,6 +50,20 @@ class SendResoldGift:
                 Unique identifier (int) or username (str) of the target chat you want to transfer the star gift to.
                 For your personal cloud (Saved Messages) you can simply use "me" or "self".
                 For a contact that exists in your Telegram address book you can use his phone number (str).
+
+            text (``str``, *optional*):
+                Text to show along with the gift.
+                Only bold, italic, underline, strikethrough, spoiler, custom emoji and date-time entities are kept.
+
+            parse_mode (:obj:`~pyrogram.enums.ParseMode`, *optional*):
+                By default, texts are parsed using both Markdown and HTML styles.
+                You can combine both syntaxes together.
+
+            entities (List of :obj:`~pyrogram.types.MessageEntity`):
+                List of special entities that appear in the text, which can be specified instead of *parse_mode*.
+
+            is_private (``bool``, *optional*):
+                Pass True to show the text and the sender of the gift only to its receiver.
 
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent message is returned.
@@ -65,9 +83,18 @@ class SendResoldGift:
 
         peer = await self.resolve_peer(new_owner_chat_id)
 
+        message = None
+
+        if text:
+            parsed = await utils.parse_text_entities(self, text, parse_mode, entities)
+            message = raw.types.TextWithEntities(text=parsed["message"], entities=parsed["entities"] or [])
+
         invoice = raw.types.InputInvoiceStarGiftResale(
             slug=match.group(1),
-            to_id=peer
+            to_id=peer,
+            # Like TDLib, the name of the sender is shown unless the gift is private
+            show_name=not is_private,
+            message=message
         )
 
         r = await self.invoke(
@@ -81,9 +108,12 @@ class SendResoldGift:
             ),
         )
 
-        messages = await utils.parse_messages(
-            client=self,
-            messages=r.updates if isinstance(r, raw.types.payments.PaymentResult) else r
-        )
+        updates = r.updates if isinstance(r, raw.types.payments.PaymentResult) else r
+        users = {u.id: u for u in getattr(updates, "users", [])}
+        chats = {c.id: c for c in getattr(updates, "chats", [])}
 
-        return messages[0] if messages else None
+        for update in getattr(updates, "updates", []):
+            if isinstance(update, (raw.types.UpdateNewMessage, raw.types.UpdateNewChannelMessage)):
+                return await types.Message._parse(self, update.message, users, chats)
+
+        return None

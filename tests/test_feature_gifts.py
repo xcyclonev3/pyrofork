@@ -364,3 +364,28 @@ def test_send_stake_dice():
 
     call(lambda: client.send_stake_dice(7, "hash", 100000000))
     assert client.sent[1].media.client_seed != media.client_seed  # a new random seed for every roll
+
+
+@pytest.mark.parametrize("kwargs, show_name, message", [
+    ({}, True, None),
+    (dict(text="**enjoy**", is_private=True), False, "enjoy"),
+])
+def test_send_resold_gift(kwargs, show_name, message):
+    def respond(query):
+        if isinstance(query, raw.functions.payments.GetPaymentForm):
+            return raw.types.payments.PaymentFormStarGift(
+                form_id=5, invoice=raw.types.Invoice(currency="XTR", prices=[]))
+        return raw.types.payments.PaymentResult(updates=empty_updates([raw.types.UpdateNewMessage(
+            message=raw.types.MessageService(id=9, peer_id=raw.types.PeerUser(user_id=7), date=1,
+                                             action=raw.types.MessageActionEmpty()),
+            pts=1, pts_count=1)], users=[RAW_USER]))
+
+    client = offline_client(PEERS, respond)
+    sent = call(lambda: client.send_resold_gift("https://t.me/nft/NekoHelmet-9215", 7, **kwargs))
+
+    get_form, send_form = client.sent
+    invoice = get_form.invoice
+    assert isinstance(invoice, raw.types.InputInvoiceStarGiftResale) and invoice.slug == "NekoHelmet-9215"
+    assert invoice.show_name is show_name and send_form.form_id == 5
+    assert getattr(invoice.message, "text", None) == message
+    assert sent.id == 9 and sent.chat.id == 7
