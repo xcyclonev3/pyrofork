@@ -34,7 +34,8 @@ class SetChatPermissions:
 
         You must be an administrator in the group or a supergroup for this to work and must have the
         *can_restrict_members* admin rights.
-        In a community, only *can_edit_chat_list* is used.
+        In a community, only *can_edit_chat_list* is used: pass it explicitly, since ``ChatPermissions()`` and
+        *all_perms* leave it as it is.
 
         .. include:: /_includes/usable-by/users-bots.rst
 

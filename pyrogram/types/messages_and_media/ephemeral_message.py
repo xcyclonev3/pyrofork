@@ -225,20 +225,8 @@ class EphemeralMessage(Object, Update):
         users: Dict[int, "raw.base.User"],
         chats: Dict[int, "raw.base.Chat"]
     ) -> "types.Chat":
-        chat = types.Chat._parse_peer(client, peer, users, chats)
-
-        if chat is not None:
-            return chat
-
         # The chat should always come along with the message; keep at least its identifier
-        if isinstance(peer, raw.types.PeerUser):
-            chat_type = enums.ChatType.PRIVATE
-        elif isinstance(peer, raw.types.PeerChat):
-            chat_type = enums.ChatType.GROUP
-        else:
-            chat_type = enums.ChatType.SUPERGROUP
-
-        return types.Chat(id=utils.get_peer_id(peer), type=chat_type, client=client)
+        return types.Chat._parse_peer(client, peer, users, chats, fallback=True)
 
     @staticmethod
     async def _parse(
@@ -354,10 +342,16 @@ class EphemeralMessage(Object, Update):
 
         Returns:
             :obj:`~pyrogram.types.EphemeralMessage`: On success, the sent message is returned.
+
+        Raises:
+            ValueError: In case the message was sent on behalf of a chat.
         """
+        if self.from_user is None:
+            raise ValueError("Only ephemeral messages sent by users can be replied to")
+
         return await self._client.send_ephemeral_message(
             chat_id=self.chat.id,
-            receiver_user_id=self.from_user.id if self.from_user else self.sender_chat.id,
+            receiver_user_id=self.from_user.id,
             text=text,
             media=media,
             rich_message=rich_message,

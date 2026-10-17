@@ -78,7 +78,8 @@ class ChatJoinResult(Object, Update):
             result_type = enums.ChatJoinResultType.WEB_APP
 
         return ChatJoinResult(
-            chat=types.Chat._parse_chat(client, chats.get(pyrogram.utils.get_raw_peer_id(update.peer))),
+            # The chat may not come along with the update, e.g. the user isn't a member yet
+            chat=types.Chat._parse_peer(client, update.peer, users, chats, fallback=True),
             query_id=update.query_id,
             type=result_type,
             url=getattr(result, "url", None),

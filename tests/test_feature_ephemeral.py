@@ -364,3 +364,32 @@ def test_chat_has_welcome_messages():
 
     assert isinstance(client.sent[0], raw.functions.messages.GetFullChat)
     assert chat.has_welcome_messages is True
+
+
+# Review fixes
+
+def test_deleted_ephemeral_messages_filters():
+    from pyrogram import filters
+
+    messages = types.List([types.EphemeralMessage(id=5, chat=types.Chat(id=CHAT_ID, type=enums.ChatType.SUPERGROUP))])
+    client = new_client()
+
+    matching = handlers.DeletedEphemeralMessagesHandler(lambda c, m: None, filters.chat(CHAT_ID))
+    other = handlers.DeletedEphemeralMessagesHandler(lambda c, m: None, filters.chat(-1001))
+    assert asyncio.run(matching.check(client, messages)) is True
+    assert asyncio.run(other.check(client, messages)) is False
+
+
+def test_ephemeral_callback_queries_without_chat_are_dropped():
+    parsed, handler_type = dispatch(raw.types.UpdateEphemeralBotCallbackQuery(
+        query_id=77, user_id=7, msg_id=5, data=b"ok", message=raw_ephemeral(peer_id=None)))
+
+    assert parsed is None and handler_type is type(None)
+
+
+def test_reply_to_ephemeral_messages_of_chats():
+    message = parse(raw_ephemeral(from_id=raw.types.PeerChannel(channel_id=123)))
+
+    assert message.from_user is None and message.sender_chat.id == CHAT_ID
+    with pytest.raises(ValueError):
+        call(lambda: message.reply("hi"))

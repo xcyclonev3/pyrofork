@@ -598,17 +598,31 @@ class Chat(Object):
         client,
         peer: "raw.base.Peer",
         users: Dict[int, "raw.base.User"],
-        chats: Dict[int, "raw.base.Chat"]
+        chats: Dict[int, "raw.base.Chat"],
+        fallback: bool = False
     ) -> Optional["Chat"]:
-        """Like :meth:`_parse_dialog`, but returns None for peers missing from *users* and *chats*."""
-        if isinstance(peer, raw.types.PeerUser):
-            return Chat._parse_user_chat(client, users.get(peer.user_id))
-        if isinstance(peer, raw.types.PeerChat):
-            return Chat._parse_chat_chat(client, chats.get(peer.chat_id))
-        if isinstance(peer, raw.types.PeerChannel):
-            return Chat._parse_channel_chat(client, chats.get(peer.channel_id))
+        """Like :meth:`_parse_dialog`, but returns None for peers missing from *users* and *chats*, or, with
+        *fallback*, a chat with only the identifier and the most likely type."""
+        chat = None
 
-        return None
+        if isinstance(peer, raw.types.PeerUser):
+            chat = Chat._parse_user_chat(client, users.get(peer.user_id))
+        elif isinstance(peer, raw.types.PeerChat):
+            chat = Chat._parse_chat_chat(client, chats.get(peer.chat_id))
+        elif isinstance(peer, raw.types.PeerChannel):
+            chat = Chat._parse_channel_chat(client, chats.get(peer.channel_id))
+
+        if chat is None and fallback and peer is not None:
+            if isinstance(peer, raw.types.PeerUser):
+                chat_type = enums.ChatType.PRIVATE
+            elif isinstance(peer, raw.types.PeerChat):
+                chat_type = enums.ChatType.GROUP
+            else:
+                chat_type = enums.ChatType.SUPERGROUP
+
+            chat = Chat(id=utils.get_peer_id(peer), type=chat_type, client=client)
+
+        return chat
 
     @staticmethod
     async def _parse_full(client, chat_full: Union[raw.types.messages.ChatFull, raw.types.users.UserFull]) -> "Chat":

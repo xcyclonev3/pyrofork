@@ -56,3 +56,12 @@ def test_chat_join_result_updates(result, result_type, url):
     assert isinstance(parsed, types.ChatJoinResult) and parsed.chat.title == "Test"
     assert (parsed.query_id, parsed.type, parsed.url) == (555, result_type, url)
     assert callable(client.on_chat_join_result)
+
+
+def test_chat_join_result_without_chat():
+    client = pyrogram.Client("layer-roundtrip", api_id=1, api_hash="x", in_memory=True)
+    update = roundtrip(raw.types.UpdateJoinChatWebViewDecision(
+        peer=raw.types.PeerChannel(channel_id=123), query_id=555, result=raw.types.JoinChatBotResultApproved()))
+    parsed, _ = asyncio.run(client.dispatcher.update_parsers[type(update)](update, {}, {}))
+
+    assert parsed.chat.id == -1000000000123 and parsed.chat.type == enums.ChatType.SUPERGROUP

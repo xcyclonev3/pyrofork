@@ -99,7 +99,7 @@ class ChatPermissions(Object):
 
         can_edit_chat_list (``bool``, *optional*):
             True, if the user is allowed to add chats to the community and to remove them.
-            For communities only.
+            Only meaningful for communities: other chats always allow it.
     """
 
     def __init__(

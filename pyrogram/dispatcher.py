@@ -206,10 +206,13 @@ class Dispatcher:
             )
 
         async def callback_query_parser(update, users, chats):
-            return (
-                await pyrogram.types.CallbackQuery._parse(self.client, update, users, chats),
-                CallbackQueryHandler
-            )
+            parsed = await pyrogram.types.CallbackQuery._parse(self.client, update, users, chats)
+
+            # Like TDLib, drop queries of ephemeral messages that can't be parsed (no chat)
+            if isinstance(update, UpdateEphemeralBotCallbackQuery) and parsed.ephemeral_message is None:
+                return None, type(None)
+
+            return parsed, CallbackQueryHandler
 
         async def user_status_parser(update, users, chats):
             return (

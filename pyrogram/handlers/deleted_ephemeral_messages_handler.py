@@ -17,8 +17,9 @@
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from typing import Callable
+from typing import Callable, List
 
+import pyrogram
 from .handler import Handler
 
 
@@ -44,7 +45,17 @@ class DeletedEphemeralMessagesHandler(Handler):
 
         ephemeral_messages (List of :obj:`~pyrogram.types.EphemeralMessage`):
             The deleted ephemeral messages; only their id and chat are known.
+            The same update also reports deleted welcome messages of the chat (see
+            :obj:`~pyrogram.types.WelcomeMessage`).
     """
 
     def __init__(self, callback: Callable, filters=None):
         super().__init__(callback, filters)
+
+    async def check(self, client: "pyrogram.Client", messages: List["pyrogram.types.EphemeralMessage"]):
+        # Like DeletedMessagesHandler: True if at least one of the messages passes the filters
+        for message in messages:
+            if await super().check(client, message):
+                return True
+
+        return False
