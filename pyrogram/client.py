@@ -216,9 +216,11 @@ class Client(Methods):
             Defaults to True.
 
         takeout (``bool``, *optional*):
-            Pass True to let the client use a takeout session instead of a normal one, implies *no_updates=True*.
-            Useful for exporting Telegram data. Methods invoked inside a takeout session (such as get_chat_history,
-            download_media, ...) are less prone to throw FloodWait exceptions.
+            Pass True to let the client use a takeout session instead of a normal one.
+            Useful for exporting Telegram data. Methods invoked inside a takeout session (such as get_chat_history)
+            are less prone to throw FloodWait exceptions; file transfers (e.g. download_media) use media sessions and
+            are not invoked inside it.
+            It doesn't imply *no_updates=True*: pass it as well to disable incoming updates.
             Only available for users, bots will ignore this parameter.
             Defaults to False (normal session).
 
@@ -230,8 +232,8 @@ class Client(Methods):
 
         hide_password (``bool``, *optional*):
             Pass True to hide the password when typing it during the login.
-            Defaults to False, because ``getpass`` (the library used) is known to be problematic in some
-            terminal environments.
+            Defaults to True. Pass False if ``getpass`` (the library used) doesn't work in your terminal environment:
+            it is known to be problematic in some.
 
         max_concurrent_transmissions (``bool``, *optional*):
             Set the maximum amount of concurrent transmissions (uploads & downloads).
