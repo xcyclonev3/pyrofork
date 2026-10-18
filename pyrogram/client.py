@@ -1143,7 +1143,12 @@ class Client(Methods):
         file = BytesIO() if in_memory else open(temp_file_path, "wb")
 
         try:
-            async for chunk in self.get_file(file_id, file_size, 0, 0, progress, progress_args):
+            try:
+                chunks = self.get_file(file_id, file_size, 0, 0, progress, progress_args, _raise_errors=True)
+            except TypeError:  # get_file overridden with the previous signature: its errors end the file, as before
+                chunks = self.get_file(file_id, file_size, 0, 0, progress, progress_args)
+
+            async for chunk in chunks:
                 file.write(chunk)
         except BaseException as e:
             if not in_memory:
@@ -1174,7 +1179,9 @@ class Client(Methods):
         limit: int = 0,
         offset: int = 0,
         progress: Callable = None,
-        progress_args: tuple = ()
+        progress_args: tuple = (),
+        *,
+        _raise_errors: bool = False
     ) -> Optional[AsyncGenerator[bytes, None]]:
         async with self.get_file_semaphore:
             file_type = file_id.file_type
@@ -1222,6 +1229,33 @@ class Client(Methods):
             offset_bytes = abs(offset) * chunk_size
 
             dc_id = file_id.dc_id
+
+            # Errors of the progress callback (e.g. a progress message edited with the same text) don't stop the
+            # download, StopTransmission and FloodWait aside: only the first one is logged
+            progress_failed = False
+
+            async def call_progress():
+                nonlocal progress_failed
+
+                try:
+                    func = functools.partial(
+                        progress,
+                        min(offset_bytes, file_size) if file_size != 0 else offset_bytes,
+                        file_size,
+                        *progress_args
+                    )
+
+                    if inspect.iscoroutinefunction(progress):
+                        await func()
+                    else:
+                        await self.loop.run_in_executor(self.executor, func)
+                except (pyrogram.StopTransmission, pyrogram.errors.FloodWait):
+                    raise
+                except Exception as e:
+                    if not progress_failed:
+                        progress_failed = True
+                        log.exception("Error in the progress callback, the download goes on and its next errors "
+                                      "aren't logged: %s", e)
 
             try:
                 # Kept for the next transfers: starting it costs round trips and, on another data center, a new
@@ -1278,19 +1312,7 @@ class Client(Methods):
                             offset_bytes += chunk_size
 
                             if progress:
-                                func = functools.partial(
-                                    progress,
-                                    min(offset_bytes, file_size)
-                                    if file_size != 0
-                                    else offset_bytes,
-                                    file_size,
-                                    *progress_args
-                                )
-
-                                if inspect.iscoroutinefunction(progress):
-                                    await func()
-                                else:
-                                    await self.loop.run_in_executor(self.executor, func)
+                                await call_progress()
 
                             if len(chunk) < chunk_size or current >= total:
                                 break
@@ -1371,17 +1393,7 @@ class Client(Methods):
                             offset_bytes += chunk_size
 
                             if progress:
-                                func = functools.partial(
-                                    progress,
-                                    min(offset_bytes, file_size) if file_size != 0 else offset_bytes,
-                                    file_size,
-                                    *progress_args
-                                )
-
-                                if inspect.iscoroutinefunction(progress):
-                                    await func()
-                                else:
-                                    await self.loop.run_in_executor(self.executor, func)
+                                await call_progress()
 
                             if len(chunk) < chunk_size or current >= total:
                                 break
@@ -1395,6 +1407,10 @@ class Client(Methods):
                 raise
             except Exception as e:
                 log.exception(e)
+
+                # The chunks handed out so far are only part of the file: a download must not keep them as the file
+                if _raise_errors:
+                    raise
 
     def guess_mime_type(self, filename: str) -> Optional[str]:
         return self.mimetypes.guess_type(filename)[0]
