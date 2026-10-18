@@ -25,6 +25,18 @@ from pyrogram.filters import Filter
 from pyrogram.types import Update
 
 
+async def run_callback(callback: Callable, client: "pyrogram.Client", *args):
+    """Call a handler callback in the event loop, then await what it returns if that is awaitable.
+
+    Coroutine functions, plain functions returning a coroutine (like a decorator returning message.reply(...)) and
+    objects with an async __call__ are all awaited; a plain function returning anything else, like None, just runs.
+    """
+    result = callback(client, *args)
+
+    if inspect.isawaitable(result):
+        await result
+
+
 class Handler:
     def __init__(self, callback: Callable, filters: Filter = None):
         self.callback = callback

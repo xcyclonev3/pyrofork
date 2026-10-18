@@ -25,7 +25,7 @@ import pyrogram
 from pyrogram.utils import PyromodConfig
 from pyrogram.types import CallbackQuery, Identifier, Listener
 
-from .handler import Handler
+from .handler import Handler, run_callback
 
 
 class CallbackQueryHandler(Handler):
@@ -204,4 +204,4 @@ class CallbackQueryHandler(Handler):
             else:
                 raise ValueError("Listener must have either a future or a callback")
         else:
-            await self.original_callback(client, query, *args)
+            await run_callback(self.original_callback, client, query, *args)
