@@ -416,11 +416,13 @@ class Dispatcher:
 
     async def start(self):
         if not self.client.no_updates:
-            for _ in range(self.client.workers):
-                self.locks_list.append(asyncio.Lock())
+            for i in range(self.client.workers):
+                # stop() keeps the locks, as add_handler() and remove_handler() may wait for them
+                if i == len(self.locks_list):
+                    self.locks_list.append(asyncio.Lock())
 
                 self.handler_worker_tasks.append(
-                    self.loop.create_task(self.handler_worker(self.locks_list[-1]))
+                    self.loop.create_task(self.handler_worker(self.locks_list[i]))
                 )
 
             log.info("Started %s HandlerTasks", self.client.workers)
@@ -439,6 +441,8 @@ class Dispatcher:
             self.handler_worker_tasks.clear()
             self.groups.clear()
             self.error_handlers.clear()
+            # As in __init__: wait_for_message() and ask() keep their waiters across restarts
+            self.groups[0] = [self.conversation_handler]
 
             log.info("Stopped %s HandlerTasks", self.client.workers)
 
@@ -532,6 +536,8 @@ class Dispatcher:
                 except Exception as error:
                     if parsed_update is not None:
                         await self._handle_exception(parsed_update, error)
+                    else:
+                        log.exception("Unhandled exception: %s", error)
                 break
 
     async def _match_handler(
