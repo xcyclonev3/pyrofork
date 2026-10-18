@@ -45,6 +45,12 @@ class OnTonConnectPendingDisconnect:
         def decorator(func: Callable) -> Callable:
             if isinstance(self, pyrogram.Client):
                 self.add_handler(pyrogram.handlers.TonConnectPendingDisconnectHandler(func, filters), group)
+            elif self is None and isinstance(filters, Filter):
+                # Plugin form with keyword filters: @Client.on_ton_connect_pending_disconnect(filters=...)
+                if not hasattr(func, "handlers"):
+                    func.handlers = []
+
+                func.handlers.append((pyrogram.handlers.TonConnectPendingDisconnectHandler(func, filters), group))
             elif isinstance(self, Filter) or self is None:
                 if not hasattr(func, "handlers"):
                     func.handlers = []

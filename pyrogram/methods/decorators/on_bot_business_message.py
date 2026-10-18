@@ -46,6 +46,12 @@ class OnBotBusinessMessage:
         def decorator(func: Callable) -> Callable:
             if isinstance(self, pyrogram.Client):
                 self.add_handler(pyrogram.handlers.BotBusinessMessageHandler(func, filters), group)
+            elif self is None and isinstance(filters, Filter):
+                # Plugin form with keyword filters: @Client.on_bot_business_message(filters=...)
+                if not hasattr(func, "handlers"):
+                    func.handlers = []
+
+                func.handlers.append((pyrogram.handlers.BotBusinessMessageHandler(func, filters), group))
             elif isinstance(self, Filter) or self is None:
                 if not hasattr(func, "handlers"):
                     func.handlers = []

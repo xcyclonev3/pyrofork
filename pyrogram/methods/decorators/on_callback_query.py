@@ -46,6 +46,12 @@ class OnCallbackQuery:
         def decorator(func: Callable) -> Callable:
             if isinstance(self, pyrogram.Client):
                 self.add_handler(pyrogram.handlers.CallbackQueryHandler(func, filters), group)
+            elif self is None and isinstance(filters, Filter):
+                # Plugin form with keyword filters: @Client.on_callback_query(filters=...)
+                if not hasattr(func, "handlers"):
+                    func.handlers = []
+
+                func.handlers.append((pyrogram.handlers.CallbackQueryHandler(func, filters), group))
             elif isinstance(self, Filter) or self is None:
                 if not hasattr(func, "handlers"):
                     func.handlers = []

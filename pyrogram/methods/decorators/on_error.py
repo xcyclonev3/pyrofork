@@ -20,7 +20,6 @@
 from typing import Callable
 
 import pyrogram
-from pyrogram.filters import Filter
 
 
 class OnError:
@@ -46,7 +45,15 @@ class OnError:
         def decorator(func: Callable) -> Callable:
             if isinstance(self, pyrogram.Client):
                 self.add_handler(pyrogram.handlers.ErrorHandler(func, errors), group)
-            elif isinstance(self, Filter) or self is None:
+            elif self is None and errors is not None and not isinstance(errors, int):
+                # Plugin form with keyword errors: @Client.on_error(errors=...)
+                # (@Client.on_error(None, group) puts an int here instead)
+                if not hasattr(func, "handlers"):
+                    func.handlers = []
+
+                func.handlers.append((pyrogram.handlers.ErrorHandler(func, errors), group))
+            else:
+                # Plugin form with positional errors: @Client.on_error() or @Client.on_error(errors)
                 if not hasattr(func, "handlers"):
                     func.handlers = []
 

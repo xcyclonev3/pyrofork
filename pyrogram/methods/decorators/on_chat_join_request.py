@@ -45,6 +45,12 @@ class OnChatJoinRequest:
         def decorator(func: Callable) -> Callable:
             if isinstance(self, pyrogram.Client):
                 self.add_handler(pyrogram.handlers.ChatJoinRequestHandler(func, filters), group)
+            elif self is None and isinstance(filters, Filter):
+                # Plugin form with keyword filters: @Client.on_chat_join_request(filters=...)
+                if not hasattr(func, "handlers"):
+                    func.handlers = []
+
+                func.handlers.append((pyrogram.handlers.ChatJoinRequestHandler(func, filters), group))
             elif isinstance(self, Filter) or self is None:
                 if not hasattr(func, "handlers"):
                     func.handlers = []

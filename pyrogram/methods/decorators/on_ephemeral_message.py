@@ -45,6 +45,12 @@ class OnEphemeralMessage:
         def decorator(func: Callable) -> Callable:
             if isinstance(self, pyrogram.Client):
                 self.add_handler(pyrogram.handlers.EphemeralMessageHandler(func, filters), group)
+            elif self is None and isinstance(filters, Filter):
+                # Plugin form with keyword filters: @Client.on_ephemeral_message(filters=...)
+                if not hasattr(func, "handlers"):
+                    func.handlers = []
+
+                func.handlers.append((pyrogram.handlers.EphemeralMessageHandler(func, filters), group))
             elif isinstance(self, Filter) or self is None:
                 if not hasattr(func, "handlers"):
                     func.handlers = []
