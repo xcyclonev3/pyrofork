@@ -5842,7 +5842,7 @@ class Message(Object, Update):
             asyncio.TimeoutError: In case reply not received within the timeout.
         """
         if quote is None:
-            quote = self.chat.type != "private"
+            quote = self.chat.type != enums.ChatType.PRIVATE
 
         if reply_to_message_id is None and quote:
             reply_to_message_id = self.id

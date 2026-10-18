@@ -33,6 +33,8 @@ class StopListener:
 
         .. include:: /_includes/usable-by/users-bots.rst
 
+        A listener registered with :meth:`~pyrogram.Client.register_next_step_handler` is only removed.
+
         Parameters:
             listener (:obj:`~pyrogram.types.Listener`):
                 The listener to remove.
@@ -42,11 +44,15 @@ class StopListener:
         """
         self.remove_listener(listener)
 
-        if listener.future.done():
+        # A listener with a callback instead of a future (register_next_step_handler) has nobody waiting for it
+        if listener.future is None or listener.future.done():
             return
 
         if callable(PyromodConfig.stopped_handler):
-            if inspect.iscoroutinefunction(PyromodConfig.stopped_handler.__call__):
+            if (
+                inspect.iscoroutinefunction(PyromodConfig.stopped_handler)
+                or inspect.iscoroutinefunction(PyromodConfig.stopped_handler.__call__)
+            ):
                 await PyromodConfig.stopped_handler(None, listener)
             else:
                 await self.loop.run_in_executor(
