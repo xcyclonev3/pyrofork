@@ -76,6 +76,33 @@ else:
     MONGO_AVAIL = True
 
 
+# How the confirmation code of an interactive login was sent, for each SentCodeType
+SENT_CODE_DESCRIPTIONS = {
+    enums.SentCodeType.APP: "Telegram app",
+    enums.SentCodeType.SMS: "SMS",
+    enums.SentCodeType.CALL: "phone call",
+    enums.SentCodeType.FLASH_CALL: "phone flash call",
+    enums.SentCodeType.MISSED_CALL: "phone missed call (the code is the last digits of the calling number)",
+    enums.SentCodeType.FRAGMENT_SMS: "Fragment SMS",
+    enums.SentCodeType.EMAIL_CODE: "email code",
+    enums.SentCodeType.FIREBASE_SMS: "SMS (after a Firebase verification)",
+    enums.SentCodeType.SMS_WORD: "SMS, as a word",
+    enums.SentCodeType.SMS_PHRASE: "SMS, as a phrase",
+    enums.SentCodeType.SETUP_EMAIL_REQUIRED: "nothing yet: a login email must be set up first"
+}
+
+
+def sent_code_description(sent_code_type: "enums.SentCodeType") -> str:
+    """How a confirmation code was sent, in words. A type the table lacks is told by its name rather than failing the
+    login."""
+    try:
+        return SENT_CODE_DESCRIPTIONS[sent_code_type]
+    except (KeyError, TypeError):
+        name = getattr(sent_code_type, "name", None)
+
+        return name.lower().replace("_", " ") if isinstance(name, str) else "an unknown method"
+
+
 class Client(Methods):
     """Pyrogram Client, the main means for interacting with Telegram.
 
@@ -469,16 +496,7 @@ class Client(Methods):
                 else:
                     break
             if not self.use_qrcode:
-                sent_code_descriptions = {
-                    enums.SentCodeType.APP: "Telegram app",
-                    enums.SentCodeType.SMS: "SMS",
-                    enums.SentCodeType.CALL: "phone call",
-                    enums.SentCodeType.FLASH_CALL: "phone flash call",
-                    enums.SentCodeType.FRAGMENT_SMS: "Fragment SMS",
-                    enums.SentCodeType.EMAIL_CODE: "email code"
-                }
-
-                print(f"The confirmation code has been sent via {sent_code_descriptions[sent_code.type]}")
+                print(f"The confirmation code has been sent via {sent_code_description(sent_code.type)}")
 
         while True:
             if not self.use_qrcode and not self.phone_code:

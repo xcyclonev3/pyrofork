@@ -44,3 +44,15 @@ class SentCodeType(AutoName):
 
     EMAIL_CODE = raw.types.auth.SentCodeTypeEmailCode
     "The code was sent via email."
+
+    FIREBASE_SMS = raw.types.auth.SentCodeTypeFirebaseSms
+    "The code was sent via SMS after a Firebase verification of the app (official apps only)."
+
+    SMS_WORD = raw.types.auth.SentCodeTypeSmsWord
+    "The code is a word sent via SMS."
+
+    SMS_PHRASE = raw.types.auth.SentCodeTypeSmsPhrase
+    "The code is a phrase sent via SMS."
+
+    SETUP_EMAIL_REQUIRED = raw.types.auth.SentCodeTypeSetUpEmailRequired
+    "No code was sent: a login email must be set up first."
