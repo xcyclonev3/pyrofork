@@ -149,8 +149,7 @@ Notes:
 - `workdir` default: the directory of the main script (`Client.PARENT_DIR = Path(sys.argv[0]).parent`, not resolved; `python bot.py` gives `.`). The session file is `<workdir>/<name>.session`.
 - `workers` default: `Client.WORKERS = min(32, os.cpu_count() + 4)`.
 - `device_model`, `system_version`, `app_version` default to values from `platform` and the Pyrofork version.
-- `hide_password` defaults to `True` in code (the docstring says False).
-- `takeout=True` starts a takeout session (`InvokeWithTakeout`) but does not set `no_updates`, despite the docstring.
+- `takeout=True` wraps requests in `InvokeWithTakeout` (user accounts only) but does not disable updates: pass `no_updates=True` as well. File transfers use media sessions and are not part of the takeout session.
 
 Class attributes you may change before creating clients: `Client.DOWNLOAD_PARTS_IN_FLIGHT = 4`, `Client.UPLOAD_PARTS_IN_FLIGHT = 4`, `Client.UPDATES_WATCHDOG_INTERVAL = 900` (seconds without updates before `updates.GetState`), `Client.MAX_CONCURRENT_TRANSMISSIONS = 1`, `Client.MAX_CACHE_SIZE = 10000`; storage: `pyrogram.storage.sqlite_storage.SQLiteStorage.COMMIT_DELAY = 1`; network: the `Session` and `TCP` constants in section 14.
 
@@ -192,11 +191,11 @@ Runtime attributes of a started client: `app.me` (`types.User`), `app.is_connect
 7. `initialize()` (`pyrogram/methods/auth/initialize.py`): `load_plugins()`, `dispatcher.start()` (creates `workers` dispatcher tasks; when `skip_updates=False`, runs `recover_gaps()`), starts `updates_watchdog`.
 
 `await app.stop(block=True)` (`pyrogram/methods/utilities/stop.py`):
-1. `terminate()` (`pyrogram/methods/auth/terminate.py`): finish takeout, `storage.save()`, `dispatcher.stop()` (stops the workers and **clears all handler groups and error handlers**), stop and clear `media_sessions` and `dc_sessions`, stop the watchdog.
+1. `terminate()` (`pyrogram/methods/auth/terminate.py`): finish takeout, `storage.save()`, `dispatcher.stop()` (stops the workers and **clears the handler groups and error handlers**, keeping only the internal `ConversationHandler`), stop and clear `media_sessions` and `dc_sessions`, stop the watchdog.
 2. `disconnect()` (`pyrogram/methods/auth/disconnect.py`): `session.stop()` (awaits your `on_disconnect` callback), `storage.close()` (commits pending peers/states).
 `block=False` schedules it as a task and returns at once: use it to stop a client from inside one of its own handlers (awaiting `stop()` there would wait for the handler itself).
 
-`await app.restart(block=True)`: `stop()` then `start()`. Because `stop()` clears the handler groups, only plugin handlers come back; handlers added with `@app.on_…`/`add_handler` and the internal `ConversationHandler` (used by `wait_for_message`/`message.ask`) are gone after a restart. With `in_memory=True` and no session string the authorization is lost too (fresh in-memory database).
+`await app.restart(block=True)`: `stop()` then `start()`. Because `stop()` clears the handler groups (as upstream Pyrogram does), only plugin handlers come back; handlers added with `@app.on_…`/`add_handler` and error handlers must be added again after a restart. The internal `ConversationHandler` and pending `wait_for_message`/`ask` waiters are kept. With `in_memory=True` and no session string the authorization is lost too (fresh in-memory database).
 
 `app.run(coroutine=None)` (`pyrogram/methods/utilities/run.py`): uses the current event loop's `run_until_complete`, so it cannot be called from a running loop. Without argument: `start()`, `idle()`, `stop()`. With a coroutine: runs only that coroutine.
 
@@ -312,7 +311,7 @@ Raw update → parsed type → handler class (from `Dispatcher.__init__`; raw ty
 
 Registration:
 - `@app.on_message(filters=None, group=0)` (and every `on_*` decorator) calls `app.add_handler(MessageHandler(func, filters), group)` and returns `func` unchanged.
-- `@Client.on_message(...)` (on the class, inside plugin modules) only marks the function; `load_plugins` registers it at start (section 7).
+- `@Client.on_message(...)` (on the class, inside plugin modules) only marks the function; `load_plugins` registers it at start (section 6). The filter can be passed positionally or as `filters=`, the group as the second positional argument or `group=`; `@Client.on_error(SomeError)` / `errors=` work too.
 - `app.add_handler(handler, group=0)` returns `(handler, group)`; the change is applied by a background task once every worker is idle, so a handler added right before an update may miss it. `app.remove_handler(handler, group)` works the same way.
 
 Dispatch (`Dispatcher._dispatch_to_handlers`), for each update:
@@ -320,12 +319,12 @@ Dispatch (`Dispatcher._dispatch_to_handlers`), for each update:
 2. a handler matches when it is of the update's handler class (or a `RawUpdateHandler`) and `await handler.check(client, update)` is true (its filters pass). Exceptions in filters are logged and count as "no match";
 3. **after the first matching handler of a group runs, the rest of that group is skipped** and dispatch goes on with the next group;
 4. `raise pyrogram.StopPropagation` (or `update.stop_propagation()`) in a callback stops all later groups; `raise pyrogram.ContinuePropagation` (or `update.continue_propagation()`) lets the next handlers of the same group be checked;
-5. any other exception in a callback goes to the error handlers, then the group ends as in step 3 (for raw update types without a parser, i.e. only `RawUpdateHandler`s, the exception is dropped without any log).
+5. any other exception in a callback goes to the error handlers (for raw update types without a parser, which only `RawUpdateHandler`s receive, it is logged as `Unhandled exception` instead), then the group ends as in step 3.
 
 Error handlers: `@app.on_error(errors=None)` / `ErrorHandler(callback, errors)` with `errors` an exception class or a tuple (default `Exception`). The first one whose class matches is awaited as `callback(client, update, exception)` (must be `async def`). Without a matching error handler the dispatcher logs `Unhandled exception: <error>` with the traceback (logger `pyrogram.dispatcher`).
 
 Callback style:
-- **Use `async def` callbacks.** `MessageHandler`, `CallbackQueryHandler` and `BotBusinessMessageHandler` wrap the callback for listeners (`resolve_future_or_callback`) and always `await` it: a plain `def` callback runs on the event-loop thread and then fails with `TypeError: object NoneType can't be used in 'await' expression` (logged as an unhandled exception). Other handler classes run plain `def` callbacks in `app.executor`.
+- **Use `async def` callbacks.** `MessageHandler`, `CallbackQueryHandler` and `BotBusinessMessageHandler` call the callback on the event-loop thread (`pyrogram/handlers/handler.py` `run_callback`) and await what it returns when that is awaitable: a plain `def` callback blocks the loop while it runs, and a Pyrogram call made inside it only runs if it is returned (`return message.reply(...)`). Other handler classes run plain `def` callbacks in `app.executor` (`Dispatcher._execute_handler`).
 - Sync filters run in an executor; async filters are awaited.
 
 Filters (`pyrogram/filters.py`): combine with `&`, `|`, `~`. Custom filters:
@@ -350,9 +349,9 @@ Listeners (pyromod-style, `pyrogram/methods/pyromod/`, types `Listener` and `Ide
 - `await app.ask(chat_id, text, filters=None, listener_type=..., timeout=None, ...)` sends `text` then listens; the answer has `.sent_message`;
 - `await app.stop_listening(listener_type=..., chat_id=None, user_id=None, message_id=None, inline_message_id=None)`, `app.register_next_step_handler(callback, filters=None, ...)`;
 - bound helpers: `chat.listen/ask/stop_listening`, `user.listen/ask/stop_listening`, `message.wait_for_click(from_user_id=None, timeout=None, filters=None, alert=True)`;
-- on timeout: `pyrogram.errors.ListenerTimeout` (when `pyrogram.utils.PyromodConfig.throw_exceptions` is true, the default), `ListenerStopped` when stopped; configure `PyromodConfig.timeout_handler`, `stopped_handler`, `unallowed_click_alert`, `unallowed_click_alert_text`;
+- on timeout: `pyrogram.errors.ListenerTimeout` (when `pyrogram.utils.PyromodConfig.throw_exceptions` is true, the default), `ListenerStopped` when stopped; configure `PyromodConfig.timeout_handler`, `stopped_handler` (sync or async functions), `unallowed_click_alert`, `unallowed_click_alert_text`; `stop_listener` on a listener from `register_next_step_handler` just removes it;
 - how they resolve: only `MessageHandler`, `CallbackQueryHandler` and `BotBusinessMessageHandler` look at listeners. When a listener matches the update (chat/user/message ids from the `Identifier`, `None` = any) and its filters pass, the handler's `check` succeeds even if the handler's own filters fail, the listener's future gets the update, **your callback is not called**, and propagation stops. So a `listen()` for messages needs at least one `MessageHandler` registered (any filters), and a callback-query listener needs a `CallbackQueryHandler`;
-- `app.wait_for_message(chat_id, filters=None, timeout=None)`, `app.wait_for_callback_query(...)` and `message.ask(text, ...)` use a separate mechanism: the internal `ConversationHandler` that sits first in group 0 (one waiter per chat; a timeout raises `asyncio.TimeoutError`).
+- `app.wait_for_message(chat_id, filters=None, timeout=None)`, `app.wait_for_callback_query(...)` and `message.ask(text, ...)` use a separate mechanism: the internal `ConversationHandler` that sits first in group 0 (one waiter per chat; a timeout raises `asyncio.TimeoutError`). `message.ask` quotes the message by default in groups, not in private chats.
 
 ## 11. Peers, IDs and the peer cache
 
@@ -420,8 +419,8 @@ Key limits (class attributes of `Client`, `pyrogram/client.py`):
 Download flow (`download_media` → `handle_download` → `get_file`, `pyrogram/client.py`):
 1. `download_media(message_or_file_id, file_name="downloads/", in_memory=False, block=True, progress=None, progress_args=())` decodes the `file_id` (`pyrogram/file_id.py` `FileId.decode`) into a raw `InputFileLocation`;
 2. `get_file` takes the download semaphore, gets a media session for the file's DC (`get_media_session`, `pyrogram/methods/messages/inline_session.py`: same DC → a `Session(is_media=True)` with the main auth key; other DC → a new auth key plus `auth.exportAuthorization`/`importAuthorization`), cached in `app.media_sessions` until `stop()`;
-3. it keeps up to `DOWNLOAD_PARTS_IN_FLIGHT` `upload.GetFile` requests running ahead (on the DC stored in the `file_id`) and yields 1 MiB chunks in order; CDN redirects (`upload.FileCdnRedirect`) use a sequential path. Error handling inside `get_file`: `StopTransmission` and `FloodWait` are raised; any other exception (e.g. `FileReferenceExpired`) is logged with `log.exception` and simply ends the chunk stream early;
-4. `handle_download` writes chunks to `<file>.temp` (or a `BytesIO` when `in_memory=True`) and renames it when the stream ends, so an error that ended the stream early leaves a **truncated file reported as success**; `StopTransmission` (raise it inside `progress`) deletes the temp file and returns `None`; `FloodWait` and `CancelledError` delete it and are raised. `progress(current, total, *progress_args)` is called per chunk (sync callbacks run in `app.executor`);
+3. it keeps up to `DOWNLOAD_PARTS_IN_FLIGHT` `upload.GetFile` requests running ahead (on the DC stored in the `file_id`) and yields 1 MiB chunks in order; CDN redirects (`upload.FileCdnRedirect`) use a sequential path. Errors: `StopTransmission` and `FloodWait` are raised; an exception raised by your `progress` callback is logged once and the download goes on; any other error (e.g. `FileReferenceExpired`, network errors after the session's retries) is logged and ends the download: `download_media` deletes the temp file and returns `None`, while `stream_media` simply ends early without raising;
+4. `handle_download` writes chunks to `<file>.temp` (or a `BytesIO` when `in_memory=True`) and renames it once every chunk arrived; on a failure, or `StopTransmission` (raise it inside `progress`, or call `client.stop_transmission()`), it deletes the temp file and returns `None`; `FloodWait` and `CancelledError` delete it and are raised. `progress(current, total, *progress_args)` is called per chunk (sync callbacks run in `app.executor`);
 5. `block=False` returns immediately (download runs as a task).
 
 `stream_media(message, limit=0, offset=0)` is an async generator over the same `get_file` (1 MiB chunks), for partial or on-the-fly downloads.
@@ -508,7 +507,7 @@ Non-Telegram exceptions callers see: `ConnectionError` (client not started, alre
 
 - Everything runs on one asyncio event loop (one CPU core for Python code, GIL). Receiving, decrypting small messages, parsing and handlers share it.
 - `async def` handlers run as tasks on that loop: never block in them (no `time.sleep`, no blocking I/O, no heavy CPU); use `await asyncio.sleep`, async libraries, or `await app.loop.run_in_executor(...)` / a `ProcessPoolExecutor` for CPU work.
-- plain `def` handlers and sync progress callbacks run in `app.executor` (a `ThreadPoolExecutor` with `workers` threads); they still hold the GIL for Python code.
+- plain `def` handlers (except `MessageHandler`, `CallbackQueryHandler` and `BotBusinessMessageHandler`, which call them on the loop thread, see section 10) and sync progress callbacks run in `app.executor` (a `ThreadPoolExecutor` with `workers` threads); they still hold the GIL for Python code.
 - `workers` (default `min(32, cpu_count + 4)`) is also the number of dispatcher tasks consuming updates; they dispatch concurrently (each holds only its own lock, which `add_handler`/`remove_handler` take to change the handler list safely), so a slow handler only occupies its own worker and update order across workers is not guaranteed. Set `workers=1` for strictly sequential handling.
 - AES (TgCrypto) and SHA-256 release the GIL for data ≥ 2 KiB; messages > 64 KiB (file parts) are packed/unpacked in `pyrogram.crypto_executor`, so file crypto overlaps with the loop.
 - Install the `speedup` extra (`pip install "pyrofork[speedup]"`: `tgcrypto-pyrofork`, `uvloop`). Without TgCrypto, crypto falls back to pure-Python `pyaes` and is much slower. uvloop is never enabled by Pyrofork itself: call `uvloop.install()` before creating the `Client` (or `uvloop.run(main())` on Python 3.12+).
@@ -545,32 +544,27 @@ Non-Telegram exceptions callers see: `ConnectionError` (client not started, alre
 | `Unauthorized: Auth key not found in the system` (from `recv_worker`) | server forgot the auth key (`-404`) | delete the session and log in again |
 | `Unable to receive: <Exception>` | unexpected error while reading; the session restarts | if frequent, report with the exception |
 | `Server sent transport error: 429 (transport flood)` | too many connections | fewer clients/sessions per IP |
+| `download_media` returns `None` | the download failed (the error is logged just before) or was stopped with `StopTransmission` | read the logged error; refresh the message for an expired file reference and retry |
 | `Client has not been started yet` (`ConnectionError`) | method called before `start()` / after `stop()` | `await app.start()` first or use `async with app:` |
-| handlers never run | `no_updates=True`; filters don't match; an earlier handler of the same group matched (only one per group runs) or a lower group raised `StopPropagation`; a listener consumed the update; a plugin decorator used `filters=` as a keyword (section 20) | check section 10 |
+| handlers never run | `no_updates=True`; filters don't match; an earlier handler of the same group matched (only one per group runs) or a lower group raised `StopPropagation`; a listener consumed the update | check section 10 |
 | tasks hang when using `asyncio.run(main())` | `Client` created outside the running loop (binds to another loop) | create the `Client` inside `main()` or use `app.run(main())` |
 | event loop blocked (your own watchdog reports stalls) | blocking code in handlers, proxy reconnects, huge sync progress callbacks | move work off the loop (section 16) |
 
 ## 20. Known pitfalls in this version
 
-Behaviours checked in the code of this version that surprise users. Treat them as facts when reviewing code; they may be fixed later (check the code).
+Behaviours checked in the code of this version that surprise users. Treat them as facts when reviewing code; they may change later (check the code).
 
 | # | Pitfall | Where | What to do |
 |---|---|---|---|
-| 1 | A plain `def` callback for `MessageHandler`, `CallbackQueryHandler` or `BotBusinessMessageHandler` runs on the event-loop thread, then fails with `TypeError: object NoneType can't be used in 'await' expression` | `pyrogram/handlers/message_handler.py` `resolve_future_or_callback` (and the other two) | always use `async def` for these handlers |
-| 2 | `restart()` (or `stop()` + `start()`) removes every handler added with `@app.on_…`/`add_handler`, all error handlers, and the internal `ConversationHandler`; only plugins are registered again | `pyrogram/dispatcher.py` `Dispatcher.stop` clears `groups` | prefer plugins, or re-add handlers after a restart; avoid `restart()` with `wait_for_message`/`message.ask` |
-| 3 | In plugin modules, `@Client.on_message(filters=...)` (keyword) registers nothing, silently: the filter lands in the group slot and `load_plugins` skips non-int groups | `pyrogram/methods/decorators/on_message.py` (all `on_*`), `pyrogram/client.py` `load_plugins` | pass the filter positionally: `@Client.on_message(filters.private, group=1)` |
-| 4 | `@app.on_purchased_paid_media` raises `AttributeError` (it references `handlers.MessageReactionHandler`, which does not exist) | `pyrogram/methods/decorators/on_purchased_paid_media.py` | `app.add_handler(PurchasedPaidMediaHandler(callback, filters))` |
-| 5 | A download that fails in the middle (e.g. `FileReferenceExpired`, network error after retries) logs the error and returns the path of a **truncated** file as if it succeeded | `pyrogram/client.py` `get_file`, `handle_download` | compare the size with `file_size`, re-fetch the message to refresh the file reference, retry |
-| 6 | `add_handler`/`remove_handler` apply asynchronously (a task waiting for all dispatcher workers); errors of `remove_handler` are raised inside that task, not to the caller | `pyrogram/dispatcher.py` | register handlers before `start()`; don't rely on immediate effect |
-| 7 | `takeout=True` does not imply `no_updates` (the docstring says it does); `hide_password` defaults to `True` (the docstring says False) | `pyrogram/client.py`, `methods/utilities/start.py` | set `no_updates=True` yourself when needed |
-| 8 | Interactive login raises `KeyError` when Telegram sends the code by missed call (`SentCodeType.MISSED_CALL` is missing from the description table) | `pyrogram/client.py` `authorize` | log in with `phone_code=` pre-filled or another code type |
-| 9 | `UpdatesTooLong` is only logged: the gap is not fetched until the watchdog's `updates.GetState` (15 min without updates) | `pyrogram/client.py` `handle_updates` | missed updates are only recovered at the next start with `skip_updates=False` |
-| 10 | `message.ask(...)` always sends its question as a reply (it compares `chat.type` with the string `"private"`); one `wait_for_message` waiter per chat: a second call replaces the first | `pyrogram/types/messages_and_media/message.py` `Message.ask`, `pyrogram/handlers/conversation_handler.py` | use `app.ask`/`app.listen` for concurrent conversations |
-| 11 | `stop_listener` on a listener registered with `register_next_step_handler` raises `AttributeError` (no future) | `pyrogram/methods/pyromod/stop_listener.py` | remove such listeners with `app.remove_listener(listener)` |
-| 12 | Without `include`, `load_plugins` imports modules in `os.walk` order (not sorted) and does not catch import errors: a broken plugin makes `start()` fail | `pyrogram/client.py` `load_plugins` | use explicit `group` numbers for ordering; keep plugins importable |
-| 13 | `Client` binds to the event loop current at construction (`self.loop = asyncio.get_event_loop()`); creating it outside the loop that runs it leaves its tasks on another loop (hangs) | `pyrogram/client.py`, `pyrogram/dispatcher.py` | create the Client inside the coroutine passed to `asyncio.run`, or use `app.run()` |
-| 14 | Connecting through a proxy blocks the event loop during the proxy handshake on every (re)connect | `pyrogram/connection/transport/tcp/tcp.py` `_connect_via_proxy` | expect short stalls on reconnects when using proxies |
-| 15 | An exception raised by an `on_raw_update` callback for an update type that has no high-level parser is swallowed without any log | `pyrogram/dispatcher.py` `_dispatch_to_handlers` | catch and log inside raw handlers |
+| 1 | A plain `def` callback for `MessageHandler`, `CallbackQueryHandler` or `BotBusinessMessageHandler` runs on the event-loop thread and blocks it while it runs (an awaitable it returns is awaited); plain `def` callbacks of the other handler classes run in `app.executor` | `pyrogram/handlers/handler.py` `run_callback`, `pyrogram/dispatcher.py` `_execute_handler` | use `async def` callbacks |
+| 2 | `restart()` (or `stop()` + `start()`) drops every handler added with `@app.on_…`/`add_handler` and every error handler (as upstream Pyrogram does); only plugins are registered again. The internal `ConversationHandler` and pending `wait_for_message`/`ask` waiters are kept | `pyrogram/dispatcher.py` `Dispatcher.stop` | use plugins, or add your handlers again after a restart |
+| 3 | `add_handler`/`remove_handler` apply asynchronously (a task waiting for all dispatcher workers); errors of `remove_handler` are raised inside that task, not to the caller | `pyrogram/dispatcher.py` | register handlers before `start()`; don't rely on immediate effect |
+| 4 | `UpdatesTooLong` is only logged: the gap is not fetched until the watchdog's `updates.GetState` (15 min without updates) | `pyrogram/client.py` `handle_updates` | missed updates are only recovered at the next start with `skip_updates=False` |
+| 5 | One `wait_for_message`/`wait_for_callback_query` waiter per chat: a second call for the same chat replaces the first | `pyrogram/handlers/conversation_handler.py` | use `app.listen`/`app.ask` for concurrent conversations |
+| 6 | Without `include`, `load_plugins` imports modules in `os.walk` order (not sorted) and does not catch import errors: a broken plugin makes `start()` fail | `pyrogram/client.py` `load_plugins` | use explicit `group` numbers for ordering; keep plugins importable |
+| 7 | `Client` binds to the event loop current at construction (`self.loop = asyncio.get_event_loop()`); creating it outside the loop that runs it leaves its tasks on another loop (hangs) | `pyrogram/client.py`, `pyrogram/dispatcher.py` | create the Client inside the coroutine passed to `asyncio.run`, or use `app.run()` |
+| 8 | Connecting through a proxy blocks the event loop during the proxy handshake on every (re)connect | `pyrogram/connection/transport/tcp/tcp.py` `_connect_via_proxy` | expect short stalls on reconnects when using proxies |
+| 9 | In plugin form, passing the filter twice (`@Client.on_message(f, filters=g)`) registers nothing | `pyrogram/methods/decorators/` | pass it once |
 
 ## Appendix A: Client methods by category
 
@@ -1057,12 +1051,12 @@ Total public Client methods: 407.
 | `@app.on_deleted_bot_business_messages(filters=None, group=0)` | `DeletedBotBusinessMessagesHandler` | `pyrogram/methods/decorators/on_deleted_bot_business_messages.py` |
 | `@app.on_deleted_ephemeral_messages(filters=None, group=0)` | `DeletedEphemeralMessagesHandler` | `pyrogram/methods/decorators/on_deleted_ephemeral_messages.py` |
 | `@app.on_deleted_messages(filters=None, group=0)` | `DeletedMessagesHandler` | `pyrogram/methods/decorators/on_deleted_messages.py` |
-| `@app.on_disconnect(filters=None, group=0)` | `DisconnectHandler` | `pyrogram/methods/decorators/on_disconnect.py` |
+| `@app.on_disconnect()` | `DisconnectHandler` | `pyrogram/methods/decorators/on_disconnect.py` |
 | `@app.on_edited_bot_business_message(filters=None, group=0)` | `EditedBotBusinessMessageHandler` | `pyrogram/methods/decorators/on_edited_bot_business_message.py` |
 | `@app.on_edited_ephemeral_message(filters=None, group=0)` | `EditedEphemeralMessageHandler` | `pyrogram/methods/decorators/on_edited_ephemeral_message.py` |
 | `@app.on_edited_message(filters=None, group=0)` | `EditedMessageHandler` | `pyrogram/methods/decorators/on_edited_message.py` |
 | `@app.on_ephemeral_message(filters=None, group=0)` | `EphemeralMessageHandler` | `pyrogram/methods/decorators/on_ephemeral_message.py` |
-| `@app.on_error(filters=None, group=0)` | `ErrorHandler` | `pyrogram/methods/decorators/on_error.py` |
+| `@app.on_error(errors=None, group=0)` | `ErrorHandler` | `pyrogram/methods/decorators/on_error.py` |
 | `@app.on_guest_query(filters=None, group=0)` | `GuestQueryHandler` | `pyrogram/methods/decorators/on_guest_query.py` |
 | `@app.on_inline_query(filters=None, group=0)` | `InlineQueryHandler` | `pyrogram/methods/decorators/on_inline_query.py` |
 | `@app.on_managed_bot_updated(filters=None, group=0)` | `ManagedBotUpdatedHandler` | `pyrogram/methods/decorators/on_managed_bot_updated.py` |
@@ -1203,7 +1197,7 @@ Aliases: `Message.reply` = `reply_text`, `Message.edit` = `edit_text`, `Story.re
 - `enums.ReactionType`: EMOJI, CUSTOM_EMOJI, PAID
 - `enums.ReplyColor`: RED, ORANGE, VIOLET, GREEN, CYAN, BLUE, PINK, RED_DARK_RED, ORANGE_DARK_ORANGE, VIOLET_DARK_VIOLET, GREEN_DARK_GREEN, CYAN_DARK_CYAN, BLUE_DARK_BLUE, PINK_DARK_PINK, BLUE_WHITE_RED, ORANGE_WHITE_GREEN, GREEN_WHITE_RED, CYAN_WHITE_GREEN, CYAN_YELLOW_PINK, VIOLET_YELLOW_ORANGE, BLUE_WHITE_ORANGE, DYNAMIC
 - `enums.ReportResultType`: REPORTED, OPTION_REQUIRED, TEXT_REQUIRED
-- `enums.SentCodeType`: APP, CALL, FLASH_CALL, MISSED_CALL, SMS, FRAGMENT_SMS, EMAIL_CODE
+- `enums.SentCodeType`: APP, CALL, FLASH_CALL, MISSED_CALL, SMS, FRAGMENT_SMS, EMAIL_CODE, FIREBASE_SMS, SMS_WORD, SMS_PHRASE, SETUP_EMAIL_REQUIRED
 - `enums.StoriesPrivacyRules`: PUBLIC, CLOSE_FRIENDS, CONTACTS, PRIVATE, NO_CONTACTS
 - `enums.StoryPrivacy`: PUBLIC, CLOSE_FRIENDS, CONTACTS, PRIVATE, NO_CONTACTS
 - `enums.TonConnectSessionState`: PENDING, READY, CLOSING, CLOSED
