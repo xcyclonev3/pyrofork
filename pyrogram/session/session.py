@@ -456,7 +456,7 @@ class Session:
                     raise BadMsgNotification(result.error_code)
 
                 self._handle_bad_notification()
-                await self.send(data, wait_response, timeout, retry + 1)
+                return await self.send(data, wait_response, timeout, retry + 1)
 
             if isinstance(result, raw.types.BadServerSalt):
                 self.salt = result.new_server_salt

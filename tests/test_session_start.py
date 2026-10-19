@@ -16,7 +16,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
-"""What a session sends when it starts."""
+"""What a session sends when it starts, and a request sent again after a bad msg notification."""
 
 import asyncio
 
@@ -26,6 +26,7 @@ import pyrogram
 from pyrogram import raw
 from pyrogram.connection.transport import TCPAbridged
 from pyrogram.session import Session
+from pyrogram.session.internals import MsgId
 
 AUTH_KEY = bytes(range(256))
 
@@ -62,3 +63,40 @@ def test_first_request_of_a_session(is_media, is_cdn):
     # The first request learns the server salt (BadServerSalt, then sent again): a Ping before InitConnection only
     # added a round trip. CDN sessions send no InitConnection and keep the Ping.
     assert asyncio.run(main()) == ([raw.functions.Ping] if is_cdn else [raw.functions.InvokeWithLayer])
+
+
+class AnsweringConnection:
+    """Answers the request just sent: a bad msg notification first, then a pong."""
+
+    def __init__(self, session):
+        self.session = session
+        self.requests = 0
+
+    async def send(self, payload):
+        msg_id = list(self.session.results)[-1]
+        self.requests += 1
+        answer = (
+            raw.types.BadMsgNotification(bad_msg_id=msg_id, bad_msg_seqno=0, error_code=16)
+            if self.requests == 1
+            else raw.types.Pong(msg_id=msg_id, ping_id=7)
+        )
+
+        def deliver():
+            self.session.results[msg_id].value = answer
+            self.session.results[msg_id].event.set()
+
+        asyncio.get_running_loop().call_soon(deliver)
+
+
+def test_request_sent_again_after_a_bad_msg_notification_returns_its_answer():
+    async def main():
+        session = Session(None, 2, AUTH_KEY, False)
+        session.connection = AnsweringConnection(session)
+        session.stored_msg_ids.append(MsgId())  # The notification itself was a received message
+        result = await session.send(raw.functions.Ping(ping_id=7))
+        return result, session.connection.requests
+
+    result, requests = asyncio.run(main())
+    # The request went again, but its answer was dropped and the notification returned instead
+    assert requests == 2
+    assert isinstance(result, raw.types.Pong) and result.ping_id == 7
