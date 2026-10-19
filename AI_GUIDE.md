@@ -151,7 +151,7 @@ Notes:
 - `device_model`, `system_version`, `app_version` default to values from `platform` and the Pyrofork version.
 - `takeout=True` wraps requests in `InvokeWithTakeout` (user accounts only) but does not disable updates: pass `no_updates=True` as well. File transfers use media sessions and are not part of the takeout session.
 
-Class attributes you may change before creating clients: `Client.DOWNLOAD_PARTS_IN_FLIGHT = 4`, `Client.UPLOAD_PARTS_IN_FLIGHT = 4`, `Client.UPDATES_WATCHDOG_INTERVAL = 900` (seconds without updates before `updates.GetState`), `Client.MAX_CONCURRENT_TRANSMISSIONS = 1`, `Client.MAX_CACHE_SIZE = 10000`; storage: `pyrogram.storage.sqlite_storage.SQLiteStorage.COMMIT_DELAY = 1`; network: the `Session` and `TCP` constants in section 14.
+Class attributes you may change before creating clients: `Client.DOWNLOAD_PARTS_IN_FLIGHT = 4`, `Client.UPLOAD_PARTS_IN_FLIGHT = 4`, `Client.UPDATES_WATCHDOG_INTERVAL = 900` (seconds without updates before `updates.GetState`), `Client.MAX_CONCURRENT_TRANSMISSIONS = 1`, `Client.MAX_CACHE_SIZE = 10000`; storage: `pyrogram.storage.sqlite_storage.SQLiteStorage.COMMIT_DELAY = 1`, `pyrogram.storage.FileStorage.VACUUM_FREE_RATIO = 0.25`; network: the `Session` and `TCP` constants in section 14.
 
 Runtime attributes of a started client: `app.me` (`types.User`), `app.is_connected`, `app.is_initialized`, `app.session` (main `Session`), `app.media_sessions` / `app.dc_sessions` (`{dc_id: Session}`), `app.storage`, `app.dispatcher`, `app.executor` (`ThreadPoolExecutor(workers)`), `app.loop`, `app.message_cache`, `app.listeners`, `app.parse_mode` (change with `app.set_parse_mode(mode)`).
 
@@ -224,7 +224,7 @@ Storage selection (`Client.__init__`), first match wins:
 4. `mongodb=dict(connection=<async Mongo client>, remove_peers=False)` → `MongoStorage` (falls back to `MemoryStorage` with a warning when `pymongo` is missing);
 5. otherwise `FileStorage(name, workdir)` → SQLite file `<workdir>/<name>.session`.
 
-`FileStorage`/`MemoryStorage` (`pyrogram/storage/sqlite_storage.py`): tables `sessions` (dc_id, api_id, test_mode, auth_key, date, user_id, is_bot), `peers` (id, access_hash, type, username, phone_number, last_update_on), `usernames`, `update_state` (pts per chat, 0 = common box), `version` (4). The file is opened with `check_same_thread=False`, `timeout=1`, and `VACUUM`ed on every open. Commit timing: section 17.
+`FileStorage`/`MemoryStorage` (`pyrogram/storage/sqlite_storage.py`): tables `sessions` (dc_id, api_id, test_mode, auth_key, date, user_id, is_bot), `peers` (id, access_hash, type, username, phone_number, last_update_on), `usernames`, `update_state` (pts per chat, 0 = common box), `version` (4). The file is opened with `check_same_thread=False`, `timeout=1`; `open()` compacts it (`VACUUM`, which rewrites the whole file in the event loop) only when more than `FileStorage.VACUUM_FREE_RATIO` (0.25) of its pages are free. Commit timing: section 17.
 
 Session strings: `await app.export_session_string()` returns URL-safe base64 (no padding, 362 characters) of `struct.pack(">BI?256sQ?", dc_id, api_id, test_mode, auth_key, user_id, is_bot)`. Older 351/356-character strings (without `api_id`) are still accepted. A session string is a full credential: whoever has it controls the account.
 

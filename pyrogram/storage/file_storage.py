@@ -41,6 +41,8 @@ CREATE TABLE update_state
 
 class FileStorage(SQLiteStorage):
     FILE_EXTENSION = ".session"
+    # Share of free pages above which open() compacts the session file
+    VACUUM_FREE_RATIO = 0.25
 
     def __init__(self, name: str, workdir: Path):
         super().__init__(name)
@@ -81,8 +83,14 @@ class FileStorage(SQLiteStorage):
         else:
             self.update()
 
-        with self.conn:
-            self.conn.execute("VACUUM")
+        # VACUUM rewrites the whole file, in the event loop (about 100 ms for 100 000 peers): only worth it when a good
+        # part of the file is free pages, which SQLite reuses anyway
+        page_count = self.conn.execute("PRAGMA page_count").fetchone()[0]
+        free_pages = self.conn.execute("PRAGMA freelist_count").fetchone()[0]
+
+        if free_pages > page_count * self.VACUUM_FREE_RATIO:
+            with self.conn:
+                self.conn.execute("VACUUM")
 
     async def delete(self):
         os.remove(self.database)
