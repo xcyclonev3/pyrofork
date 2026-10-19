@@ -17,6 +17,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrofork.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
 
 import pyrogram
@@ -66,12 +67,21 @@ class Start:
                 self.takeout_id = (await self.invoke(raw.functions.account.InitTakeoutSession())).id
                 log.info("Takeout session %s initiated", self.takeout_id)
 
-            await self.invoke(raw.functions.updates.GetState())
+            # Independent requests: sent together, they cost one round trip instead of two
+            results = await asyncio.gather(
+                self.invoke(raw.functions.updates.GetState()),
+                self.get_me(),
+                return_exceptions=True
+            )
+
+            for result in results:
+                if isinstance(result, BaseException):
+                    raise result
         except (Exception, KeyboardInterrupt):
             await self.disconnect()
             raise
         else:
-            self.me = await self.get_me()
+            self.me = results[1]
             await self.initialize()
 
             return self
