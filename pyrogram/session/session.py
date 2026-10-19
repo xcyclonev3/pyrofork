@@ -130,9 +130,11 @@ class Session:
 
                 self.recv_task = self.loop.create_task(self.recv_worker())
 
-                await self.send(raw.functions.Ping(ping_id=0), timeout=self.START_TIMEOUT)
-
-                if not self.is_cdn:
+                # The first request of a session gets BadServerSalt and goes again with the salt it brings: let
+                # InitConnection be that request, rather than a Ping that costs one more round trip before it
+                if self.is_cdn:
+                    await self.send(raw.functions.Ping(ping_id=0), timeout=self.START_TIMEOUT)
+                else:
                     await self.send(
                         raw.functions.InvokeWithLayer(
                             layer=layer,

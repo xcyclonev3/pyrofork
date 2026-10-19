@@ -453,7 +453,7 @@ Timing constants (`Session`, `TCP`):
 | `Session.SLEEP_THRESHOLD` | 10 s | default flood-wait auto-sleep limit (the Client passes its own `sleep_threshold`) |
 | `Session.ACKS_THRESHOLD` | 10 | pending acks before a `MsgsAck` is sent |
 
-`Session.start()` loop: create a `Connection` → `connect()` → start `recv_worker` → `Ping` (2 s) → `InvokeWithLayer(InitConnection(GetConfig))` (2 s) → start `ping_worker` → `is_started.set()`. Any `OSError`/`RPCError` on the way → `stop()` and try again from the top (no limit); `AuthKeyDuplicated` and other exceptions → `stop()` and raise.
+`Session.start()` loop: create a `Connection` → `connect()` → start `recv_worker` → `InvokeWithLayer(InitConnection(GetConfig))` (2 s; as the first request of the session it gets `BadServerSalt` and is sent again with the server salt, the salt starting at 0; CDN sessions send a `Ping` instead) → start `ping_worker` → `is_started.set()`. Any `OSError`/`RPCError` on the way → `stop()` and try again from the top (no limit); `AuthKeyDuplicated` and other exceptions → `stop()` and raise.
 
 `Session.stop()`: clear `is_started`, stop the ping task, close the connection, wait for `recv_worker` to end, call `disconnect_handler` (main session only).
 
