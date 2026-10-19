@@ -39,12 +39,14 @@ class GetMe:
                 me = await app.get_me()
                 print(me)
         """
+        # users.getUsers is enough for the User: users.getFullUser also sends the whole profile, unused here
         r = await self.invoke(
-            raw.functions.users.GetFullUser(
-                id=raw.types.InputUserSelf()
+            raw.functions.users.GetUsers(
+                id=[raw.types.InputUserSelf()]
             )
         )
 
-        users = {u.id: u for u in r.users}
+        # Cached like the users of other results (invoke only caches results' .users)
+        await self.fetch_peers(r)
 
-        return types.User._parse(self, users[r.full_user.id])
+        return types.User._parse(self, r[0])

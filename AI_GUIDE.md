@@ -185,7 +185,7 @@ Runtime attributes of a started client: `app.me` (`types.User`), `app.is_connect
 1. `connect()` (`pyrogram/methods/auth/connect.py`): `load_session()` opens the storage; for an empty session it needs `api_id`/`api_hash`, sets DC 2 and creates an auth key (`Auth.create`, `pyrogram/session/auth.py`: Diffie-Hellman exchange); then creates `app.session = Session(...)` and `await session.start()` (section 14); returns whether a user id is stored (authorized).
 2. If not authorized: `Client.authorize()` (section 7).
 3. With `takeout=True` on a user account: `account.InitTakeoutSession`.
-4. `updates.GetState` (tells the server to start sending updates) and `get_me()`, sent together: one round trip for both.
+4. `updates.GetState` (tells the server to start sending updates) and `get_me()` (`users.GetUsers` for the own account), sent together: one round trip for both.
 5. If any step above fails: `disconnect()` and re-raise.
 6. `app.me` is the account `get_me()` returned.
 7. `initialize()` (`pyrogram/methods/auth/initialize.py`): `load_plugins()`, `dispatcher.start()` (creates `workers` dispatcher tasks; when `skip_updates=False`, runs `recover_gaps()`), starts `updates_watchdog`.
