@@ -8,7 +8,7 @@ fi
 function parse_parameters() {
     while (($#)); do
         case $1 in
-            all | configure | cleanup | virtualenv | build | clone | push ) action=$1 ;;
+            all | configure | cleanup | virtualenv | build ) action=$1 ;;
             *) exit 33 ;;
         esac
         shift
@@ -56,31 +56,12 @@ function do_build() {
     "$VENV"/bin/sphinx-build -b html "docs/source" "docs/build/html" -j auto
 }
 
-function do_clone() {
-    git clone https://wulan17:"$DOCS_KEY"@github.com/Mayuri-Chan/pyrofork-docs.git
-}
-
-function do_push() {
-    cd pyrofork-docs || exit 1
-    mkdir -p "$BRANCH"
-    cd "$BRANCH" || exit 1
-    rm -rf _includes api genindex.html intro py-modindex.html sitemap.xml support.html topics _static faq index.html objects.inv searchindex.js start telegram
-    cp -r ../../docs/build/html/* .
-    git config --local user.name "Mayuri-Chan"
-    git config --local user.email "mayuri@mayuri.my.id"
-    git add --all
-    git commit -a -m "docs: $BRANCH: Update docs $(date '+%Y-%m-%d | %H:%m:%S %p %Z')" --signoff
-    git push -u origin --all
-}
-
 function do_all() {
     do_configure
     source config.sh
     do_cleanup
     do_virtualenv
     do_build
-    do_clone
-    do_push
 }
 
 parse_parameters "$@"

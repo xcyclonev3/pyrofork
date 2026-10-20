@@ -28,11 +28,3 @@ jobs:
 
       - name: Build
         run: bash build-docs.sh build
-
-      - name: Clone gh-pages repository
-        run: bash build-docs.sh clone
-        env:
-          DOCS_KEY: ${{ secrets.DOCS_KEY }}
-
-      - name: Push changes
-        run: bash build-docs.sh push

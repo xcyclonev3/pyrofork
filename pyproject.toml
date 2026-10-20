@@ -2,7 +2,7 @@
 name = "pyrofork"
 dynamic = ["version"]
 description = "Elegant, modern and asynchronous Telegram MTProto API framework in Python for users and bots"
-authors = [{ name = "wulan17", email = "mayuri@mayuri.my.id" }]
+authors = [{ name = "theyv3" }]
 dependencies = ["pyaes==1.6.1", "pysocks==1.7.1", "pymediainfo-pyrofork>=6.0.1,<7.0.0"]
 readme = "README.md"
 license = "LGPL-3.0-or-later"
