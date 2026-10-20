@@ -55,7 +55,7 @@ class FirebasePnvSignUp:
         Example:
             .. code-block:: python
 
-                user = await app.firebase_pnv_sign_up("Pyrofork", "User")
+                user = await app.firebase_pnv_sign_up("Pyrogram", "User")
         """
         r = await self.invoke(
             raw.functions.auth.FirebasePnvSignUp(

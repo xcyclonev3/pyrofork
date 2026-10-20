@@ -1,6 +1,6 @@
-# Pyrofork guide for AI agents: usage and internal flows
+# Pyrogram guide for AI agents: usage and internal flows
 
-This file explains how to use Pyrofork and how its main flows work inside, with the file and function behind every step, so that an AI (or a human) can trace a behaviour, review code that uses the library, or debug a log without reading the whole code base. It was written against Pyrofork `2.3.70+layer230` (MTProto layer 230). When this guide and the code disagree, the code is right: every section names the files to check.
+This file explains how to use Pyrogram and how its main flows work inside, with the file and function behind every step, so that an AI (or a human) can trace a behaviour, review code that uses the library, or debug a log without reading the whole code base. It was written against Pyrogram `2.3.70+layer230` (MTProto layer 230). When this guide and the code disagree, the code is right: every section names the files to check.
 
 ## Contents
 
@@ -50,13 +50,14 @@ This file explains how to use Pyrofork and how its main flows work inside, with 
 
 | Item | Value |
 |---|---|
-| PyPI package / import name | `pyrofork` / `pyrogram` |
+| Import name | `pyrogram` |
+| Install | from GitHub: `pip install -U "git+https://github.com/xcyclonev3/pyrofork.git"` (not from PyPI) |
 | Version, layer | `2.3.70+layer230`, `pyrogram.raw.all.layer == 230` |
 | Python | `>=3.10` (`requires-python = "~=3.10"`) |
 | Dependencies | `pyaes`, `pysocks`, `pymediainfo-pyrofork` |
 | Optional extras | `speedup` = `tgcrypto-pyrofork` + `uvloop`; `pymongo` for `MongoStorage`; `qrcode` for QR login |
 | Concurrency model | `asyncio`; every Client method is a coroutine (sync wrappers exist, see below) |
-| Lineage | Pyrogram → Pyrofork (Mayuri-Chan) → this fork |
+| Origin | Pyrogram by Dan (delivrance); the copyright holders are named in `NOTICE` and in the file headers |
 | License | LGPL-3.0-or-later |
 
 Sync usage: `pyrogram/sync.py` wraps every public coroutine of `Client` and of the types. Inside a running event loop you must `await` them; from plain synchronous code with no running loop, calling them runs them to completion on the main loop (`app.start()`, `app.send_message(...)` without `await`). Mixing both styles in one program is a common source of bugs: prefer async code everywhere.
@@ -148,7 +149,7 @@ Notes:
 - `api_id`/`api_hash` are only required to create a new authorization (empty session); bot tokens still need them.
 - `workdir` default: the directory of the main script (`Client.PARENT_DIR = Path(sys.argv[0]).parent`, not resolved; `python bot.py` gives `.`). The session file is `<workdir>/<name>.session`.
 - `workers` default: `Client.WORKERS = min(32, os.cpu_count() + 4)`.
-- `device_model`, `system_version`, `app_version` default to values from `platform` and the Pyrofork version.
+- `device_model`, `system_version`, `app_version` default to values from `platform` and the Pyrogram version.
 - `takeout=True` wraps requests in `InvokeWithTakeout` (user accounts only) but does not disable updates: pass `no_updates=True` as well. File transfers use media sessions and are not part of the takeout session.
 
 Class attributes you may change before creating clients: `Client.DOWNLOAD_PARTS_IN_FLIGHT = 4`, `Client.UPLOAD_PARTS_IN_FLIGHT = 4`, `Client.UPDATES_WATCHDOG_INTERVAL = 900` (seconds without updates before `updates.GetState`), `Client.MAX_CONCURRENT_TRANSMISSIONS = 1`, `Client.MAX_CACHE_SIZE = 10000`; storage: `pyrogram.storage.sqlite_storage.SQLiteStorage.COMMIT_DELAY = 1`, `pyrogram.storage.FileStorage.VACUUM_FREE_RATIO = 0.25`; network: the `Session` and `TCP` constants in section 14.
@@ -510,7 +511,7 @@ Non-Telegram exceptions callers see: `ConnectionError` (client not started, alre
 - plain `def` handlers (except `MessageHandler`, `CallbackQueryHandler` and `BotBusinessMessageHandler`, which call them on the loop thread, see section 10) and sync progress callbacks run in `app.executor` (a `ThreadPoolExecutor` with `workers` threads); they still hold the GIL for Python code.
 - `workers` (default `min(32, cpu_count + 4)`) is also the number of dispatcher tasks consuming updates; they dispatch concurrently (each holds only its own lock, which `add_handler`/`remove_handler` take to change the handler list safely), so a slow handler only occupies its own worker and update order across workers is not guaranteed. Set `workers=1` for strictly sequential handling.
 - AES (TgCrypto) and SHA-256 release the GIL for data ≥ 2 KiB; messages > 64 KiB (file parts) are packed/unpacked in `pyrogram.crypto_executor`, so file crypto overlaps with the loop.
-- Install the `speedup` extra (`pip install "pyrofork[speedup]"`: `tgcrypto-pyrofork`, `uvloop`). Without TgCrypto, crypto falls back to pure-Python `pyaes` and is much slower. uvloop is never enabled by Pyrofork itself: call `uvloop.install()` before creating the `Client` (or `uvloop.run(main())` on Python 3.12+).
+- Install the speedups: `pip install -U tgcrypto-pyrofork uvloop` (the `speedup` extra of the package lists the same two). Without TgCrypto, crypto falls back to pure-Python `pyaes` and is much slower. uvloop is never enabled by Pyrogram itself: call `uvloop.install()` before creating the `Client` (or `uvloop.run(main())` on Python 3.12+).
 - Measured on one core (Python 3.10, offline benchmark `benchmarks/bench_pipeline.py`): ~3,600 updates/s from packet to handler with an in-memory session, ~3,900/s with a session file; Python 3.13 ~5,100/s. Optional app-level gains: `uvloop` (~8%), `gc.collect(); gc.freeze()` after `start()` (~20% less time, the API module creates ~114k long-lived objects).
 - Transfers: raise `max_concurrent_transmissions` to move several files at once; `DOWNLOAD_PARTS_IN_FLIGHT`/`UPLOAD_PARTS_IN_FLIGHT` are conservative (4) on purpose (flood limits for normal accounts).
 - Proxies: the proxy handshake (`TCP._connect_via_proxy`, PySocks) runs synchronously and blocks the event loop during every (re)connect.
@@ -534,8 +535,8 @@ Non-Telegram exceptions callers see: `ConnectionError` (client not started, alre
 | Symptom | Cause | Action |
 |---|---|---|
 | `[<n>] Retrying "<method>" due to: ...` | network error / 5xx on attempt `<n>` of 10 (`Session.invoke`) | transient: nothing; persistent: check connectivity, proxy, DC |
-| `... the handler is closed` / `TCPTransport closed=True` (uvloop) on every request | the session's connection is closed and no restart brought it back | update Pyrofork (restart fixes `854a0026`, `5e32baa4`); restart the process as a workaround |
-| `Task exception was never retrieved ... Session.recv_worker ... 'NoneType' object has no attribute 'read'` or `read() called while another coroutine is already waiting` | two restarts of one session at once (fixed in `854a0026`) | update Pyrofork |
+| `... the handler is closed` / `TCPTransport closed=True` (uvloop) on every request | the session's connection is closed and no restart brought it back | update Pyrogram (restart fixes `854a0026`, `5e32baa4`); restart the process as a workaround |
+| `Task exception was never retrieved ... Session.recv_worker ... 'NoneType' object has no attribute 'read'` or `read() called while another coroutine is already waiting` | two restarts of one session at once (fixed in `854a0026`) | update Pyrogram |
 | `Waiting for N seconds before continuing (required by "...")` | `FloodWait` ≤ `sleep_threshold`, auto-sleep | slow down; raise/lower `sleep_threshold` |
 | `FloodWait` raised to your code | wait > `sleep_threshold` | sleep `e.value` seconds; reduce request rate |
 | `PeerIdInvalid` / `ValueError: Peer id invalid` | peer not in the cache, or wrong id format | meet the peer first (section 11); use `-100…` ids for channels |

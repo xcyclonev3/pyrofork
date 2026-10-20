@@ -36,7 +36,7 @@ class ExportTonWalletSecretPhrase:
         .. warning::
 
             The secret phrase gives full control over the funds of the wallet: never share it, nor the token and the
-            parts returned by these methods. Pyrofork doesn't implement the decryption of the parts. TDLib
+            parts returned by these methods. Pyrogram doesn't implement the decryption of the parts. TDLib
             (``getTonWalletSecretPhrase``) fetches the part of each data center returned by
             :meth:`~pyrogram.Client.get_ton_wallet_backup_holder_dcs` for a new temporary key pair, decrypts the
             parts and XORs them to get the secret phrase as space separated words.

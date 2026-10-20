@@ -100,7 +100,7 @@ class CraftGiftResult(Object):
         # Like TDLib, errors about gifts that can't be used for crafting are results.
         if error.ID:
             error_id, value = error.ID, error.value
-        else:  # An error unknown to Pyrofork, its value is "[CODE MESSAGE]"
+        else:  # An error unknown to Pyrogram, its value is "[CODE MESSAGE]"
             message = str(error.value).strip("[]").split(" ", 1)[-1]
             number = re.search(r"_(\d+)", message)
             error_id = re.sub(r"_\d+", "_X", message)

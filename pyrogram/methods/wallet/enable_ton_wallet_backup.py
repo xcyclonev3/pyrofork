@@ -35,7 +35,7 @@ class EnableTonWalletBackup:
         .. warning::
 
             The backup contains the secret phrase of the wallet, which gives full control over its funds.
-            Pyrofork doesn't implement the encryption of the backup, the parts must be produced by your own code.
+            Pyrogram doesn't implement the encryption of the backup, the parts must be produced by your own code.
             TDLib (``TonWalletManager::enable_ton_wallet_backup``) pads the secret phrase with spaces to 215 bytes and
             splits it into three random parts whose XOR is the padded phrase. Each part is prefixed with
             ``b"\\x08\\xdd\\x90\\x8b\\xd7"`` and encrypted with tde2e ``encrypt_message_for_one``, using the key shared

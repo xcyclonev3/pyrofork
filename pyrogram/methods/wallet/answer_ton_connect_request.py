@@ -36,7 +36,7 @@ class AnswerTonConnectRequest:
 
             The answer is delivered to the dApp. Answering a request, for example a request to sign or to send a
             transaction, can authorize operations on the funds of the wallet. The body must be created by your own
-            TON Connect code; Pyrofork doesn't implement its cryptography.
+            TON Connect code; Pyrogram doesn't implement its cryptography.
 
         .. include:: /_includes/usable-by/users.rst
 

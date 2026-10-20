@@ -28,7 +28,7 @@ from pygments.styles.friendly import FriendlyStyle
 
 FriendlyStyle.background_color = "#f3f2f1"
 
-project = "Pyrofork"
+project = "Pyrogram"
 copyright = "2022-present, Mayuri-Chan"
 author = "Mayuri-Chan"
 
@@ -63,7 +63,7 @@ copybutton_prompt_text = "$ "
 
 suppress_warnings = ["image.not_readable"]
 
-html_title = "Pyrofork Documentation"
+html_title = "Pyrogram Documentation"
 html_theme = "sphinx_immaterial"
 html_static_path = ["../resources/static","_static"]
 html_show_sourcelink = True
@@ -73,9 +73,8 @@ html_theme_options = {
         "repo": "fontawesome/brands/github",
         "edit": "material/file-edit-outline",
     },
-    "site_url": "https://pyrofork.wulan17.dev/",
-    "repo_url": "https://github.com/Mayuri-Chan/pyrofork/",
-    "repo_name": "pyrofork",
+    "repo_url": "https://github.com/xcyclonev3/pyrofork/",
+    "repo_name": "GitHub",
     "globaltoc_collapse": True,
     "features": [
         "navigation.expand",

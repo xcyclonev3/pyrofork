@@ -26,7 +26,7 @@ sys.path.insert(0, ".")
 
 
 class CustomHook(BuildHookInterface):
-    """A custom build hook for pyrofork."""
+    """A custom build hook for pyrogram."""
 
     def initialize(self, version, build_data):
         """Initialize the hook."""

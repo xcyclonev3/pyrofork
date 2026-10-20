@@ -1134,7 +1134,7 @@ class PageBlockButtonRow(PageBlock):
 
 
 class PageBlockUnsupported(PageBlock):
-    """A block unsupported by the current version of Pyrofork."""
+    """A block unsupported by the current version of Pyrogram."""
 
     def __init__(self):
         super().__init__()

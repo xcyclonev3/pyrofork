@@ -25,7 +25,7 @@ class TonWalletOwnershipProof(Object):
 
     The signature is created by signing the challenge returned by
     :meth:`~pyrogram.Client.get_ton_wallet_ownership_proof_challenge` with the private key of the wallet.
-    Pyrofork doesn't implement TON cryptography: the signature must be computed by your own code.
+    Pyrogram doesn't implement TON cryptography: the signature must be computed by your own code.
 
     Parameters:
         public_key (``bytes``):

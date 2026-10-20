@@ -100,7 +100,7 @@ class ForwardStory:
             .. code-block:: python
 
                 # forward a story
-                await app.forward_story(from_chat_id='wulan17', from_story_id=1, caption='Hello guys.')
+                await app.forward_story(from_chat_id='username', from_story_id=1, caption='Hello guys.')
 
         Raises:
             ValueError: In case of invalid arguments.

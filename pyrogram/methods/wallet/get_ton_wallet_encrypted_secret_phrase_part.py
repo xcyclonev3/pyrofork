@@ -34,7 +34,7 @@ class GetTonWalletEncryptedSecretPhrasePart:
 
             The parts reveal the secret phrase of the wallet, which gives full control over its funds.
             See :meth:`~pyrogram.Client.export_ton_wallet_secret_phrase` for how TDLib decrypts and combines them;
-            Pyrofork doesn't implement this cryptography.
+            Pyrogram doesn't implement this cryptography.
 
         .. include:: /_includes/usable-by/users.rst
 

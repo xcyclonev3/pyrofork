@@ -96,7 +96,7 @@ RICH_PARAGRAPH = raw.types.TextConcat(texts=[
     raw.types.TextHashtag(text=plain("#news")),
     raw.types.TextCashtag(text=plain("$USD")),
     raw.types.TextBotCommand(text=plain("/start")),
-    raw.types.TextAutoUrl(text=plain("t.me/pyrofork")),
+    raw.types.TextAutoUrl(text=plain("t.me/pyrogram")),
     raw.types.TextAutoEmail(text=plain("a@b.c")),
     raw.types.TextAutoPhone(text=plain("+123456")),
     raw.types.TextBankCard(text=plain("4242424242424242")),
@@ -225,7 +225,7 @@ def test_received_rich_message_with_many_blocks_and_texts():
     assert isinstance(hashtag, types.RichTextHashtag) and hashtag.hashtag == "news"
     assert isinstance(cashtag, types.RichTextCashtag) and cashtag.cashtag == "USD"
     assert isinstance(command, types.RichTextBotCommand) and command.bot_command == "start"
-    assert isinstance(auto_url, types.RichTextUrl) and auto_url.url == "t.me/pyrofork" and not auto_url.is_cached
+    assert isinstance(auto_url, types.RichTextUrl) and auto_url.url == "t.me/pyrogram" and not auto_url.is_cached
     assert isinstance(auto_email, types.RichTextEmailAddress) and auto_email.email_address == "a@b.c"
     assert isinstance(auto_phone, types.RichTextPhoneNumber) and auto_phone.phone_number == "+123456"
     assert isinstance(card, types.RichTextBankCardNumber) and card.bank_card_number == "4242424242424242"

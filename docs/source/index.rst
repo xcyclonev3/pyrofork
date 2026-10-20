@@ -1,11 +1,11 @@
-Welcome to Pyrofork
+Welcome to Pyrogram
 ===================
 
 .. raw:: html
 
     <div align="center">
         <a href="/">
-            <h1 class="pyrogram-text pyrogram-text-index">PyroFork</h1>
+            <h1 class="pyrogram-text pyrogram-text-index">Pyrogram</h1>
         </a>
     </div>
 
@@ -13,24 +13,12 @@ Welcome to Pyrofork
         <b>Telegram MTProto API Framework for Python</b>
 
         <br>
-        <a href="https://github.com/Mayuri-Chan">
-            Homepage
-        </a>
-        •
-        <a href="https://github.com/Mayuri-Chan/pyrofork">
+        <a href="https://github.com/xcyclonev3/pyrofork">
             Development
         </a>
         •
-        <a href="https://github.com/Mayuri-Chan/pyrofork/issues">
+        <a href="https://github.com/xcyclonev3/pyrofork/issues">
             Issues
-        </a>
-        •
-        <a href="https://t.me/MayuriChan_Chat">
-            Support Chat
-        </a>
-        •
-        <a href="https://t.me/Pyrofork_CH">
-            News/Releases
         </a>
     </p>
 
@@ -43,21 +31,14 @@ Welcome to Pyrofork
 
     @app.on_message(filters.private)
     async def hello(client, message):
-        await message.reply("Hello from Pyrofork!")
+        await message.reply("Hello from Pyrogram!")
 
 
     app.run()
 
-**Pyrofork** is a modern, elegant and asynchronous :doc:`MTProto API <topics/mtproto-vs-botapi>` framework.
+**Pyrogram** is a modern, elegant and asynchronous :doc:`MTProto API <topics/mtproto-vs-botapi>` framework.
 It enables you to easily interact with the main Telegram API through a user account (custom client) or a bot identity
 (bot API alternative) using Python.
-
-Support
--------
-
-If you'd like to support Pyrofork, you can consider:
-
-- `Become a GitHub sponsor <https://github.com/sponsors/Mayuri-Chan>`_.
 
 How the Documentation is Organized
 ----------------------------------
@@ -76,7 +57,7 @@ First Steps
     :columns: 1
 
     - :doc:`Quick Start <intro/quickstart>`: Overview to get you started quickly.
-    - :doc:`Invoking Methods <start/invoking>`: How to call Pyrofork's methods.
+    - :doc:`Invoking Methods <start/invoking>`: How to call Pyrogram's methods.
     - :doc:`Handling Updates <start/updates>`: How to handle Telegram updates.
     - :doc:`Error Handling <start/errors>`: How to handle API errors correctly.
 
@@ -86,7 +67,7 @@ API Reference
 .. hlist::
     :columns: 1
 
-    - :doc:`Pyrofork Client <api/client>`: Reference details about the Client class.
+    - :doc:`Pyrogram Client <api/client>`: Reference details about the Client class.
     - :doc:`Available Methods <api/methods/index>`: List of available high-level methods.
     - :doc:`Available Types <api/types/index>`: List of available high-level types.
     - :doc:`Enumerations <api/enums/index>`: List of available enumerations.
@@ -98,8 +79,7 @@ Meta
 .. hlist::
     :columns: 1
 
-    - :doc:`Pyrofork FAQ <faq/index>`: Answers to common Pyrofork questions.
-    - :doc:`Support Pyrofork <support>`: Ways to show your appreciation.
+    - :doc:`Pyrogram FAQ <faq/index>`: Answers to common Pyrogram questions.
 
 .. toctree::
     :hidden:
@@ -160,7 +140,6 @@ Meta
     :caption: Meta
 
     faq/index
-    support
 
 .. toctree::
     :hidden:

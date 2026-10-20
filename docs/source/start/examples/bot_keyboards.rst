@@ -47,7 +47,7 @@ like send_audio(), send_document(), send_location(), etc...
                             ),
                             InlineKeyboardButton(  # Opens a web URL
                                 "URL",
-                                url="https://pyrofork.wulan17.dev"
+                                url="https://docs.pyrogram.org"
                             ),
                         ],
                         [  # Second row

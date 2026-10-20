@@ -22,15 +22,15 @@ It uses the @on_inline_query decorator to register an InlineQueryHandler.
                 InlineQueryResultArticle(
                     title="Installation",
                     input_message_content=InputTextMessageContent(
-                        "Here's how to install **Pyrofork**"
+                        "Here's how to install **Pyrogram**"
                     ),
-                    url="https://pyrofork.wulan17.dev/intro/install",
-                    description="How to install Pyrofork",
+                    url="https://docs.pyrogram.org/intro/install",
+                    description="How to install Pyrogram",
                     reply_markup=InlineKeyboardMarkup(
                         [
                             [InlineKeyboardButton(
                                 "Open website",
-                                url="https://pyrofork.wulan17.dev/intro/install"
+                                url="https://docs.pyrogram.org/intro/install"
                             )]
                         ]
                     )
@@ -38,15 +38,15 @@ It uses the @on_inline_query decorator to register an InlineQueryHandler.
                 InlineQueryResultArticle(
                     title="Usage",
                     input_message_content=InputTextMessageContent(
-                        "Here's how to use **Pyrofork**"
+                        "Here's how to use **Pyrogram**"
                     ),
-                    url="https://pyrofork.wulan17.dev/start/invoking",
-                    description="How to use Pyrofork",
+                    url="https://docs.pyrogram.org/start/invoking",
+                    description="How to use Pyrogram",
                     reply_markup=InlineKeyboardMarkup(
                         [
                             [InlineKeyboardButton(
                                 "Open website",
-                                url="https://pyrofork.wulan17.dev/start/invoking"
+                                url="https://docs.pyrogram.org/start/invoking"
                             )]
                         ]
                     )

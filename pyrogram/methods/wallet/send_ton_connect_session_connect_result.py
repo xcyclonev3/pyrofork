@@ -37,7 +37,7 @@ class SendTonConnectSessionConnectResult:
 
             Accepting the session connects the TON wallet of the current user to the dApp, which can then send
             requests to the wallet. The challenge answer and the body must be created by your own TON Connect code;
-            Pyrofork doesn't implement its cryptography.
+            Pyrogram doesn't implement its cryptography.
 
         .. include:: /_includes/usable-by/users.rst
 

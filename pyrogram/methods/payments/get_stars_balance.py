@@ -46,7 +46,7 @@ class GetStarsBalance:
                 app.get_stars_balance()
 
                 # Get stars balance of a bot
-                app.get_stars_balance(chat_id="pyroforkbot")
+                app.get_stars_balance(chat_id="mybot")
         """
         if chat_id is None:
             peer = raw.types.InputPeerSelf()

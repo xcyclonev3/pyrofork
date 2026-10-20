@@ -35,7 +35,7 @@ class SendTonWalletTransfer:
         .. warning::
 
             This method moves funds. The transfer requests must be built and signed on the client side with the private
-            key of the wallet; Pyrofork only submits them and doesn't implement TON cryptography. A sent transfer
+            key of the wallet; Pyrogram only submits them and doesn't implement TON cryptography. A sent transfer
             can't be canceled.
 
         .. include:: /_includes/usable-by/users.rst

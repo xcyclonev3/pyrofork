@@ -4530,14 +4530,14 @@ class Message(Object, Update):
 
             await client.send_web_page(
                 chat_id=message.chat.id,
-                url="https://github.com/Mayuri-Chan/pyrofork",
+                url="https://github.com/pyrogram/pyrogram",
                 reply_to_message_id=message.id
             )
 
         Example:
             .. code-block:: python
 
-                await message.reply_web_page("https://github.com/Mayuri-Chan/pyrofork")
+                await message.reply_web_page("https://github.com/pyrogram/pyrogram")
 
         Parameters:
             url (``str``):

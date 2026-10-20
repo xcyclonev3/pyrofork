@@ -1,4 +1,4 @@
-<h1 align="center">Pyrofork</h1>
+<h1 align="center">Pyrogram</h1>
 
 <p align="center">
     <b>Elegant, modern and asynchronous Telegram MTProto API framework in Python for users and bots</b>
@@ -17,7 +17,7 @@
     •
     <a href="#whats-new-in-layer-230">What's new</a>
     •
-    <a href="https://pyrofork.mayuri.my.id">Documentation</a>
+    <a href="AI_GUIDE.md">Guide</a>
     •
     <a href="#credits-and-license">Credits</a>
 </p>
@@ -30,17 +30,16 @@ app = Client("my_account")
 
 @app.on_message(filters.private)
 async def hello(client, message):
-    await message.reply("Hello from Pyrofork!")
+    await message.reply("Hello from Pyrogram!")
 
 
 app.run()
 ```
 
-**Pyrofork** lets you use the whole Telegram API from Python, either through a user account (a custom client) or as a
-bot (an alternative to the Bot API). It is a fork of [Pyrogram](https://github.com/pyrogram/pyrogram), continued by
-[Mayuri-Chan](https://github.com/Mayuri-Chan/pyrofork).
+**Pyrogram** lets you use the whole Telegram API from Python, either through a user account (a custom client) or as a
+bot (an alternative to the Bot API).
 
-This repository keeps Pyrofork up to date with **Telegram API Layer 230**: its schema is identical to the one of the
+This repository keeps Pyrogram up to date with **Telegram API Layer 230**: its schema is identical to the one of the
 official apps, and every function the new layers added is available as a high-level method.
 
 ## Features
@@ -48,14 +47,14 @@ official apps, and every function the new layers added is available as a high-le
 - **Ready**: install it with pip and start building your applications right away.
 - **Easy**: makes the Telegram API simple and intuitive, while still allowing advanced usages.
 - **Elegant**: low-level details are abstracted and re-presented in a more convenient way.
-- **Fast**: boosted by [TgCrypto](https://github.com/Mayuri-Chan/tgcrypto), an optional cryptography library written in C.
+- **Fast**: boosted by [TgCrypto](https://github.com/pyrogram/tgcrypto), an optional cryptography library written in C.
 - **Type-hinted**: methods and types are all type-hinted, enabling excellent editor support.
 - **Async**: fully asynchronous, and also usable synchronously if you prefer.
 - **Powerful**: full access to the Telegram API, down to every raw function of Layer 230.
 
 ## What's new in Layer 230
 
-Compared to upstream Pyrofork (Layer 220), this version adds 139 methods, 177 types and 14 update handlers:
+Compared to release 2.3.69 (Layer 220), this version adds 139 methods, 177 types and 14 update handlers:
 
 | Area | Highlights |
 |---|---|
@@ -71,7 +70,7 @@ Compared to upstream Pyrofork (Layer 220), this version adds 139 methods, 177 ty
 | TON wallet | `get_ton_wallet_state`, transactions, NFTs, transfers, backups and TON Connect |
 | Text | formatted dates (`<tg-time>` and `![...](tg://time?...)`) and TON addresses |
 
-### Upgrading from Pyrofork 2.3.69
+### Upgrading from 2.3.69
 
 No public method, parameter, attribute or enum was removed or renamed. A few behaviours changed:
 
@@ -84,7 +83,7 @@ No public method, parameter, attribute or enum was removed or renamed. A few beh
 
 ## Installation
 
-Pyrofork needs Python 3.10 or newer. Install this version from GitHub:
+Pyrogram needs Python 3.10 or newer. Install this version from GitHub:
 
 ```bash
 pip install -U "git+https://github.com/xcyclonev3/pyrofork.git"
@@ -98,7 +97,7 @@ The installation generates the raw API from the TL schema, so it takes a little 
 pip install -U tgcrypto-pyrofork uvloop
 ```
 
-- [TgCrypto](https://github.com/Mayuri-Chan/tgcrypto) implements in C the encryption Telegram requires. Pyrofork uses it
+- [TgCrypto](https://github.com/pyrogram/tgcrypto) implements in C the encryption Telegram requires. Pyrogram uses it
   automatically when it is installed, and falls back to a much slower pure-Python implementation otherwise. To build it
   from source instead: `pip install "tgcrypto-pyrofork @ git+https://github.com/xcyclonev3/tgcrypto-pyrofork.git"`.
 - [uvloop](https://github.com/MagicStack/uvloop) is a faster event loop: call `uvloop.install()` before creating your
@@ -121,7 +120,7 @@ api_hash = "0123456789abcdef0123456789abcdef"
 async def main():
     async with Client("my_account", api_id=api_id, api_hash=api_hash) as app:
         me = await app.get_me()
-        await app.send_message("me", f"Hello, **{me.first_name}**! This message comes from Pyrofork.")
+        await app.send_message("me", f"Hello, **{me.first_name}**! This message comes from Pyrogram.")
 
 
 asyncio.run(main())
@@ -137,7 +136,7 @@ app = Client("my_bot", api_id=12345, api_hash="0123456789abcdef0123456789abcdef"
 
 @app.on_message(filters.command("start"))
 async def start(client, message):
-    await message.reply("Hi! I'm running on Pyrofork.")
+    await message.reply("Hi! I'm running on Pyrogram.")
 
 
 app.run()
@@ -154,7 +153,7 @@ app = Client("my_account")
 async def showcase(chat_id):
     # A quiz with a description and shuffled options
     await app.send_poll(
-        chat_id, "Which layer does this Pyrofork speak?",
+        chat_id, "Which layer does this Pyrogram speak?",
         [types.PollOption("220"), types.PollOption("230")],
         type=enums.PollType.QUIZ, correct_option_id=1,
         description="Only one answer is right", shuffle_options=True,
@@ -168,7 +167,7 @@ async def showcase(chat_id):
 
     # A rich message built from HTML
     await app.send_rich_message(
-        chat_id, types.InputRichMessage(types.RichMessageSourceHtml("<h1>Pyrofork</h1><p>Now on Layer 230.</p>"))
+        chat_id, types.InputRichMessage(types.RichMessageSourceHtml("<h1>Pyrogram</h1><p>Now on Layer 230.</p>"))
     )
 ```
 
@@ -181,15 +180,15 @@ async def showcase(chat_id):
 
 ## Documentation
 
-The [upstream documentation](https://pyrofork.mayuri.my.id) covers upstream Pyrofork. Every method and type added
-here is documented in its docstring and in the documentation sources under [`docs/`](docs).
+The documentation sources are under [`docs/`](docs) (build them with Sphinx), and every method and type is documented
+in its docstring. [`AI_GUIDE.md`](AI_GUIDE.md) explains how the library works inside, flow by flow.
 
 ## Development
 
 ```bash
-git clone https://github.com/xcyclonev3/pyrofork.git
-cd pyrofork
-make venv     # creates venv/ and installs Pyrofork in editable mode
+git clone https://github.com/xcyclonev3/pyrofork.git pyrogram
+cd pyrogram
+make venv     # creates venv/ and installs Pyrogram in editable mode
 make api      # generates the raw API and the error classes
 venv/bin/pip install -e ".[dev]"
 venv/bin/python -m pytest tests
@@ -201,12 +200,9 @@ The TL schema lives in [`compiler/api/source/main_api.tl`](compiler/api/source/m
 ## Credits and license
 
 - [Pyrogram](https://github.com/pyrogram/pyrogram) by Dan ([@delivrance](https://github.com/delivrance)), the original
-  framework.
-- [Pyrofork](https://github.com/Mayuri-Chan/pyrofork) by [Mayuri-Chan](https://github.com/Mayuri-Chan), which this
-  repository builds on. You can support the upstream project by
-  [becoming a GitHub sponsor](https://github.com/sponsors/Mayuri-Chan), and reach its community in the
-  [support chat](https://t.me/MayuriChan_Chat).
-- [TgCrypto](https://github.com/Mayuri-Chan/tgcrypto), the optional cryptography library.
+  framework, and everyone who has contributed to it since: the copyright holders are named in [NOTICE](NOTICE) and in
+  the header of every file.
+- [TgCrypto](https://github.com/pyrogram/tgcrypto), the optional cryptography library.
 
-Pyrofork is free software, released under the [GNU Lesser General Public License v3.0](COPYING.lesser) or later. See
+Pyrogram is free software, released under the [GNU Lesser General Public License v3.0](COPYING.lesser) or later. See
 also [COPYING](COPYING) and [NOTICE](NOTICE).

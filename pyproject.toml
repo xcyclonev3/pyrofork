@@ -1,7 +1,7 @@
 [project]
 name = "pyrofork"
 dynamic = ["version"]
-description = "Fork of pyrogram. Elegant, modern and asynchronous Telegram MTProto API framework in Python for users and bots"
+description = "Elegant, modern and asynchronous Telegram MTProto API framework in Python for users and bots"
 authors = [{ name = "wulan17", email = "mayuri@mayuri.my.id" }]
 dependencies = ["pyaes==1.6.1", "pysocks==1.7.1", "pymediainfo-pyrofork>=6.0.1,<7.0.0"]
 readme = "README.md"
@@ -39,11 +39,9 @@ path = "pyrogram/__init__.py"
 [tool.hatch.build.hooks.custom]
 
 [project.urls]
-Homepage = "https://github.com/Mayuri-Chan"
-Tracker = "https://github.com/Mayuri-Chan/pyrofork/issues"
-Community = "https://t.me/MayuriChan_Chat"
-Source = "https://github.com/Mayuri-Chan/pyrofork"
-Documentation = "https://pyrofork.wulan17.dev"
+Homepage = "https://github.com/xcyclonev3/pyrofork"
+Tracker = "https://github.com/xcyclonev3/pyrofork/issues"
+Source = "https://github.com/xcyclonev3/pyrofork"
 
 [build-system]
 requires = ["hatchling"]

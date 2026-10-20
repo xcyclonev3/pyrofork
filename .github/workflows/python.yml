@@ -1,4 +1,4 @@
-name: Pyrofork
+name: Pyrogram
 
 on: [push, pull_request]
 

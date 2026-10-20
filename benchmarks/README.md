@@ -1,7 +1,7 @@
 # Benchmarks
 
-Offline benchmarks of the hot paths of Pyrofork: nothing connects to Telegram. Run them from the repository root, with
-Pyrofork's dependencies installed (TgCrypto too, to measure what users with it get):
+Offline benchmarks of the hot paths of Pyrogram: nothing connects to Telegram. Run them from the repository root, with
+Pyrogram's dependencies installed (TgCrypto too, to measure what users with it get):
 
 ```bash
 python benchmarks/bench_mtproto.py
@@ -11,7 +11,7 @@ They measure this checkout. To compare with another one (whose raw API is genera
 `TREE` to it:
 
 ```bash
-TREE=/path/to/other/pyrofork python benchmarks/bench_mtproto.py
+TREE=/path/to/other/checkout python benchmarks/bench_mtproto.py
 ```
 
 | Benchmark | What it measures |
