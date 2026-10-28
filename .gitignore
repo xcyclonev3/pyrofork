@@ -1,10 +1,13 @@
 # Development
-docs
 *.session
 config.ini
 main.py
 unknown_errors.txt
 .DS_Store
+
+# Documentation build artifacts; Markdown sources are tracked.
+/docs/build/
+/docs/source/_build/
 
 # Pyrogram generated code
 pyrogram/errors/exceptions/
@@ -12,10 +15,6 @@ pyrogram/raw/functions/
 pyrogram/raw/types/
 pyrogram/raw/base/
 pyrogram/raw/all.py
-docs/source/telegram
-docs/source/api/methods/
-docs/source/api/bound-methods/
-docs/source/api/types/
 
 # PyCharm stuff
 .idea/
@@ -88,9 +87,8 @@ instance/
 # Scrapy stuff:
 .scrapy
 
-# Sphinx documentation
+# Legacy Sphinx build cache
 docs/_build/
-docs/source/_build
 
 # PyBuilder
 target/

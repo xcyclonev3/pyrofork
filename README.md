@@ -17,7 +17,7 @@
     •
     <a href="#whats-new-in-layer-230">What's new</a>
     •
-    <a href="AI_GUIDE.md">Guide</a>
+    <a href="docs/README.md">Documentation</a>
     •
     <a href="#credits-and-license">Credits</a>
 </p>
@@ -180,8 +180,11 @@ async def showcase(chat_id):
 
 ## Documentation
 
-The documentation sources are under [`docs/`](docs) (build them with Sphinx), and every method and type is documented
-in its docstring. [`AI_GUIDE.md`](AI_GUIDE.md) explains how the library works inside, flow by flow.
+Start with the [documentation index](docs/README.md). It links to the installation and quick-start guides, practical
+topics, examples, FAQ, release notes, and the complete high-level and raw API references. Every documentation page is a
+GitHub-rendered Markdown file; no documentation build is needed to read it.
+
+For architecture and implementation notes, see [AI_GUIDE.md](AI_GUIDE.md).
 
 ## Development
 

@@ -1,30 +1,23 @@
-name: Build-docs
+name: Documentation
 
 on:
   push:
-    tags:
-    - "*"
-    branches:
-    - staging
-    - dev/*
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
-  build:
-
-    runs-on: ubuntu-22.04
-
+  markdown:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Configure
-        run: bash build-docs.sh configure
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Cleanup
-        run: bash build-docs.sh cleanup
-
-      - name: Create virtual environment
-        run: bash build-docs.sh virtualenv
-
-      - name: Build
-        run: bash build-docs.sh build
+      - name: Check generated references and Markdown
+        run: bash build-docs.sh check
