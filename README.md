@@ -17,7 +17,7 @@
     •
     <a href="#whats-new-in-layer-230">What's new</a>
     •
-    <a href="docs/README.md">Documentation</a>
+    <a href="https://xcyclonev3.github.io/pyrofork/">Documentation</a>
     •
     <a href="#credits-and-license">Credits</a>
 </p>
