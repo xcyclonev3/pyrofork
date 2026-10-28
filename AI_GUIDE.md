@@ -271,11 +271,11 @@ Consequences for callers:
 4. **`Client.handle_updates`** (`pyrogram/client.py`):
    - `Updates` / `UpdatesCombined`: `fetch_peers(users)` and `fetch_peers(chats)` (peer cache, section 11), builds `users = {id: raw User}` and `chats = {id: raw Chat/Channel}` (raw ids, not `-100…` ids). Then, for each update in the container:
      - if it has a `pts`, saves the state `(channel id or 0, pts, None, date, None)` with `storage.update_state`;
-     - for an `UpdateNewChannelMessage` whose peers were `min`, calls `channels.GetChannelDifference` for that one message to get full peers;
+     - for an `UpdateNewChannelMessage` whose peers were `min`, calls `channels.GetChannelDifference` for that one message to get full peers; if that fails (any `RPCError`, or `OSError` such as a connection still down after the retries) the update is queued with the min peers;
      - enqueues `(update, users, chats)` on `app.dispatcher.updates_queue`.
-   - `UpdateShortMessage` / `UpdateShortChatMessage`: saves the state, calls `updates.GetDifference` and enqueues the first new message (as `UpdateNewMessage`) or the first other update.
+   - `UpdateShortMessage` / `UpdateShortChatMessage`: saves the state, calls `updates.GetDifference` and enqueues the first new message (as `UpdateNewMessage`) or the first other update; if the request fails, it logs `Unable to get the message of a short update: ...` and the update is dropped.
    - `UpdateShort`: enqueues `(update.update, {}, {})`.
-   - `UpdatesTooLong`: only logged (no difference is fetched); a watchdog (`Client.updates_watchdog`) calls `updates.GetState` after 15 minutes without updates.
+   - `UpdatesTooLong`: only logged (no difference is fetched); a watchdog (`Client.updates_watchdog`) calls `updates.GetState` after 15 minutes without updates (a failure is logged as `Unable to get the update state: ...` and the watchdog goes on).
 5. **Dispatcher workers** (`pyrogram/dispatcher.py`): `workers` tasks loop on `updates_queue.get()`. For each item: find the parser for the exact raw type (`Dispatcher.update_parsers`), build the high-level object (e.g. `types.Message._parse`), then go through the handler groups (section 10).
 6. **Your callback** runs with `(client, parsed_update)`, or `(client, update, users, chats)` for `RawUpdateHandler`.
 

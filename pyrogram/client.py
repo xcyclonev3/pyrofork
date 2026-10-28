@@ -47,7 +47,8 @@ from pyrogram.errors import CDNFileHashMismatch
 from pyrogram.errors import (
     SessionPasswordNeeded,
     VolumeLocNotFound, ChannelPrivate,
-    BadRequest, ChannelInvalid, PersistentTimestampInvalid, PersistentTimestampOutdated
+    BadRequest, ChannelInvalid, PersistentTimestampInvalid, PersistentTimestampOutdated,
+    RPCError
 )
 from pyrogram.handlers.handler import Handler
 from pyrogram.methods import Methods
@@ -446,7 +447,12 @@ class Client(Methods):
                 break
 
             if datetime.now() - self.last_update_time > timedelta(seconds=self.UPDATES_WATCHDOG_INTERVAL):
-                await self.invoke(raw.functions.updates.GetState())
+                try:
+                    await self.invoke(raw.functions.updates.GetState())
+                except Exception as e:
+                    # E.g. a connection that stayed down through every retry. The watchdog must go on: when it ended
+                    # with the error, terminate() raised it again, so stop() never disconnected the client
+                    log.warning("Unable to get the update state: %s: %s", type(e).__name__, e)
 
     async def _wait_for_update_login_token(self):
         """
@@ -718,7 +724,10 @@ class Client(Methods):
                                     force=False
                                 )
                             )
-                        except (ChannelPrivate, PersistentTimestampOutdated, PersistentTimestampInvalid):
+                        except (RPCError, OSError):
+                            # The full peers are a bonus: without them (an error, or no connection through every
+                            # retry) the update goes on with the min ones, instead of being lost with the rest of
+                            # the container and the error left in a task nobody awaits
                             pass
                         else:
                             if not isinstance(diff, raw.types.updates.ChannelDifferenceEmpty):
@@ -737,13 +746,18 @@ class Client(Methods):
                 )
             )
 
-            diff = await self.invoke(
-                raw.functions.updates.GetDifference(
-                    pts=updates.pts - updates.pts_count,
-                    date=updates.date,
-                    qts=-1
+            try:
+                diff = await self.invoke(
+                    raw.functions.updates.GetDifference(
+                        pts=updates.pts - updates.pts_count,
+                        date=updates.date,
+                        qts=-1
+                    )
                 )
-            )
+            except (RPCError, OSError) as e:
+                # Not raised: handle_updates runs in a task nobody awaits ("Task exception was never retrieved")
+                log.warning("Unable to get the message of a short update: %s", e)
+                return
 
             if diff.new_messages:
                 self.dispatcher.updates_queue.put_nowait((
