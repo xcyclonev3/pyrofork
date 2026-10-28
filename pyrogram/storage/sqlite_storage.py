@@ -18,9 +18,9 @@
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-import inspect
 import logging
 import sqlite3
+import sys
 import time
 from typing import List, Tuple, Any
 
@@ -295,15 +295,18 @@ class SQLiteStorage(Storage):
 
         return get_input_peer(*r)
 
+    # _get and _set take the column from the name of the accessor that called _accessor (dc_id, api_id, ...).
+    # sys._getframe, not inspect.stack(): that one reads the source of every frame on the stack, milliseconds per call,
+    # and with hundreds of clients in a process (each start and reconnect reads some) it kept the event loop busy.
     def _get(self):
-        attr = inspect.stack()[2].function
+        attr = sys._getframe(2).f_code.co_name
 
         return self.conn.execute(
             f"SELECT {attr} FROM sessions"
         ).fetchone()[0]
 
     def _set(self, value: Any):
-        attr = inspect.stack()[2].function
+        attr = sys._getframe(2).f_code.co_name
 
         with self.conn:
             self.conn.execute(

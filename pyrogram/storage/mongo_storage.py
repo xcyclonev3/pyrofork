@@ -18,7 +18,7 @@
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-import inspect
+import sys
 import time
 from typing import List, Tuple, Any
 
@@ -221,15 +221,17 @@ class MongoStorage(Storage):
 
         return get_input_peer(r['_id'], r['access_hash'], r['type'])
 
+    # The field is the name of the accessor that awaited _accessor (dc_id, api_id, ...): sys._getframe rather than
+    # inspect.stack(), which reads the source of every frame on the stack (see SQLiteStorage._get)
     async def _get(self):
-        attr = inspect.stack()[2].function
+        attr = sys._getframe(2).f_code.co_name
         d = await self._session.find_one({'_id': 0}, {attr: 1})
         if not d:
             return
         return d[attr]
 
     async def _set(self, value: Any):
-        attr = inspect.stack()[2].function
+        attr = sys._getframe(2).f_code.co_name
         await self._session.update_one({'_id': 0}, {'$set': {attr: value}}, upsert=True)
 
     async def _accessor(self, value: Any = object):
