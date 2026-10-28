@@ -1,0 +1,70 @@
+[project]
+site_name = "Pyrofork Docs"
+site_url = "https://xcyclonev3.github.io/pyrofork/"
+site_description = "Documentation for Pyrofork, a Python client for Telegram's MTProto API."
+site_author = "Pyrofork contributors"
+docs_dir = ".build/docs"
+site_dir = "site"
+repo_url = "https://github.com/xcyclonev3/pyrofork"
+edit_uri = "edit/main/docs/"
+copyright = "Pyrofork contributors"
+strict = true
+use_directory_urls = false
+not_in_nav = """
+/api/*.md
+/api/**/*.md
+!/api/README.md
+!/api/client.md
+!/api/manifest.md
+!/api/**/README.md
+"""
+extra_css = ["stylesheets/pyrofork.css"]
+
+[project.theme]
+language = "en"
+favicon = "images/pyrofork.svg"
+features = [
+  "content.action.edit",
+  "content.action.view",
+  "content.code.copy",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.instant.progress",
+  "navigation.path",
+  "navigation.prune",
+  "navigation.sections",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+  "search.suggest",
+  "toc.follow",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "indigo"
+accent = "indigo"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "indigo"
+accent = "indigo"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+[project.plugins.search]
+separator = '[\s\-,:!=\[\]()"/_]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)'
+
+[project.validation]
+invalid_links = true
+invalid_link_anchors = true

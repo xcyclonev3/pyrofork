@@ -126,3 +126,9 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Zensical documentation site artifacts.
+/.venv/
+/.build/
+/site/
+/.venv-docs/

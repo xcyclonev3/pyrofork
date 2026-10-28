@@ -1,8 +1,8 @@
 # Pyrofork Documentation
 
-Pyrofork is a Python client for Telegram's MTProto API. This documentation is organized for direct reading on GitHub:
-start with a working example, follow a guide for a specific task, or open the API reference when you know which symbol
-you need.
+Pyrofork is a Python client for Telegram's MTProto API. This documentation is available as a searchable website and as
+Markdown in this repository. Start with a working example, follow a guide for a specific task, or open the API reference
+when you know which symbol you need.
 
 ## Start here
 
@@ -25,5 +25,8 @@ you need.
 
 ## Contributing to the documentation
 
-All pages are Markdown files rendered by GitHub. Follow relative links from the indexes; long pages include a contents
-list near the top. API reference pages are generated from the source tree by the repository documentation generator.
+Pages are authored in Markdown and built with Zensical from the repository root. Run `python tools/prepare_site.py` to
+stage the Markdown sources before previewing or building. Follow relative links from the indexes; long pages include a
+contents list near the top. API reference pages are generated from the Pyrofork source tree. Run
+`bash build-docs.sh check` to verify them or `bash build-docs.sh generate` after changing API sources. Do not edit
+generated API pages by hand.
