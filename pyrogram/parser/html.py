@@ -92,9 +92,11 @@ class Parser(HTMLParser):
 
         self.tag_entities[tag].append(entity(offset=len(self.text), length=0, **extra))
 
-    def handle_data(self, data):
-        data = html.unescape(data)
+    def set_cdata_mode(self, elem, **kwargs):
+        # Elements like <script> and <style> are unknown tags like any other: their text is handled in the same way
+        pass
 
+    def handle_data(self, data):
         for entities in self.tag_entities.values():
             for entity in entities:
                 entity.length += len(data)
@@ -182,7 +184,7 @@ class HTML:
                 end_tag = f"</{name}>"
             elif entity_type == MessageEntityType.PRE:
                 name = entity_type.name.lower()
-                language = getattr(entity, "language", "") or ""
+                language = html.escape(getattr(entity, "language", "") or "")
                 start_tag = f'<{name} language="{language}">' if language else f"<{name}>"
                 end_tag = f"</{name}>"
             elif entity_type == MessageEntityType.EXPANDABLE_BLOCKQUOTE:
@@ -198,7 +200,7 @@ class HTML:
                 start_tag = f"<{name}>"
                 end_tag = f"</{name}>"
             elif entity_type == MessageEntityType.TEXT_LINK:
-                url = entity.url
+                url = html.escape(entity.url)
                 start_tag = f'<a href="{url}">'
                 end_tag = "</a>"
             elif entity_type == MessageEntityType.TEXT_MENTION:
@@ -249,11 +251,10 @@ class HTML:
         while i < len(entities):
             i += recursive(i)
 
-        if entities_offsets:
-            last_offset = entities_offsets[-1][1]
-            # no need to sort, but still add entities starting from the end
-            for entity, offset in reversed(entities_offsets):
-                text = text[:offset] + entity + html.escape(text[offset:last_offset]) + text[last_offset:]
-                last_offset = offset
+        last_offset = len(text)
+        # no need to sort, but still add entities starting from the end
+        for entity, offset in reversed(entities_offsets):
+            text = text[:offset] + entity + html.escape(text[offset:last_offset]) + text[last_offset:]
+            last_offset = offset
 
-        return utils.remove_surrogates(text)
+        return utils.remove_surrogates(html.escape(text[:last_offset]) + text[last_offset:])

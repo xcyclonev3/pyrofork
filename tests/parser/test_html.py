@@ -16,8 +16,13 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
+
+import pytest
+
 import pyrogram
-from pyrogram.parser.html import HTML
+from pyrogram.parser.html import HTML, Parser
+from pyrogram.parser.markdown import Markdown
 
 
 # expected: the expected unparsed HTML
@@ -145,3 +150,92 @@ def test_html_unparse_no_entities():
     entities = []
 
     assert HTML.unparse(text=text, entities=entities) == expected
+
+
+def entity(entity_type, offset, length, **kwargs):
+    return pyrogram.types.MessageEntity(type=entity_type, offset=offset, length=length, **kwargs)
+
+
+def bold(offset, length):
+    return entity(pyrogram.enums.MessageEntityType.BOLD, offset, length)
+
+
+def parse(text):
+    return asyncio.run(HTML(None).parse(text))
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("&amp;copy=1", "&copy=1"),
+    ("&amp;amp;", "&amp;"),
+    ("&amp;lt;b&amp;gt;", "&lt;b&gt;"),
+    ("&lt;b&gt;", "<b>"),
+    ("a &copy; b", "a \u00a9 b"),
+    ("<b>&amp;copy=1</b>", "&copy=1"),
+    ("<style>a &amp; b</style> c", "a & b c"),
+    ("<script>a &amp;copy=1</script>", "a &copy=1"),
+    ("<title>a &amp;copy=1</title>", "a &copy=1"),
+    ("<style><b>a</b></style>", "a"),
+])
+def test_html_parse_unescapes_once(text, expected):
+    assert parse(text)["message"] == expected
+
+
+def test_html_parse_counts_the_unescaped_text():
+    assert parse("<b>&amp;copy=1</b>")["entities"][0].length == len("&copy=1")
+
+
+def test_markdown_strict_keeps_the_text():
+    assert asyncio.run(Markdown(None).parse("&amp;copy=1", strict=True))["message"] == "&amp;copy=1"
+
+
+def test_parser_keeps_its_interface():
+    parser = Parser(None)
+    parser.feed("<b>a</b> &amp;")
+    parser.close()
+
+    assert parser.text == "a &"
+
+
+def test_html_unparse_escapes_the_text_around_the_entities():
+    assert HTML.unparse(text="a < b & c > d", entities=[bold(6, 1)]) == "a &lt; b <b>&amp;</b> c &gt; d"
+
+
+def test_html_unparse_escapes_a_text_without_entities():
+    assert HTML.unparse(text="a < b & c", entities=[]) == "a &lt; b &amp; c"
+
+
+def test_html_unparse_escapes_the_attributes():
+    url = 'https://example.com/?a=1&copy=2&b="c"'
+    entities = [entity(pyrogram.enums.MessageEntityType.TEXT_LINK, 0, 4, url=url)]
+
+    assert HTML.unparse(text="link", entities=entities) == (
+        '<a href="https://example.com/?a=1&amp;copy=2&amp;b=&quot;c&quot;">link</a>'
+    )
+    assert parse(HTML.unparse(text="link", entities=entities))["entities"][0].url == url
+
+    entities = [entity(pyrogram.enums.MessageEntityType.PRE, 0, 4, language='a"b')]
+
+    assert HTML.unparse(text="code", entities=entities) == '<pre language="a&quot;b">code</pre>'
+
+
+@pytest.mark.parametrize("text", [
+    "promo <x",
+    "promo <!--",
+    'promo <a href="',
+    "x<y sekarang",
+    "tag <toko> resmi",
+    "a & b &copy=2 &lt;b&gt;",
+    "<emoji>",
+    "it's \"quoted\"",
+    "\U0001f600 <b>x</b> \U0001f600",
+])
+@pytest.mark.parametrize("with_entity", [True, False])
+def test_html_unparse_round_trip(text, with_entity):
+    # The bold text comes after the text under test, so the offset counts it in UTF-16 code units
+    offset = len(text.encode("utf-16-le")) // 2 + 2
+    full_text, entities = (f"{text}\n\nend", [bold(offset, 3)]) if with_entity else (text, [])
+
+    parsed = parse(HTML.unparse(text=full_text, entities=entities))
+
+    assert parsed["message"] == full_text
+    assert [(e.offset, e.length) for e in parsed["entities"] or []] == [(e.offset, e.length) for e in entities]
