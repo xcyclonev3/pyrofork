@@ -18,7 +18,11 @@ async def send_game(
     allow_paid_broadcast: bool = None,
     message_effect_id: int = None,
     reply_markup: Union['types.InlineKeyboardMarkup', 'types.ReplyKeyboardMarkup', 'types.ReplyKeyboardRemove', 'types.ForceReply'] = None,
-    reply_to_chat_id: Union[int, str] = None
+    reply_to_chat_id: Union[int, str] = None,
+    quote_text: str = None,
+    quote_entities: List['types.MessageEntity'] = None,
+    parse_mode: Optional['enums.ParseMode'] = None,
+    schedule_date: datetime = None
 ) -> 'types.Message': ...
 ```
 
@@ -70,6 +74,21 @@ Send a game.
 - **`reply_to_chat_id`** (`int` | `str`, *optional*)
   Unique identifier for the origin chat.
   for reply to message from another chat.
+
+- **`quote_text`** (`str`, *optional*)
+  Text to quote.
+  for reply_to_message only.
+
+- **`quote_entities`** (List of [`MessageEntity`](../../types/messages_and_media/MessageEntity.md), *optional*)
+  List of special entities that appear in quote_text, which can be specified instead of *parse_mode*.
+  for reply_to_message only.
+
+- **`parse_mode`** ([`ParseMode`](../../enums/ParseMode.md), *optional*)
+  By default, *quote_text* is parsed using both Markdown and HTML styles.
+  You can combine both syntaxes together.
+
+- **`schedule_date`** (`datetime`, *optional*)
+  Date when the message will be automatically sent.
 
 ### Returns
 

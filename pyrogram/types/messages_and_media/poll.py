@@ -262,7 +262,7 @@ class Poll(Object, Update):
 
             options.append(await types.PollOption._parse(client, answer, users, chats, voter_count))
 
-        q_entities = [types.MessageEntity._parse(client, entity, {}) for entity in poll.question.entities] if poll.question.entities else []
+        q_entities = [types.MessageEntity._parse(client, entity, users) for entity in poll.question.entities] if poll.question.entities else []
         question_entities = types.List(filter(lambda x: x is not None, q_entities))
 
         recent_voters = []
@@ -288,7 +288,7 @@ class Poll(Object, Update):
             correct_option_id=correct_option_ids[0] if correct_option_ids else None,
             explanation=poll_results.solution,
             explanation_entities=[
-                types.MessageEntity._parse(client, i, {})
+                types.MessageEntity._parse(client, i, users)
                 for i in poll_results.solution_entities
             ] if poll_results.solution_entities else None,
             open_period=poll.close_period,

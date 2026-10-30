@@ -17,10 +17,11 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Union
+from datetime import datetime
+from typing import Union, List, Optional
 
 import pyrogram
-from pyrogram import raw
+from pyrogram import enums, raw
 from pyrogram import types, utils
 
 
@@ -42,7 +43,11 @@ class SendGame:
             "types.ReplyKeyboardRemove",
             "types.ForceReply"
         ] = None,
-        reply_to_chat_id: Union[int, str] = None
+        reply_to_chat_id: Union[int, str] = None,
+        quote_text: str = None,
+        quote_entities: List["types.MessageEntity"] = None,
+        parse_mode: Optional["enums.ParseMode"] = None,
+        schedule_date: datetime = None
     ) -> "types.Message":
         """Send a game.
 
@@ -90,6 +95,21 @@ class SendGame:
                 Unique identifier for the origin chat.
                 for reply to message from another chat.
 
+            quote_text (``str``, *optional*):
+                Text to quote.
+                for reply_to_message only.
+
+            quote_entities (List of :obj:`~pyrogram.types.MessageEntity`, *optional*):
+                List of special entities that appear in quote_text, which can be specified instead of *parse_mode*.
+                for reply_to_message only.
+
+            parse_mode (:obj:`~pyrogram.enums.ParseMode`, *optional*):
+                By default, *quote_text* is parsed using both Markdown and HTML styles.
+                You can combine both syntaxes together.
+
+            schedule_date (:py:obj:`~datetime.datetime`, *optional*):
+                Date when the message will be automatically sent.
+
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent game message is returned.
 
@@ -103,7 +123,10 @@ class SendGame:
             chat_id=chat_id,
             reply_to_message_id=reply_to_message_id,
             message_thread_id=message_thread_id,
-            reply_to_chat_id=reply_to_chat_id
+            reply_to_chat_id=reply_to_chat_id,
+            quote_text=quote_text,
+            quote_entities=quote_entities,
+            parse_mode=parse_mode
         )
 
         rpc = raw.functions.messages.SendMedia(
@@ -118,6 +141,7 @@ class SendGame:
             silent=disable_notification or None,
             reply_to=reply_to,
             random_id=self.rnd_id(),
+            schedule_date=utils.datetime_to_timestamp(schedule_date),
             noforwards=protect_content,
             allow_paid_floodskip=allow_paid_broadcast,
             effect=message_effect_id,
@@ -139,6 +163,7 @@ class SendGame:
                 (
                     raw.types.UpdateNewMessage,
                     raw.types.UpdateNewChannelMessage,
+                    raw.types.UpdateNewScheduledMessage,
                     raw.types.UpdateBotNewBusinessMessage
                 )
             ):
@@ -146,5 +171,6 @@ class SendGame:
                     self, i.message,
                     {i.id: i for i in r.users},
                     {i.id: i for i in r.chats},
+                    is_scheduled=isinstance(i, raw.types.UpdateNewScheduledMessage),
                     business_connection_id=business_connection_id
                 )

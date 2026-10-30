@@ -21,12 +21,13 @@ import asyncio
 import inspect
 import os
 import pickle
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
 
 from pyrogram import Client, enums, raw, types, utils
-from pyrogram.errors import FloodWait, PeerIdInvalid, UserIdInvalid
+from pyrogram.errors import BroadcastPublicVotersForbidden, FloodWait, PeerIdInvalid, UserIdInvalid
 from pyrogram.file_id import FileId, FileType, ThumbnailSource
 from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS, RAW_CHANNEL
 
@@ -855,7 +856,7 @@ def copy_photo(request):
         message = asyncio.run(photo_message(client, 1, original, entities, above))
         message.reply_markup = markup
 
-        async def get_messages(chat_id, message_id):
+        async def get_messages(chat_id, message_id, replies):
             return message
 
         client.get_messages = get_messages
@@ -925,7 +926,7 @@ def test_copy_message_only_sends_the_reply_markup_it_is_given():
     message = asyncio.run(photo_message(client, 1, "caption", None, False))
     message.reply_markup = KEYBOARD
 
-    async def get_messages(chat_id, message_id):
+    async def get_messages(chat_id, message_id, replies):
         return message
 
     client.get_messages = get_messages
@@ -954,7 +955,7 @@ def copy_media(media, text="", entities=None, above=False, markup=None, **kwargs
     return request
 
 
-def raw_poll(question, *answers, question_entities=None):
+def raw_poll(question, *answers, question_entities=None, results=None, **settings):
     return raw.types.MessageMediaPoll(
         poll=raw.types.Poll(
             id=1, hash=0,
@@ -962,9 +963,10 @@ def raw_poll(question, *answers, question_entities=None):
             answers=[
                 raw.types.PollAnswer(text=raw.types.TextWithEntities(text=text, entities=entities or []), option=bytes([i]))
                 for i, (text, entities) in enumerate(answers)
-            ]
+            ],
+            **settings
         ),
-        results=raw.types.PollResults()
+        results=results or raw.types.PollResults()
     )
 
 
@@ -1014,11 +1016,13 @@ def test_copy_passes_the_options_of_games():
 
     request = copy_media(
         raw.types.MessageMediaGame(game=game), protect_content=True, disable_notification=True, reply_markup=KEYBOARD,
-        reply_to_message_id=3, reply_to_chat_id=7
+        reply_to_message_id=3, reply_to_chat_id=7, quote_text="<b>q</b>", parse_mode=enums.ParseMode.HTML,
+        schedule_date=datetime(2030, 1, 1, tzinfo=timezone.utc)
     )
 
     assert request.noforwards and request.silent and request.reply_markup and request.reply_to.reply_to_msg_id == 3
     assert request.reply_to.reply_to_peer_id.write() == PEERS[7].write()
+    assert request.reply_to.quote_text == "q" and request.schedule_date == 1893456000
 
 
 def test_copy_of_a_venue_without_an_id():
@@ -1215,7 +1219,12 @@ def test_copy_media_group_sleep_threshold(kwargs, expected):
     assert thresholds == [expected]
 
 
-def album_reader(groups, omit_missing=True):
+RAW_BASIC_GROUP = raw.types.Chat(
+    id=45, title="Group", photo=raw.types.ChatPhotoEmpty(), participants_count=1, date=1, version=1
+)
+
+
+def album_reader(groups, omit_missing=True, peer=raw.types.PeerChannel(channel_id=123)):
     """A client whose server knows the messages of `groups`, a dict of id: media group, and answers in reverse order."""
     def respond(query):
         client.requested_ids = [ref.id for ref in query.id]
@@ -1224,13 +1233,15 @@ def album_reader(groups, omit_missing=True):
         for ref in reversed(query.id):
             if ref.id in groups:
                 messages.append(raw.types.Message(
-                    id=ref.id, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message="",
+                    id=ref.id, peer_id=peer, date=1, message="",
                     grouped_id=groups[ref.id], media=raw.types.MessageMediaPhoto(photo=raw_photo(3000 + ref.id))
                 ))
             elif not omit_missing:
                 messages.append(raw.types.MessageEmpty(id=ref.id))
 
-        return raw.types.messages.Messages(messages=messages, topics=[], users=[], chats=[RAW_CHANNEL])
+        return raw.types.messages.Messages(
+            messages=messages, topics=[], users=[RAW_USER], chats=[RAW_CHANNEL, RAW_BASIC_GROUP]
+        )
 
     client = offline_client(PEERS, respond)
     return client
@@ -1253,14 +1264,14 @@ def test_get_media_group_of_a_message_without_an_album(message_id):
         call(lambda: client.get_media_group(-100123, message_id))
 
 
-@pytest.mark.parametrize("chat_id, message_id, expected", [
-    (-100123, 21, range(12, 31)),
-    (-100123, 3, range(1, 13)),
-    (7, 100, range(51, 150)),
-    (-45, 100, range(51, 150)),
+@pytest.mark.parametrize("chat_id, peer, message_id, expected", [
+    (-100123, raw.types.PeerChannel(channel_id=123), 21, range(12, 31)),
+    (-100123, raw.types.PeerChannel(channel_id=123), 3, range(1, 13)),
+    (7, raw.types.PeerUser(user_id=7), 100, range(51, 150)),
+    (-45, raw.types.PeerChat(chat_id=45), 100, range(51, 150)),
 ], ids=["channel", "first messages", "user", "basic group"])
-def test_get_media_group_reads_more_ids_where_they_are_shared(chat_id, message_id, expected):
-    client = album_reader({message_id: 1})
+def test_get_media_group_reads_more_ids_where_they_are_shared(chat_id, peer, message_id, expected):
+    client = album_reader({message_id: 1}, peer=peer)
 
     call(lambda: client.get_media_group(chat_id, message_id))
 
@@ -1269,7 +1280,7 @@ def test_get_media_group_reads_more_ids_where_they_are_shared(chat_id, message_i
 
 def test_get_media_group_with_other_messages_in_between():
     album_ids = [100, 101, 102, 103, 104, 105, 106, 107, 108, 111]
-    client = album_reader({i: 1 for i in album_ids})
+    client = album_reader({i: 1 for i in album_ids}, peer=raw.types.PeerUser(user_id=7))
 
     album = call(lambda: client.get_media_group(7, 100))
 
@@ -1296,3 +1307,217 @@ def test_get_media_group_only_parses_the_media_group():
 
     assert [message.id for message in album] == [21]
     assert len(client.sent) == 1
+
+
+def test_copy_keeps_the_settings_of_polls():
+    bold = raw.types.MessageEntityBold(offset=0, length=4)
+    media = raw_poll(
+        "q", ("one", None), ("two", None), quiz=True, multiple_choice=True, public_voters=True, shuffle_answers=True,
+        open_answers=True, revoting_disabled=True,
+        results=raw.types.PollResults(
+            results=[raw.types.PollAnswerVoters(option=bytes([1]), voters=1, correct=True)],
+            solution="**because**", solution_entities=[bold]
+        )
+    )
+
+    request = copy_media(media, "<b>description</b>")
+
+    poll = request.media.poll
+    assert poll.quiz and poll.multiple_choice and poll.public_voters
+    assert poll.shuffle_answers and poll.open_answers and poll.revoting_disabled
+    assert request.media.correct_answers == [1]
+    assert request.media.solution == "**because**" and written(request.media.solution_entities) == [bold.write()]
+    assert request.message == "<b>description</b>" and not request.entities
+
+
+def test_copy_of_a_poll_with_a_new_description():
+    request = copy_media(raw_poll("q", ("one", None), ("two", None)), "original", caption="<b>new</b>", parse_mode=enums.ParseMode.HTML)
+
+    assert request.message == "new" and written(request.entities) == [raw.types.MessageEntityBold(offset=0, length=3).write()]
+
+
+def test_copy_of_a_quiz_without_the_correct_options_is_a_regular_poll():
+    request = copy_media(raw_poll("q", ("one", None), ("two", None), quiz=True))
+
+    assert not request.media.poll.quiz and not request.media.correct_answers
+
+
+def test_copy_of_a_poll_with_public_voters_to_a_channel_is_anonymous():
+    attempts = []
+
+    def respond(query):
+        attempts.append((query.media.poll.public_voters, query.media.poll.open_answers))
+
+        if query.media.poll.public_voters:
+            raise BroadcastPublicVotersForbidden
+
+        return empty_updates()
+
+    client = offline_client(PEERS, respond)
+    media = raw_poll("q", ("one", None), ("two", None), public_voters=True, open_answers=True)
+    message = asyncio.run(parse_message(client, 1, media, "", None, False))
+
+    call(lambda: message.copy(-100123))
+
+    assert [(bool(public), bool(options)) for public, options in attempts] == [(True, True), (False, False)]
+
+
+@pytest.mark.parametrize("user_id, kept", [(7, True), (8, False)], ids=["known user", "missing user"])
+def test_copy_of_a_quiz_leaves_out_the_mentions_it_cannot_reach(user_id, kept):
+    mention = raw.types.MessageEntityMentionName(offset=0, length=1, user_id=user_id)
+    media = raw_poll("q", ("one", None), ("two", None), quiz=True, results=raw.types.PollResults(
+        results=[raw.types.PollAnswerVoters(option=bytes([0]), voters=1, correct=True)],
+        solution="s", solution_entities=[mention]
+    ))
+
+    request = copy_media(media)
+
+    assert request.media.solution == "s" and bool(request.media.solution_entities) == kept
+
+
+def test_copy_of_a_text_passes_the_quote_through_parse_mode():
+    request = copy_media(None, "<b>original</b>", reply_to_message_id=3, quote_text="<b>q</b>", parse_mode=enums.ParseMode.HTML)
+
+    assert request.message == "<b>original</b>" and not request.entities
+    assert request.reply_to.quote_text == "q"
+    assert written(request.reply_to.quote_entities) == [raw.types.MessageEntityBold(offset=0, length=1).write()]
+
+
+def test_get_messages_only_finds_the_messages_of_the_chat():
+    client = album_reader({21: None}, peer=raw.types.PeerUser(user_id=7))
+
+    async def user_id():
+        return 7
+
+    client.storage.user_id = user_id
+
+    assert not call(lambda: client.get_messages(7, 21)).empty
+    assert not call(lambda: client.get_messages("me", 21)).empty
+    assert call(lambda: client.get_messages(-45, 21)).empty
+    assert [message.empty for message in call(lambda: client.get_messages(-45, [21]))] == [True]
+
+
+def test_get_messages_finds_replies_in_other_chats():
+    client = album_reader({21: None}, peer=raw.types.PeerUser(user_id=7))
+
+    assert not call(lambda: client.get_messages(-45, reply_to_message_ids=21, replies=0)).empty
+
+
+def test_media_group_of_another_chat_cannot_be_read_or_copied():
+    client = album_reader({21: 1, 22: 1}, peer=raw.types.PeerUser(user_id=7))
+
+    for read in (
+        lambda: client.get_media_group(-45, 21),
+        lambda: client.copy_media_group(-100123, -45, 21),
+        lambda: client.forward_media_group(-100123, -45, 21),
+    ):
+        with pytest.raises(ValueError):
+            call(read)
+
+    assert not [q for q in client.sent if isinstance(q, (raw.functions.messages.SendMultiMedia, raw.functions.messages.ForwardMessages))]
+
+
+def test_copy_message_of_another_chat_sends_nothing():
+    client = album_reader({21: None}, peer=raw.types.PeerUser(user_id=7))
+
+    assert call(lambda: client.copy_message(-100123, -45, 21)) is None
+    assert [type(q) for q in client.sent] == [raw.functions.messages.GetMessages]
+
+
+RAW_FORUM_TOPIC = raw.types.ForumTopic(
+    id=7, date=1, peer=raw.types.PeerChannel(channel_id=123), title="x", icon_color=1, top_message=1,
+    read_inbox_max_id=0, read_outbox_max_id=0, unread_count=0, unread_mentions_count=0, unread_reactions_count=0,
+    unread_poll_votes_count=0, from_id=raw.types.PeerChannel(channel_id=123),
+    notify_settings=raw.types.PeerNotifySettings()
+)
+IN_TOPIC = raw.types.MessageReplyHeader(reply_to_msg_id=7, forum_topic=True)
+# The id of RAW_CHANNEL after parsing it, which is what parsed messages use to read again
+PARSED_CHANNEL_PEERS = {**PEERS, utils.get_channel_id(123): PEERS[-100123]}
+
+
+def forum_client(topics=(RAW_FORUM_TOPIC,)):
+    """A client whose server answers like a forum: reads have the topics, and what is sent goes to the topic."""
+    def respond(query):
+        if isinstance(query, raw.functions.channels.GetMessages):
+            return raw.types.messages.ChannelMessages(
+                pts=1, count=len(query.id), topics=list(topics), chats=[RAW_CHANNEL], users=[],
+                messages=[
+                    raw.types.Message(id=ref.id, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message="", reply_to=IN_TOPIC)
+                    for ref in query.id
+                ]
+            )
+
+        return sent_photos(len(getattr(query, "multi_media", [None])), IN_TOPIC)
+
+    return offline_client(PARSED_CHANNEL_PEERS, respond)
+
+
+def reads(client):
+    return len([q for q in client.sent if isinstance(q, raw.functions.channels.GetMessages)])
+
+
+def test_sending_to_a_topic_reads_once_per_message_to_set_the_topic():
+    client = forum_client()
+    message = call(lambda: client.send_message(-100123, "text", message_thread_id=7))
+    assert reads(client) == 1 and message.topic.id == 7
+
+    client = forum_client()
+    photo = types.InputMediaPhoto(photo_file_id(2001))
+    messages = call(lambda: client.send_media_group(-100123, [photo, photo], message_thread_id=7))
+    assert reads(client) == 2 and [message.topic.id for message in messages] == [7, 7]
+
+    client = forum_client()
+    original = asyncio.run(photo_message(client, 1, "caption", None, False))
+    copied = call(lambda: original.copy(-100123, message_thread_id=7))
+    assert reads(client) == 1 and copied.topic.id == 7
+
+
+def test_copy_message_does_not_read_the_replied_message():
+    def respond(query):
+        if isinstance(query, raw.functions.channels.GetMessages):
+            return raw.types.messages.ChannelMessages(
+                pts=1, count=1, topics=[], chats=[RAW_CHANNEL], users=[],
+                messages=[raw.types.Message(
+                    id=1, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message="text",
+                    reply_to=raw.types.MessageReplyHeader(reply_to_msg_id=3)
+                )]
+            )
+
+        return empty_updates()
+
+    client = offline_client(PARSED_CHANNEL_PEERS, respond)
+
+    call(lambda: client.copy_message(-100123, -100123, 1))
+
+    assert reads(client) == 1
+
+
+@pytest.mark.parametrize("topics", [[], [raw.types.ForumTopicDeleted(id=99)]], ids=["none", "another topic"])
+def test_a_read_without_the_topic_is_not_repeated(topics):
+    client = forum_client(topics)
+
+    message = call(lambda: client.send_message(-100123, "text", message_thread_id=7))
+
+    assert reads(client) == 1 and message.message_thread_id == 7 and message.topic is None
+
+
+def test_a_response_without_the_topic_is_not_read_again():
+    client = forum_client()
+    response = raw.types.messages.ChannelMessages(
+        pts=1, count=1, topics=[raw.types.ForumTopicDeleted(id=99)], chats=[RAW_CHANNEL], users=[],
+        messages=[raw.types.Message(id=1, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message="", reply_to=IN_TOPIC)]
+    )
+
+    [message] = call(lambda: utils.parse_messages(client, roundtrip(response), replies=0))
+
+    assert reads(client) == 0 and message.message_thread_id == 7 and message.topic is None
+
+
+def test_send_game_returns_a_scheduled_message():
+    client = offline_client(PEERS, lambda q: empty_updates(updates=[raw.types.UpdateNewScheduledMessage(
+        message=raw.types.Message(id=1, peer_id=raw.types.PeerUser(user_id=7), date=1, message="")
+    )], users=[RAW_USER]))
+
+    message = call(lambda: client.send_game(7, "game", schedule_date=datetime(2030, 1, 1, tzinfo=timezone.utc)))
+
+    assert message.id == 1 and message.scheduled

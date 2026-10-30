@@ -53,7 +53,8 @@ class SendMessage:
             "types.ReplyKeyboardRemove",
             "types.ForceReply"
         ] = None,
-        reply_to_poll_option: Union[bytes, "types.PollOption"] = None
+        reply_to_poll_option: Union[bytes, "types.PollOption"] = None,
+        quote_parse_mode: Optional["enums.ParseMode"] = None
     ) -> "types.Message":
         """Send text messages.
 
@@ -138,6 +139,9 @@ class SendMessage:
                 The poll option to reply to, in the poll of the message *reply_to_message_id*: its data or the
                 option itself.
 
+            quote_parse_mode (:obj:`~pyrogram.enums.ParseMode`, *optional*):
+                How to parse *quote_text*, if it isn't like *parse_mode*.
+
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent text message is returned.
 
@@ -188,7 +192,7 @@ class SendMessage:
             reply_to_monoforum_id=reply_to_monoforum_id,
             quote_text=quote_text,
             quote_entities=quote_entities,
-            parse_mode=parse_mode,
+            parse_mode=parse_mode if quote_parse_mode is None else quote_parse_mode,
             reply_to_poll_option=getattr(reply_to_poll_option, "data", reply_to_poll_option)
         )
 

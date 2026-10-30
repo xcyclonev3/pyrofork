@@ -36,7 +36,8 @@ async def send_message(
     invert_media: bool = None,
     message_effect_id: int = None,
     reply_markup: Union['types.InlineKeyboardMarkup', 'types.ReplyKeyboardMarkup', 'types.ReplyKeyboardRemove', 'types.ForceReply'] = None,
-    reply_to_poll_option: Union[bytes, 'types.PollOption'] = None
+    reply_to_poll_option: Union[bytes, 'types.PollOption'] = None,
+    quote_parse_mode: Optional['enums.ParseMode'] = None
 ) -> 'types.Message': ...
 ```
 
@@ -125,6 +126,9 @@ Send text messages.
 - **`reply_to_poll_option`** (`bytes` | [`PollOption`](../../types/messages_and_media/PollOption.md), *optional*)
   The poll option to reply to, in the poll of the message *reply_to_message_id*: its data or the
   option itself.
+
+- **`quote_parse_mode`** ([`ParseMode`](../../enums/ParseMode.md), *optional*)
+  How to parse *quote_text*, if it isn't like *parse_mode*.
 
 ### Returns
 

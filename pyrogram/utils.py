@@ -199,6 +199,8 @@ async def parse_messages(
                     and i.reply_to
                     and isinstance(i.reply_to, raw.types.MessageReplyHeader)
                     and i.reply_to.reply_to_msg_id is not None
+                    # A message right in a topic only "replies" to the start of the topic, which is never a reply
+                    and (i.reply_to.reply_to_top_id or not i.reply_to.forum_topic)
                 )
             }
 
@@ -679,6 +681,33 @@ async def parse_text_entities(
         "message": text,
         "entities": entities
     }
+
+
+async def read_messages(
+    client: "pyrogram.Client",
+    peer: "raw.base.InputPeer",
+    ids: List["raw.base.InputMessage"]
+) -> "raw.base.messages.Messages":
+    """Read messages from a chat.
+
+    Outside channels the request has no peer: it finds the ids in all the chats of the account, so the messages of
+    other chats are turned into empty ones. This can't be done for replied messages, which can be in other chats.
+    """
+    if isinstance(peer, raw.types.InputPeerChannel):
+        return await client.invoke(raw.functions.channels.GetMessages(channel=peer, id=ids), sleep_threshold=-1)
+
+    r = await client.invoke(raw.functions.messages.GetMessages(id=ids), sleep_threshold=-1)
+
+    if all(isinstance(i, raw.types.InputMessageID) for i in ids):
+        chat_id = await client.storage.user_id() if isinstance(peer, raw.types.InputPeerSelf) else get_peer_id(peer)
+
+        r.messages = [
+            message if isinstance(message, raw.types.MessageEmpty) or get_peer_id(message.peer_id) == chat_id
+            else raw.types.MessageEmpty(id=message.id)
+            for message in r.messages
+        ]
+
+    return r
 
 
 async def reachable_entities(client: "pyrogram.Client", entities: List["types.MessageEntity"]) -> List["types.MessageEntity"]:

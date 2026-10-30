@@ -86,7 +86,7 @@ class PollOption(Object):
         voter_count: int = 0
     ) -> "PollOption":
         entities = types.List(
-            filter(lambda x: x is not None, [types.MessageEntity._parse(client, e, {}) for e in answer.text.entities])
+            filter(lambda x: x is not None, [types.MessageEntity._parse(client, e, users) for e in answer.text.entities])
         )
 
         # Users and chats may share raw identifiers: look the author up by the type of the peer

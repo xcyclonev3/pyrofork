@@ -1016,7 +1016,7 @@ def test_copy_message_forwards_rich_messages():
     message = received_rich_message()
     sent = answer_with_a_rich_copy(message)
 
-    async def get_messages(chat_id, message_id):
+    async def get_messages(chat_id, message_id, replies):
         return message
 
     message._client.get_messages = get_messages

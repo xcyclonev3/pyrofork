@@ -135,7 +135,7 @@ class CopyMessage:
                 await app.copy_message(to_chat, from_chat, 123)
 
         """
-        message: types.Message = await self.get_messages(from_chat_id, message_id)
+        message: types.Message = await self.get_messages(from_chat_id, message_id, replies=0)
 
         if message.rich_message and reply_markup is None:  # They are copied on the server, with their reply markup
             reply_markup = object

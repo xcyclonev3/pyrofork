@@ -39,6 +39,7 @@ You can retrieve up to 200 messages at once.
   Pass a single message identifier or an iterable of message ids (as integers) to get the content of
   the previous message you replied to using this message.
   If *message_ids* is set, this argument will be ignored.
+  Outside channels these ids aren't checked against *chat_id*, so only pass ids received from Telegram.
 
 - **`replies`** (`int`, *optional*)
   The number of subsequent replies to get for each message.
@@ -49,6 +50,7 @@ You can retrieve up to 200 messages at once.
 
 [`Message`](../../types/messages_and_media/Message.md) | List of [`Message`](../../types/messages_and_media/Message.md): In case *message_ids* was not
 a list, a single message is returned, otherwise a list of messages is returned.
+A message of *message_ids* that isn't in the chat is returned as an empty message.
 
 ### Example
 

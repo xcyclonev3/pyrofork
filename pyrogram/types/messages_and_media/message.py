@@ -24,7 +24,7 @@ from typing import List, Match, Union, BinaryIO, Optional, Callable, Dict
 
 import pyrogram
 from pyrogram import enums, raw, types, utils
-from pyrogram.errors import ChannelPrivate, MessageIdsEmpty, PeerIdInvalid
+from pyrogram.errors import BroadcastPublicVotersForbidden, ChannelPrivate, MessageIdsEmpty, PeerIdInvalid
 from pyrogram.parser import utils as parser_utils, Parser
 from ..object import Object
 from ..update import Update
@@ -1507,11 +1507,13 @@ class Message(Object, Update):
                             thread_id = message.reply_to.reply_to_msg_id
                         parsed_message.message_thread_id = thread_id
                         parsed_message.is_topic_message = True
-                        if topics:
-                            parsed_message.topic = types.ForumTopic._parse(topics[thread_id])
-                        elif fetch_topic:
+                        topic = topics.get(thread_id) if topics else None
+
+                        if topic:
+                            parsed_message.topic = types.ForumTopic._parse(topic)
+                        elif fetch_topic and not topics:
                             try:
-                                msg = await client.get_messages(parsed_message.chat.id,message.id)
+                                msg = await client.get_messages(parsed_message.chat.id, message.id, replies=0)
                                 if getattr(msg, "topic"):
                                     parsed_message.topic = msg.topic
                             except Exception:
@@ -5087,6 +5089,9 @@ class Message(Object, Update):
         if reply_markup is object and not self.rich_message:
             reply_markup = self.reply_markup
 
+        # What is kept from the original message isn't parsed, but the quote always follows parse_mode
+        quote_parse_mode = parse_mode or self._client.parse_mode
+
         send_options = dict(
             disable_notification=disable_notification,
             message_thread_id=message_thread_id,
@@ -5116,9 +5121,17 @@ class Message(Object, Update):
                 entities=await utils.reachable_entities(self._client, self.entities),
                 disable_web_page_preview=not self.web_page_preview,
                 invert_media=invert_media,
-                **dict(send_options, parse_mode=enums.ParseMode.DISABLED)
+                **dict(send_options, parse_mode=enums.ParseMode.DISABLED, quote_parse_mode=quote_parse_mode)
             )
         elif self.media:
+            caption_parse_mode = parse_mode
+
+            if caption is None:
+                # The original text isn't markup: its formatting comes from the entities
+                caption = self.caption or ""
+                caption_entities = await utils.reachable_entities(self._client, self.caption_entities)
+                caption_parse_mode = enums.ParseMode.DISABLED
+
             send_media = partial(
                 self._client.send_cached_media,
                 chat_id=chat_id,
@@ -5173,31 +5186,51 @@ class Message(Object, Update):
                     **send_options
                 )
             elif self.poll:
-                return await self._client.send_poll(
+                poll_type = self.poll.type
+
+                if poll_type == enums.PollType.QUIZ and not self.poll.correct_option_ids:
+                    log.warning("The correct options of this quiz aren't known: it's copied as a regular poll. "
+                                "chat_id: %s, message_id: %s", self.chat.id, self.id)
+                    poll_type = enums.PollType.REGULAR
+
+                send_poll = partial(
+                    self._client.send_poll,
                     chat_id,
                     question=self.poll.question,
-                    question_entities=self.poll.question_entities,
+                    question_entities=await utils.reachable_entities(self._client, self.poll.question_entities),
                     question_parse_mode=enums.ParseMode.DISABLED,
                     options=[
                         types.PollOption(
                             text=opt.text,
-                            entities=opt.entities,
+                            entities=await utils.reachable_entities(self._client, opt.entities),
                             parse_mode=enums.ParseMode.DISABLED
                         ) for opt in self.poll.options
                     ],
+                    type=poll_type,
+                    allows_multiple_answers=self.poll.allows_multiple_answers,
+                    correct_option_ids=self.poll.correct_option_ids,
+                    explanation=self.poll.explanation,
+                    explanation_entities=await utils.reachable_entities(self._client, self.poll.explanation_entities),
+                    explanation_parse_mode=enums.ParseMode.DISABLED,
+                    allows_revoting=self.poll.allows_revoting,
+                    allow_adding_options=self.poll.allows_adding_options,
+                    shuffle_options=self.poll.shuffle_options,
+                    description=caption,
+                    description_entities=caption_entities,
+                    description_parse_mode=caption_parse_mode,
                     **send_options
                 )
+
+                try:
+                    return await send_poll(is_anonymous=self.poll.is_anonymous)
+                except BroadcastPublicVotersForbidden:
+                    # Channels only have anonymous polls, in which users can't add options
+                    return await send_poll(is_anonymous=True, allow_adding_options=None)
             elif self.game:
                 return await self._client.send_game(
                     chat_id,
                     game_short_name=self.game.short_name,
-                    disable_notification=disable_notification,
-                    message_thread_id=message_thread_id,
-                    reply_to_message_id=reply_to_message_id,
-                    reply_to_chat_id=reply_to_chat_id,
-                    protect_content=protect_content,
-                    allow_paid_broadcast=allow_paid_broadcast,
-                    reply_markup=reply_markup
+                    **send_options
                 )
             elif self.web_page_preview:
                 return await self._client.send_web_page(
@@ -5213,18 +5246,12 @@ class Message(Object, Update):
             if self.sticker or self.video_note:  # Sticker and VideoNote should have no caption
                 return await send_media(file_id=file_id)
 
-            if caption is None:
-                # The original text isn't markup: its formatting comes from the entities. The quote still follows parse_mode
-                caption = self.caption or ""
-                caption_entities = await utils.reachable_entities(self._client, self.caption_entities)
-                send_media = partial(send_media, quote_parse_mode=parse_mode or self._client.parse_mode)
-                parse_mode = enums.ParseMode.DISABLED
-
             return await send_media(
                 file_id=file_id,
                 caption=caption,
-                parse_mode=parse_mode,
-                caption_entities=caption_entities
+                parse_mode=caption_parse_mode,
+                caption_entities=caption_entities,
+                quote_parse_mode=quote_parse_mode
             )
         elif self.rich_message:
             # Rich messages can't be sent again from their parsed blocks: they are copied on the server, as forwards

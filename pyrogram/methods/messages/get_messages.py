@@ -60,6 +60,7 @@ class GetMessages:
                 Pass a single message identifier or an iterable of message ids (as integers) to get the content of
                 the previous message you replied to using this message.
                 If *message_ids* is set, this argument will be ignored.
+                Outside channels these ids aren't checked against *chat_id*, so only pass ids received from Telegram.
 
             replies (``int``, *optional*):
                 The number of subsequent replies to get for each message.
@@ -69,6 +70,7 @@ class GetMessages:
         Returns:
             :obj:`~pyrogram.types.Message` | List of :obj:`~pyrogram.types.Message`: In case *message_ids* was not
             a list, a single message is returned, otherwise a list of messages is returned.
+            A message of *message_ids* that isn't in the chat is returned as an empty message.
 
         Example:
             .. code-block:: python
@@ -109,13 +111,9 @@ class GetMessages:
         if replies < 0:
             replies = (1 << 31) - 1
 
-        if isinstance(peer, raw.types.InputPeerChannel):
-            rpc = raw.functions.channels.GetMessages(channel=peer, id=ids)
-        else:
-            rpc = raw.functions.messages.GetMessages(id=ids)
+        r = await utils.read_messages(self, peer, ids)
 
-        r = await self.invoke(rpc, sleep_threshold=-1)
-
-        messages = await utils.parse_messages(self, r, replies=replies)
+        # Reading the same messages again, to find their topics, wouldn't bring anything new
+        messages = await utils.parse_messages(self, r, replies=replies, fetch_topic=False)
 
         return messages if is_iterable else messages[0] if messages else None

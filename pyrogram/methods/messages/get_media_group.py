@@ -66,23 +66,17 @@ class GetMediaGroup:
             raise ValueError("Passed message_id is negative or equal to zero.")
 
         peer = await self.resolve_peer(chat_id)
-        is_channel = isinstance(peer, raw.types.InputPeerChannel)
-        window = CHANNEL_WINDOW if is_channel else SHARED_IDS_WINDOW
+        window = CHANNEL_WINDOW if isinstance(peer, raw.types.InputPeerChannel) else SHARED_IDS_WINDOW
         ids = [raw.types.InputMessageID(id=i) for i in range(max(message_id - window, 1), message_id + window + 1)]
 
-        r = await self.invoke(
-            raw.functions.channels.GetMessages(channel=peer, id=ids)
-            if is_channel
-            else raw.functions.messages.GetMessages(id=ids),
-            sleep_threshold=-1
-        )
+        r = await utils.read_messages(self, peer, ids)
 
         media_group_id = next((getattr(msg, "grouped_id", None) for msg in r.messages if msg.id == message_id), None)
 
         if media_group_id is None:
             raise ValueError("The message doesn't belong to a media group")
 
-        # Parsing can send requests, which must not depend on the other messages, maybe from other chats
+        # Parsing can send requests, which must not depend on the messages around the media group
         r.messages = sorted(
             (msg for msg in r.messages if getattr(msg, "grouped_id", None) == media_group_id),
             key=lambda msg: msg.id
