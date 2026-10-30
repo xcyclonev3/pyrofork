@@ -279,7 +279,7 @@ class Markdown:
                 is_emoji = False
                 if entity.type == MessageEntityType.TEXT_LINK:
                     url = entity.url
-                elif entity.type == MessageEntityType.TEXT_MENTION:
+                elif entity.type == MessageEntityType.TEXT_MENTION and entity.user:
                     url = f'tg://user?id={entity.user.id}'
                 elif entity.type == MessageEntityType.CUSTOM_EMOJI:
                     url = f"tg://emoji?id={entity.custom_emoji_id}"

@@ -41,6 +41,7 @@ class Parser(HTMLParser):
         self.client = client
 
         self.text = ""
+        self.utf16_length = 0
         self.entities = []
         self.tag_entities = {}
 
@@ -90,17 +91,21 @@ class Parser(HTMLParser):
         if tag not in self.tag_entities:
             self.tag_entities[tag] = []
 
-        self.tag_entities[tag].append(entity(offset=len(self.text), length=0, **extra))
+        self.tag_entities[tag].append(entity(offset=self.utf16_length, length=0, **extra))
 
     def set_cdata_mode(self, elem, **kwargs):
         # Elements like <script> and <style> are unknown tags like any other: their text is handled in the same way
         pass
 
     def handle_data(self, data):
+        # Entities are counted in UTF-16 code units
+        length = len(utils.add_surrogates(data))
+
         for entities in self.tag_entities.values():
             for entity in entities:
-                entity.length += len(data)
+                entity.length += length
 
+        self.utf16_length += length
         self.text += data
 
     def handle_endtag(self, tag):
@@ -129,7 +134,7 @@ class HTML:
         text = re.sub(r"\s*(</[\w</>]*>)\s*$", r"\1", text)
 
         parser = Parser(self.client)
-        parser.feed(utils.add_surrogates(text))
+        parser.feed(text)
         parser.close()
 
         if parser.tag_entities:
@@ -203,9 +208,8 @@ class HTML:
                 url = html.escape(entity.url)
                 start_tag = f'<a href="{url}">'
                 end_tag = "</a>"
-            elif entity_type == MessageEntityType.TEXT_MENTION:
-                user = entity.user
-                start_tag = f'<a href="tg://user?id={user.id}">'
+            elif entity_type == MessageEntityType.TEXT_MENTION and entity.user:
+                start_tag = f'<a href="tg://user?id={entity.user.id}">'
                 end_tag = "</a>"
             elif entity_type == MessageEntityType.CUSTOM_EMOJI:
                 custom_emoji_id = entity.custom_emoji_id

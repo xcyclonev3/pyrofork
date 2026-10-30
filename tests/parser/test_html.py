@@ -239,3 +239,33 @@ def test_html_unparse_round_trip(text, with_entity):
 
     assert parsed["message"] == full_text
     assert [(e.offset, e.length) for e in parsed["entities"] or []] == [(e.offset, e.length) for e in entities]
+
+
+def test_html_parse_counts_character_references_to_emojis():
+    parsed = parse("&#128512; <b>x</b>")
+
+    assert parsed["message"] == "\U0001f600 x"
+    assert [(e.offset, e.length) for e in parsed["entities"]] == [(3, 1)]
+
+
+def test_html_parse_keeps_emojis_in_attributes():
+    parsed = parse('<a href="https://example.com/\U0001f600">\U0001f600</a>')
+
+    assert parsed["entities"][0].url == "https://example.com/\U0001f600"
+    assert (parsed["entities"][0].offset, parsed["entities"][0].length) == (0, 2)
+    assert parsed["entities"][0].write()
+
+
+def test_parser_on_its_own_does_not_produce_surrogates():
+    parser = Parser(None)
+    parser.feed("\U0001f600 &#128512;")
+    parser.close()
+
+    assert parser.text == "\U0001f600 \U0001f600"
+
+
+def test_unparse_of_a_mention_without_its_user_keeps_the_text():
+    entities = [entity(pyrogram.enums.MessageEntityType.TEXT_MENTION, 0, 4), bold(5, 4)]
+
+    assert HTML.unparse(text="user bold", entities=list(entities)) == "user <b>bold</b>"
+    assert Markdown.unparse(text="user bold", entities=list(entities)) == "user **bold**"
