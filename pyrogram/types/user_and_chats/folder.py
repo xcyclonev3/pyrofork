@@ -127,9 +127,7 @@ class Folder(Object):
         included_chats = []
         excluded_chats = []
         pinned_chats = []
-        title = folder.title
-        title_text = title.text
-        title_entities = [types.MessageEntity._parse(client, entity) for entity in title.entities] if title.entities else None
+        title, title_entities = utils.parse_text_with_entities(client, folder.title, users).values()
 
         for peer in folder.include_peers:
             try:
@@ -152,7 +150,7 @@ class Folder(Object):
 
         return Folder(
             id=folder.id,
-            title=title_text,
+            title=title,
             title_entities=title_entities,
             included_chats=types.List(included_chats) or None,
             excluded_chats=types.List(excluded_chats) or None,

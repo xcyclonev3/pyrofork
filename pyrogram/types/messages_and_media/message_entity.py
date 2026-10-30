@@ -145,7 +145,7 @@ class MessageEntity(Object):
             offset=entity.offset,
             length=entity.length,
             url=getattr(entity, "url", None),
-            user=types.User._parse(client, users.get(user_id, None)),
+            user=types.User._parse(client, (users or {}).get(user_id, None)),
             language=getattr(entity, "language", None),
             custom_emoji_id=getattr(entity, "document_id", None),
             collapsed=getattr(entity, "collapsed", None),

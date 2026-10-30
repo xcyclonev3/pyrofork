@@ -839,3 +839,34 @@ def test_gift_parses_saved_star_gifts():
     saved = roundtrip(raw.types.SavedStarGift(date=1, gift=unique, saved_id=3))
     gift = asyncio.run(types.Gift._parse(None, saved, {}, {}))
     assert gift.name == "Helmet-1" and gift.collectible_id == 7
+
+
+def test_get_folders_parses_title_entities():
+    custom_emoji = raw.types.MessageEntityCustomEmoji(offset=0, length=1, document_id=9)
+    client = offline_client(PEERS, lambda q: raw.types.messages.DialogFilters(filters=[raw.types.DialogFilter(
+        id=2, title=raw.types.TextWithEntities(text="Work", entities=[custom_emoji]),
+        pinned_peers=[], include_peers=[], exclude_peers=[]
+    )]))
+
+    [folder] = call(lambda: client.get_folders())
+
+    assert folder.title == "Work"
+    assert [entity.custom_emoji_id for entity in folder.title_entities] == [9]
+
+
+def test_folder_title_entities_use_the_users():
+    mention = raw.types.MessageEntityMentionName(offset=0, length=4, user_id=7)
+    raw_folder = raw.types.DialogFilter(
+        id=2, title=raw.types.TextWithEntities(text="Work", entities=[mention]),
+        pinned_peers=[], include_peers=[], exclude_peers=[]
+    )
+
+    folder = types.Folder._parse(None, roundtrip(raw_folder), {7: roundtrip(RAW_USER)}, {})
+
+    assert [entity.user.id for entity in folder.title_entities] == [7]
+
+
+def test_message_entity_parses_without_users():
+    entity = types.MessageEntity._parse(None, raw.types.MessageEntityMentionName(offset=0, length=1, user_id=7))
+
+    assert entity.user is None
