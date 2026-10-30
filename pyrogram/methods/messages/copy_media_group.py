@@ -123,7 +123,7 @@ class CopyMediaGroup:
                 Text of the quote to be sent.
 
             parse_mode (:obj:`~pyrogram.enums.ParseMode`, *optional*):
-                By default, texts are parsed using both Markdown and HTML styles.
+                By default, *captions* and *quote_text* are parsed using both Markdown and HTML styles.
                 You can combine both syntaxes together.
 
             quote_entities (List of :obj:`~pyrogram.types.MessageEntity`, *optional*):
@@ -170,6 +170,9 @@ class CopyMediaGroup:
         if invert_media is None:
             invert_media = any(message.invert_media for message in media_group)
 
+        if isinstance(captions, str):
+            captions = [captions] + [""] * (len(media_group) - 1)
+
         for i, message in enumerate(media_group):
             if message.photo:
                 file_id = message.photo.file_id
@@ -202,9 +205,7 @@ class CopyMediaGroup:
                 )
 
             if isinstance(captions, list) and i < len(captions) and captions[i] is not None:
-                caption = await self.parser.parse(captions[i])
-            elif isinstance(captions, str):
-                caption = await self.parser.parse(captions if i == 0 else "")
+                caption = await self.parser.parse(captions[i], parse_mode)
             else:
                 caption = await parse_original_caption(message)
 

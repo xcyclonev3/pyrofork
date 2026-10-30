@@ -30,7 +30,7 @@ async def copy_message(
     schedule_date: datetime = None,
     protect_content: bool = None,
     allow_paid_broadcast: bool = None,
-    invert_media: bool = False,
+    invert_media: bool = None,
     reply_markup: Union['types.InlineKeyboardMarkup', 'types.ReplyKeyboardMarkup', 'types.ReplyKeyboardRemove', 'types.ForceReply'] = None
 ) -> 'types.Message': ...
 ```
@@ -63,11 +63,11 @@ link to the original message.
 
 - **`caption`** (`string`, *optional*)
   New caption for media, 0-1024 characters after entities parsing.
-  If not specified, the original caption is kept.
+  If not specified, the original caption is kept with its formatting.
   Pass "" (empty string) to remove the caption.
 
 - **`parse_mode`** ([`ParseMode`](../../enums/ParseMode.md), *optional*)
-  By default, texts are parsed using both Markdown and HTML styles.
+  By default, the new *caption* is parsed using both Markdown and HTML styles.
   You can combine both syntaxes together.
 
 - **`caption_entities`** (List of [`MessageEntity`](../../types/messages_and_media/MessageEntity.md))
@@ -102,7 +102,8 @@ link to the original message.
   Pass True to allow the message to ignore regular broadcast limits for a small fee; for bots only.
 
 - **`invert_media`** (`bool`, *optional*)
-  Inverts the position of the media and caption.
+  Pass True, if the caption must be shown above the media, False if below it.
+  If not specified, the caption stays where it is in the original message.
 
 - **`reply_markup`** ([`InlineKeyboardMarkup`](../../types/bots_and_keyboards/InlineKeyboardMarkup.md) | [`ReplyKeyboardMarkup`](../../types/bots_and_keyboards/ReplyKeyboardMarkup.md) | [`ReplyKeyboardRemove`](../../types/bots_and_keyboards/ReplyKeyboardRemove.md) | [`ForceReply`](../../types/bots_and_keyboards/ForceReply.md), *optional*)
   Additional interface options. An object for an inline keyboard, custom reply keyboard,

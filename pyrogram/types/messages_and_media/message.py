@@ -5016,11 +5016,11 @@ class Message(Object, Update):
 
             caption (``string``, *optional*):
                 New caption for media, 0-1024 characters after entities parsing.
-                If not specified, the original caption is kept.
+                If not specified, the original caption is kept with its formatting.
                 Pass "" (empty string) to remove the caption.
 
             parse_mode (:obj:`~pyrogram.enums.ParseMode`, *optional*):
-                By default, texts are parsed using both Markdown and HTML styles.
+                By default, the new *caption* is parsed using both Markdown and HTML styles.
                 You can combine both syntaxes together.
 
             caption_entities (List of :obj:`~pyrogram.types.MessageEntity`):
@@ -5063,7 +5063,8 @@ class Message(Object, Update):
                 Pass True to allow the message to ignore regular broadcast limits for a small fee; for bots
 
             invert_media (``bool``, *optional*):
-                Inverts the position of the media and caption.
+                Pass True, if the caption must be shown above the media, False if below it.
+                If not specified, the caption stays where it is in the original message.
 
             reply_markup (:obj:`~pyrogram.types.InlineKeyboardMarkup` | :obj:`~pyrogram.types.ReplyKeyboardMarkup` | :obj:`~pyrogram.types.ReplyKeyboardRemove` | :obj:`~pyrogram.types.ForceReply`, *optional*):
                 Additional interface options. An object for an inline keyboard, custom reply keyboard,
@@ -5115,7 +5116,7 @@ class Message(Object, Update):
                 has_spoiler=has_spoiler,
                 protect_content=protect_content,
                 allow_paid_broadcast=allow_paid_broadcast,
-                invert_media=invert_media,
+                invert_media=self.invert_media if invert_media is None else invert_media,
                 reply_markup=self.reply_markup if reply_markup is object else reply_markup
             )
 
@@ -5227,8 +5228,10 @@ class Message(Object, Update):
                 )
             else:
                 if caption is None:
+                    # The original text isn't markup: its formatting comes from the entities
                     caption = self.caption or ""
                     caption_entities = self.caption_entities
+                    parse_mode = enums.ParseMode.DISABLED
 
                 return await send_media(
                     file_id=file_id,

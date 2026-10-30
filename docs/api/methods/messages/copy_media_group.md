@@ -99,7 +99,7 @@ Copy a media group by providing one of the message ids.
   Text of the quote to be sent.
 
 - **`parse_mode`** ([`ParseMode`](../../enums/ParseMode.md), *optional*)
-  By default, texts are parsed using both Markdown and HTML styles.
+  By default, *captions* and *quote_text* are parsed using both Markdown and HTML styles.
   You can combine both syntaxes together.
 
 - **`quote_entities`** (List of [`MessageEntity`](../../types/messages_and_media/MessageEntity.md), *optional*)

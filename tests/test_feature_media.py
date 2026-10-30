@@ -664,6 +664,17 @@ def test_copy_media_group_keeps_live_photos():
     assert static.id.id == 2002 and not static.live_photo and static.video is None
 
 
+def photo_message(client, message_id, caption, entities, above):
+    return types.Message._parse(
+        client,
+        roundtrip(raw.types.Message(
+            id=message_id, peer_id=raw.types.PeerUser(user_id=7), date=1, message=caption, entities=entities,
+            invert_media=above, media=raw.types.MessageMediaPhoto(photo=raw_photo(2000 + message_id))
+        )),
+        {7: roundtrip(RAW_USER)}, {}, replies=0
+    )
+
+
 def copy_album(*album, above=(), mention_error=None, **kwargs):
     """Copy an album of (caption, raw entities) photos and return the request that was sent."""
     client = offline_client(PEERS, lambda q: empty_updates())
@@ -676,14 +687,7 @@ def copy_album(*album, above=(), mention_error=None, **kwargs):
 
     async def get_media_group(chat_id, message_id):
         return [
-            await types.Message._parse(
-                client,
-                roundtrip(raw.types.Message(
-                    id=i, peer_id=raw.types.PeerUser(user_id=7), date=1, message=caption, entities=entities,
-                    invert_media=i in above, media=raw.types.MessageMediaPhoto(photo=raw_photo(2000 + i))
-                )),
-                {7: roundtrip(RAW_USER)}, {}, replies=0
-            )
+            await photo_message(client, i, caption, entities, i in above)
             for i, (caption, entities) in enumerate(album, start=1)
         ]
 
@@ -720,18 +724,19 @@ def test_copy_media_group_keeps_every_kind_of_formatting(entity_type):
     assert written(media.entities) == [entity.write()]
 
 
+# The emoji is two UTF-16 code units, so these offsets are not the string indices
+FORMATTED_CAPTION = "😀 bold link"
+FORMATTED_CAPTION_ENTITIES = [
+    raw.types.MessageEntityBold(offset=3, length=4),
+    raw.types.MessageEntityTextUrl(offset=8, length=4, url="https://example.com"),
+]
+
+
 def test_copy_media_group_keeps_entity_offsets():
-    caption = "😀 bold link"
-    # The emoji is two UTF-16 code units, so these offsets are not the string indices
-    entities = [
-        raw.types.MessageEntityBold(offset=3, length=4),
-        raw.types.MessageEntityTextUrl(offset=8, length=4, url="https://example.com"),
-    ]
+    [media] = copy_album((FORMATTED_CAPTION, FORMATTED_CAPTION_ENTITIES)).multi_media
 
-    [media] = copy_album((caption, entities)).multi_media
-
-    assert media.message == caption
-    assert written(media.entities) == written(entities)
+    assert media.message == FORMATTED_CAPTION
+    assert written(media.entities) == written(FORMATTED_CAPTION_ENTITIES)
 
 
 def test_copy_media_group_keeps_text_mentions():
@@ -764,7 +769,7 @@ def test_copy_media_group_does_not_hide_other_errors_of_a_mention():
         copy_album(("user", [mention]), mention_error=FloodWait)
 
 
-@pytest.mark.parametrize("caption", [
+PLAIN_CAPTIONS = [
     "",
     "None",
     "**not bold** <b>not html</b>",
@@ -772,9 +777,13 @@ def test_copy_media_group_does_not_hide_other_errors_of_a_mention():
     '<a href="https://example.com">hidden link</a>',
     '<a href="tg://user?id=999">mention</a>',
     '<emoji id="42">😀</emoji>',
-])
-def test_copy_media_group_does_not_parse_original_captions(caption):
-    [media] = copy_album((caption, None)).multi_media
+]
+
+
+@pytest.mark.parametrize("caption", PLAIN_CAPTIONS)
+@pytest.mark.parametrize("parse_mode", [None, enums.ParseMode.HTML])
+def test_copy_media_group_does_not_parse_original_captions(caption, parse_mode):
+    [media] = copy_album((caption, None), parse_mode=parse_mode).multi_media
 
     assert media.message == caption and not media.entities
 
@@ -802,3 +811,74 @@ def test_copy_media_group_keeps_caption_position():
     assert copy_album(*album, above=[2]).invert_media
     assert copy_album(*album, invert_media=True).invert_media
     assert not copy_album(*album, above=[1, 2], invert_media=False).invert_media
+
+
+NEW_CAPTION = "<b>new</b> **x**"
+PARSED_NEW_CAPTIONS = [
+    (enums.ParseMode.DISABLED, "<b>new</b> **x**", []),
+    (enums.ParseMode.HTML, "new **x**", [raw.types.MessageEntityBold(offset=0, length=3)]),
+    (enums.ParseMode.MARKDOWN, "<b>new</b> x", [raw.types.MessageEntityBold(offset=11, length=1)]),
+]
+
+
+@pytest.mark.parametrize("captions", [NEW_CAPTION, [NEW_CAPTION]])
+@pytest.mark.parametrize("parse_mode, message, entities", PARSED_NEW_CAPTIONS)
+def test_copy_media_group_new_captions_follow_parse_mode(captions, parse_mode, message, entities):
+    [media] = copy_album(("original", None), captions=captions, parse_mode=parse_mode).multi_media
+
+    assert media.message == message and written(media.entities) == written(entities)
+
+
+@pytest.fixture(params=["Message.copy", "Client.copy_message"])
+def copy_photo(request):
+    """Copy a photo with the given original caption and return the request that was sent."""
+    def copy(original, entities=None, above=False, **kwargs):
+        client = offline_client(PEERS, lambda q: empty_updates())
+        message = asyncio.run(photo_message(client, 1, original, entities, above))
+
+        async def get_messages(chat_id, message_id):
+            return message
+
+        client.get_messages = get_messages
+
+        if request.param == "Message.copy":
+            call(lambda: message.copy(-100123, **kwargs))
+        else:
+            call(lambda: client.copy_message(-100123, -100123, 1, **kwargs))
+
+        return sent(client, raw.functions.messages.SendMedia)
+
+    return copy
+
+
+@pytest.mark.parametrize("caption", PLAIN_CAPTIONS)
+@pytest.mark.parametrize("parse_mode", [None, enums.ParseMode.HTML])
+def test_copy_does_not_parse_original_captions(copy_photo, caption, parse_mode):
+    request = copy_photo(caption, parse_mode=parse_mode)
+
+    assert request.message == caption and not request.entities
+
+
+def test_copy_keeps_caption_formatting(copy_photo):
+    request = copy_photo(FORMATTED_CAPTION, FORMATTED_CAPTION_ENTITIES)
+
+    assert request.message == FORMATTED_CAPTION
+    assert written(request.entities) == written(FORMATTED_CAPTION_ENTITIES)
+
+
+@pytest.mark.parametrize("parse_mode, message, entities", PARSED_NEW_CAPTIONS)
+def test_copy_new_captions_follow_parse_mode(copy_photo, parse_mode, message, entities):
+    request = copy_photo("original", caption=NEW_CAPTION, parse_mode=parse_mode)
+
+    assert request.message == message and written(request.entities) == written(entities)
+
+
+def test_copy_empty_caption_removes_the_original_one(copy_photo):
+    assert copy_photo("original", caption="").message == ""
+
+
+def test_copy_keeps_caption_position(copy_photo):
+    assert not copy_photo("caption").invert_media
+    assert copy_photo("caption", above=True).invert_media
+    assert copy_photo("caption", invert_media=True).invert_media
+    assert not copy_photo("caption", above=True, invert_media=False).invert_media
