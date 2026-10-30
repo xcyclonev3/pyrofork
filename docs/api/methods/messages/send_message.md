@@ -133,6 +133,7 @@ Send text messages.
 ### Returns
 
 [`Message`](../../types/messages_and_media/Message.md): On success, the sent text message is returned.
+Its topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
 
 ### Example
 

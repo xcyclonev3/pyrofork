@@ -93,6 +93,7 @@ class ForwardMessages:
         Returns:
             :obj:`~pyrogram.types.Message` | List of :obj:`~pyrogram.types.Message`: In case *message_ids* was not
             a list, a single message is returned, otherwise a list of messages is returned.
+            Their topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
 
         Example:
             .. code-block:: python
@@ -137,7 +138,8 @@ class ForwardMessages:
                 forwarded_messages.append(
                     await types.Message._parse(
                         self, i.message,
-                        users, chats
+                        users, chats,
+                        fetch_topic=False
                     )
                 )
 

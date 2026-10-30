@@ -978,7 +978,7 @@ def test_message_rich_message():
     assert message.text is None and message.media is None
 
 
-def answer_with_a_rich_copy(message):
+def answer_with_a_rich_copy(message, reply_to=None):
     """Make the client of the message answer with a copy and return the list of its requests."""
     sent = []
 
@@ -989,7 +989,7 @@ def answer_with_a_rich_copy(message):
         sent.append(roundtrip(query))
         return roundtrip(empty_updates([raw.types.UpdateNewMessage(
             message=raw.types.Message(id=20, peer_id=raw.types.PeerUser(user_id=7), date=1, message="",
-                                      rich_message=raw_rich("copied")),
+                                      rich_message=raw_rich("copied"), reply_to=reply_to),
             pts=1, pts_count=1)], users=[RAW_USER]))
 
     message._client.resolve_peer = resolve_peer
@@ -1010,6 +1010,17 @@ def test_copy_rich_message_forwards_without_author():
     # Forwards keep their reply markup
     with pytest.raises(ValueError):
         call(lambda: message.copy(7, reply_markup=None))
+
+
+def test_copy_rich_message_to_a_topic_does_not_read_the_topic():
+    message = received_rich_message()
+    sent = answer_with_a_rich_copy(message, raw.types.MessageReplyHeader(reply_to_msg_id=5, forum_topic=True))
+
+    copied = call(lambda: message.copy(7, message_thread_id=5))
+
+    [request] = sent
+    assert isinstance(request, raw.functions.messages.ForwardMessages) and request.top_msg_id == 5
+    assert copied.message_thread_id == 5 and copied.is_topic_message and copied.topic is None
 
 
 def test_copy_message_forwards_rich_messages():

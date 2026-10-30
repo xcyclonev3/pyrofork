@@ -76,6 +76,7 @@ await message.forward(chat_id)
 ### Returns
 
 On success, the forwarded Message is returned.
+Its topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
 
 ### Raises
 

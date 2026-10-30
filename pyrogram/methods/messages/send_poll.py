@@ -241,6 +241,7 @@ class SendPoll:
 
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent poll message is returned.
+            Its topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
 
         Raises:
             ValueError: In case *explanation_entities* are passed without *explanation*.
@@ -361,5 +362,6 @@ class SendPoll:
                     {i.id: i for i in r.users},
                     {i.id: i for i in r.chats},
                     is_scheduled=isinstance(i, raw.types.UpdateNewScheduledMessage),
-                    business_connection_id=business_connection_id
+                    business_connection_id=business_connection_id,
+                    fetch_topic=False
                 )

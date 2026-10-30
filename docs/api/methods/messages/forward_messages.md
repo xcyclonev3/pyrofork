@@ -79,6 +79,7 @@ Forward messages of any kind.
 
 [`Message`](../../types/messages_and_media/Message.md) | List of [`Message`](../../types/messages_and_media/Message.md): In case *message_ids* was not
 a list, a single message is returned, otherwise a list of messages is returned.
+Their topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
 
 ### Example
 

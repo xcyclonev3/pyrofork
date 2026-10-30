@@ -134,6 +134,7 @@ hassle of using the correct method for the media the file_id is pointing to.
 ### Returns
 
 [`Message`](../../types/messages_and_media/Message.md): On success, the sent media message is returned.
+Its topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
 
 ### Raises
 

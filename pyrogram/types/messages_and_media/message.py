@@ -4951,6 +4951,7 @@ class Message(Object, Update):
 
         Returns:
             On success, the forwarded Message is returned.
+            Its topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
 
         Raises:
             RPCError: In case of a Telegram RPC error.
@@ -5079,6 +5080,7 @@ class Message(Object, Update):
 
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the copied message is returned.
+            Its topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
 
         Raises:
             RPCError: In case of a Telegram RPC error.
@@ -5298,7 +5300,8 @@ class Message(Object, Update):
                                        raw.types.UpdateNewScheduledMessage)):
                     return await types.Message._parse(
                         self._client, update.message, users, chats,
-                        is_scheduled=isinstance(update, raw.types.UpdateNewScheduledMessage)
+                        is_scheduled=isinstance(update, raw.types.UpdateNewScheduledMessage),
+                        fetch_topic=False
                     )
         else:
             raise ValueError("Can't copy this message")

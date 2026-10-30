@@ -1140,14 +1140,14 @@ def pickled_album(client, *album):
     return pickle.loads(pickle.dumps(asyncio.run(album_messages(client, album))))
 
 
-def sent_photos(count, reply_to):
+def sent_photos(count, reply_to, chat=RAW_CHANNEL):
     return empty_updates(updates=[raw.types.UpdateNewChannelMessage(
         message=raw.types.Message(
             id=50 + i, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message="sent", reply_to=reply_to,
             media=raw.types.MessageMediaPhoto(photo=raw_photo(3000 + i))
         ),
         pts=1, pts_count=1
-    ) for i in range(count)], chats=[RAW_CHANNEL])
+    ) for i in range(count)], chats=[chat])
 
 
 @pytest.mark.parametrize("method", ["copy_media_group", "forward_media_group"])
@@ -1431,6 +1431,9 @@ RAW_FORUM_TOPIC = raw.types.ForumTopic(
     notify_settings=raw.types.PeerNotifySettings()
 )
 IN_TOPIC = raw.types.MessageReplyHeader(reply_to_msg_id=7, forum_topic=True)
+RAW_FORUM = raw.types.Channel(
+    id=123, access_hash=1, title="Test", photo=raw.types.ChatPhotoEmpty(), date=0, megagroup=True, forum=True
+)
 # The id of RAW_CHANNEL after parsing it, which is what parsed messages use to read again
 PARSED_CHANNEL_PEERS = {**PEERS, utils.get_channel_id(123): PEERS[-100123]}
 
@@ -1440,14 +1443,14 @@ def forum_client(topics=(RAW_FORUM_TOPIC,)):
     def respond(query):
         if isinstance(query, raw.functions.channels.GetMessages):
             return raw.types.messages.ChannelMessages(
-                pts=1, count=len(query.id), topics=list(topics), chats=[RAW_CHANNEL], users=[],
+                pts=1, count=len(query.id), topics=list(topics), chats=[RAW_FORUM], users=[],
                 messages=[
                     raw.types.Message(id=ref.id, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message="", reply_to=IN_TOPIC)
                     for ref in query.id
                 ]
             )
 
-        return sent_photos(len(getattr(query, "multi_media", [None])), IN_TOPIC)
+        return sent_photos(len(getattr(query, "multi_media", [None])), IN_TOPIC, RAW_FORUM)
 
     return offline_client(PARSED_CHANNEL_PEERS, respond)
 
@@ -1456,20 +1459,126 @@ def reads(client):
     return len([q for q in client.sent if isinstance(q, raw.functions.channels.GetMessages)])
 
 
-def test_sending_to_a_topic_reads_once_per_message_to_set_the_topic():
-    client = forum_client()
-    message = call(lambda: client.send_message(-100123, "text", message_thread_id=7))
-    assert reads(client) == 1 and message.topic.id == 7
+def topic_message_from_an_update(client):
+    """Parse a message of the topic as the dispatcher does with an update."""
+    update = roundtrip(raw.types.UpdateNewChannelMessage(
+        message=raw.types.Message(id=1, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message="", reply_to=IN_TOPIC),
+        pts=1, pts_count=1
+    ))
+    message, _ = call(lambda: client.dispatcher.update_parsers[type(update)](update, {}, {123: roundtrip(RAW_FORUM)}))
+    return message
 
+
+def assert_sent_to_the_topic_without_reading(client, message):
+    [request] = client.sent
+    assert not isinstance(request, (raw.functions.channels.GetMessages, raw.functions.messages.GetMessages))
+    assert (request.top_msg_id if isinstance(request, raw.functions.messages.ForwardMessages)
+            else request.reply_to.top_msg_id) == 7
+    assert message.message_thread_id == 7 and message.is_topic_message and message.topic is None
+
+
+SENT_TO_A_TOPIC = {
+    "send_message": lambda client: client.send_message(-100123, "text", message_thread_id=7),
+    "send_cached_media": lambda client: client.send_cached_media(-100123, photo_file_id(2001), message_thread_id=7),
+    "send_contact": lambda client: client.send_contact(-100123, "1", "a", message_thread_id=7),
+    "send_location": lambda client: client.send_location(-100123, 1.0, 2.0, message_thread_id=7),
+    "send_venue": lambda client: client.send_venue(-100123, 1.0, 2.0, "t", "a", message_thread_id=7),
+    "send_poll": lambda client: client.send_poll(
+        -100123, "q", [types.PollOption(text="one"), types.PollOption(text="two")], message_thread_id=7
+    ),
+    "send_game": lambda client: client.send_game(-100123, "game", message_thread_id=7),
+    "send_web_page": lambda client: client.send_web_page(-100123, "https://example.com", message_thread_id=7),
+    "forward_messages": lambda client: client.forward_messages(-100123, 7, 1, message_thread_id=7),
+}
+COPIED_TO_A_TOPIC = {
+    "text": (None, "text"),
+    "photo": (raw.types.MessageMediaPhoto(photo=raw_photo()), "caption"),
+    **{name: (media, "") for name, media in MEDIA_WITHOUT_CAPTION.items()},
+    "game": (raw.types.MessageMediaGame(game=raw.types.Game(
+        id=1, access_hash=2, short_name="game", title="t", description="d", photo=raw_photo()
+    )), ""),
+    "web page": (raw.types.MessageMediaWebPage(webpage=raw.types.WebPage(
+        id=1, url="https://example.com", display_url="example.com", hash=0
+    )), ""),
+}
+
+
+@pytest.mark.parametrize("send", SENT_TO_A_TOPIC.values(), ids=SENT_TO_A_TOPIC.keys())
+def test_sending_to_a_topic_does_not_read_the_topic(send):
+    client = forum_client()
+
+    message = call(lambda: send(client))
+
+    assert_sent_to_the_topic_without_reading(client, message)
+
+
+@pytest.mark.parametrize("media, text", COPIED_TO_A_TOPIC.values(), ids=COPIED_TO_A_TOPIC.keys())
+def test_copying_to_a_topic_does_not_read_the_topic(media, text):
+    client = forum_client()
+
+    async def is_bot(value=None):
+        return True
+
+    client.storage.is_bot = is_bot
+    original = asyncio.run(parse_message(client, 1, media, text, None, False))
+
+    message = call(lambda: original.copy(-100123, message_thread_id=7))
+
+    assert_sent_to_the_topic_without_reading(client, message)
+
+
+@pytest.mark.parametrize("media, text", [COPIED_TO_A_TOPIC["text"], COPIED_TO_A_TOPIC["photo"]], ids=["text", "photo"])
+def test_forwarding_to_a_topic_does_not_read_the_topic(media, text):
+    client = forum_client()
+    original = asyncio.run(parse_message(client, 1, media, text, None, False))
+
+    message = call(lambda: original.forward(-100123, message_thread_id=7))
+
+    assert_sent_to_the_topic_without_reading(client, message)
+
+
+@pytest.mark.parametrize("send", [
+    lambda client, original: client.send_message(-100123, "text", reply_to_message_id=9),
+    lambda client, original: original.copy(-100123, reply_to_message_id=9),
+], ids=["send_message", "Message.copy"])
+@pytest.mark.parametrize("reply_to, thread_id", [
+    (raw.types.MessageReplyHeader(reply_to_msg_id=9, reply_to_top_id=7, forum_topic=True), 7),
+    (raw.types.MessageReplyHeader(reply_to_msg_id=9), 1),
+], ids=["in a topic", "in the general topic"])
+def test_a_reply_still_reads_the_replied_message(send, reply_to, thread_id):
+    def respond(query):
+        if isinstance(query, raw.functions.channels.GetMessages):
+            return raw.types.messages.ChannelMessages(
+                pts=1, count=1, topics=[], chats=[RAW_FORUM], users=[],
+                messages=[raw.types.Message(id=9, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message="replied")]
+            )
+
+        return sent_photos(1, reply_to, RAW_FORUM)
+
+    client = offline_client(PARSED_CHANNEL_PEERS, respond)
+    original = asyncio.run(parse_message(client, 1, None, "text", None, False))
+
+    message = call(lambda: send(client, original))
+
+    assert reads(client) == 1 and message.reply_to_message_id == 9 and message.reply_to_message.text == "replied"
+    assert message.message_thread_id == thread_id and message.is_topic_message and message.topic is None
+
+
+def test_a_message_of_a_topic_from_an_update_still_reads_the_topic():
+    client = forum_client()
+
+    message = topic_message_from_an_update(client)
+
+    assert reads(client) == 1 and message.message_thread_id == 7 and message.topic.id == 7
+
+
+def test_send_media_group_to_a_topic_reads_once_per_message_to_set_the_topic():
     client = forum_client()
     photo = types.InputMediaPhoto(photo_file_id(2001))
-    messages = call(lambda: client.send_media_group(-100123, [photo, photo], message_thread_id=7))
-    assert reads(client) == 2 and [message.topic.id for message in messages] == [7, 7]
 
-    client = forum_client()
-    original = asyncio.run(photo_message(client, 1, "caption", None, False))
-    copied = call(lambda: original.copy(-100123, message_thread_id=7))
-    assert reads(client) == 1 and copied.topic.id == 7
+    messages = call(lambda: client.send_media_group(-100123, [photo, photo], message_thread_id=7))
+
+    assert reads(client) == 2 and [message.topic.id for message in messages] == [7, 7]
 
 
 def test_copy_message_does_not_read_the_replied_message():
@@ -1496,7 +1605,7 @@ def test_copy_message_does_not_read_the_replied_message():
 def test_a_read_without_the_topic_is_not_repeated(topics):
     client = forum_client(topics)
 
-    message = call(lambda: client.send_message(-100123, "text", message_thread_id=7))
+    message = topic_message_from_an_update(client)
 
     assert reads(client) == 1 and message.message_thread_id == 7 and message.topic is None
 
