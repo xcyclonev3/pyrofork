@@ -49,6 +49,10 @@ class PollOption(Object):
 
         addition_date (:py:obj:`~datetime.datetime`, *optional*):
             Date the option was added, for options added after the poll was created.
+
+        parse_mode (:obj:`~pyrogram.enums.ParseMode`, *optional*):
+            When sending, how to parse *text* if there are no *entities*.
+            By default, it is parsed using both Markdown and HTML styles.
     """
 
     def __init__(
@@ -59,7 +63,8 @@ class PollOption(Object):
         entities: Optional[List["pyrogram.types.MessageEntity"]] = None,
         media=None,
         author: "pyrogram.types.Chat" = None,
-        addition_date: "datetime" = None
+        addition_date: "datetime" = None,
+        parse_mode: "pyrogram.enums.ParseMode" = None
     ):
         super().__init__(self)
 
@@ -70,6 +75,7 @@ class PollOption(Object):
         self.media = media
         self.author = author
         self.addition_date = addition_date
+        self.parse_mode = parse_mode
 
     @staticmethod
     async def _parse(
@@ -99,7 +105,7 @@ class PollOption(Object):
     async def write(self, client, i):
         # Since Layer 230 the server assigns the option bytes: official clients send inputPollAnswer
         # (tdesktop PollDataToMTP, TDLib PollOption::get_input_poll_answer). "i" is kept for compatibility.
-        option, entities = (await pyrogram.utils.parse_text_entities(client, self.text, None, self.entities)).values()
+        option, entities = (await pyrogram.utils.parse_text_entities(client, self.text, self.parse_mode, self.entities)).values()
         return pyrogram.raw.types.InputPollAnswer(
             text=pyrogram.raw.types.TextWithEntities(
                 text=option,

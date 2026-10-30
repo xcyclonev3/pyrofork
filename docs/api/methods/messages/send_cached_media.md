@@ -36,7 +36,8 @@ async def send_cached_media(
     allow_paid_broadcast: bool = None,
     invert_media: bool = False,
     reply_markup: Union['types.InlineKeyboardMarkup', 'types.ReplyKeyboardMarkup', 'types.ReplyKeyboardRemove', 'types.ForceReply'] = None,
-    live_video: str = None
+    live_video: str = None,
+    quote_parse_mode: Optional['enums.ParseMode'] = None
 ) -> Optional['types.Message']: ...
 ```
 
@@ -126,6 +127,9 @@ hassle of using the correct method for the media the file_id is pointing to.
 - **`live_video`** (`str`, *optional*)
   File identifier of the video of a live photo (see [`Photo`](../../types/messages_and_media/Photo.md)), to send the photo
   of *file_id* as a live photo. For photos only.
+
+- **`quote_parse_mode`** ([`ParseMode`](../../enums/ParseMode.md), *optional*)
+  How to parse *quote_text*, if it isn't like *parse_mode*.
 
 ### Returns
 

@@ -53,7 +53,8 @@ class SendCachedMedia:
             "types.ReplyKeyboardRemove",
             "types.ForceReply"
         ] = None,
-        live_video: str = None
+        live_video: str = None,
+        quote_parse_mode: Optional["enums.ParseMode"] = None
     ) -> Optional["types.Message"]:
         """Send any media stored on the Telegram servers using a file_id.
 
@@ -139,6 +140,9 @@ class SendCachedMedia:
                 File identifier of the video of a live photo (see :obj:`~pyrogram.types.Photo`), to send the photo
                 of *file_id* as a live photo. For photos only.
 
+            quote_parse_mode (:obj:`~pyrogram.enums.ParseMode`, *optional*):
+                How to parse *quote_text*, if it isn't like *parse_mode*.
+
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent media message is returned.
 
@@ -164,7 +168,7 @@ class SendCachedMedia:
             reply_to_monoforum_id=reply_to_monoforum_id,
             quote_text=quote_text,
             quote_entities=quote_entities,
-            parse_mode=parse_mode
+            parse_mode=parse_mode if quote_parse_mode is None else quote_parse_mode
         )
 
         media = utils.get_input_media_from_file_id(file_id)

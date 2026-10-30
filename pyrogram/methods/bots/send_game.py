@@ -41,7 +41,8 @@ class SendGame:
             "types.ReplyKeyboardMarkup",
             "types.ReplyKeyboardRemove",
             "types.ForceReply"
-        ] = None
+        ] = None,
+        reply_to_chat_id: Union[int, str] = None
     ) -> "types.Message":
         """Send a game.
 
@@ -85,6 +86,10 @@ class SendGame:
                 An object for an inline keyboard. If empty, one ‘Play game_title’ button will be shown automatically.
                 If not empty, the first button must launch the game.
 
+            reply_to_chat_id (``int`` | ``str``, *optional*):
+                Unique identifier for the origin chat.
+                for reply to message from another chat.
+
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent game message is returned.
 
@@ -97,7 +102,8 @@ class SendGame:
             client=self,
             chat_id=chat_id,
             reply_to_message_id=reply_to_message_id,
-            message_thread_id=message_thread_id
+            message_thread_id=message_thread_id,
+            reply_to_chat_id=reply_to_chat_id
         )
 
         rpc = raw.functions.messages.SendMedia(

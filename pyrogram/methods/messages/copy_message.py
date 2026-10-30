@@ -88,7 +88,8 @@ class CopyMessage:
                 List of special entities that appear in the new caption, which can be specified instead of *parse_mode*.
 
             has_spoiler (``bool``, *optional*):
-                Pass True if the photo needs to be covered with a spoiler animation.
+                Pass True if the photo needs to be covered with a spoiler animation, False if not.
+                If not specified, the original spoiler is kept.
 
             disable_notification (``bool``, *optional*):
                 Sends the message silently.
@@ -116,8 +117,9 @@ class CopyMessage:
                 Pass True to allow the message to ignore regular broadcast limits for a small fee; for bots only.
 
             invert_media (``bool``, *optional*):
-                Pass True, if the caption must be shown above the media, False if below it.
-                If not specified, the caption stays where it is in the original message.
+                Pass True, if the caption must be shown above the media or the link preview above the text,
+                False if below.
+                If not specified, they stay where they are in the original message.
 
             reply_markup (:obj:`~pyrogram.types.InlineKeyboardMarkup` | :obj:`~pyrogram.types.ReplyKeyboardMarkup` | :obj:`~pyrogram.types.ReplyKeyboardRemove` | :obj:`~pyrogram.types.ForceReply`, *optional*):
                 Additional interface options. An object for an inline keyboard, custom reply keyboard,
@@ -134,6 +136,9 @@ class CopyMessage:
 
         """
         message: types.Message = await self.get_messages(from_chat_id, message_id)
+
+        if message.rich_message and reply_markup is None:  # They are copied on the server, with their reply markup
+            reply_markup = object
 
         return await message.copy(
             chat_id=chat_id,

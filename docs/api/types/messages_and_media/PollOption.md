@@ -14,7 +14,8 @@ def __init__(
     entities: Optional[List['pyrogram.types.MessageEntity']] = None,
     media = None,
     author: 'pyrogram.types.Chat' = None,
-    addition_date: 'datetime' = None
+    addition_date: 'datetime' = None,
+    parse_mode: 'pyrogram.enums.ParseMode' = None
 ): ...
 ```
 
@@ -46,5 +47,9 @@ Contains information about one answer option in a poll.
 
 - **`addition_date`** (`datetime`, *optional*)
   Date the option was added, for options added after the poll was created.
+
+- **`parse_mode`** ([`ParseMode`](../../enums/ParseMode.md), *optional*)
+  When sending, how to parse *text* if there are no *entities*.
+  By default, it is parsed using both Markdown and HTML styles.
 
 _Source: `pyrogram/types/messages_and_media/poll_option.py`._

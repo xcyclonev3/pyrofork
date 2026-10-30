@@ -21,9 +21,15 @@ import logging
 from typing import Union, List
 
 import pyrogram
-from pyrogram import types
+from pyrogram import raw, types, utils
 
 log = logging.getLogger(__name__)
+
+# A media group has up to 10 messages. In channels and supergroups their ids are close together, in other chats the
+# ids are shared with all the chats of the account, so messages of other chats can be in between. 99 ids are within
+# the limit of 100 ids of a request.
+CHANNEL_WINDOW = 9
+SHARED_IDS_WINDOW = 49
 
 
 class GetMediaGroup:
@@ -47,7 +53,8 @@ class GetMediaGroup:
                 The id of one of the messages that belong to the media group.
                 
         Returns:
-            List of :obj:`~pyrogram.types.Message`: On success, a list of messages of the media group is returned.
+            List of :obj:`~pyrogram.types.Message`: On success, a list of messages of the media group is returned,
+            sorted by id.
             
         Raises:
             ValueError: 
@@ -58,18 +65,27 @@ class GetMediaGroup:
         if message_id <= 0:
             raise ValueError("Passed message_id is negative or equal to zero.")
 
-        # Get messages with id from `id - 9` to `id + 10` to get all possible media group messages.
-        messages = await self.get_messages(
-            chat_id=chat_id,
-            message_ids=[msg_id for msg_id in range(message_id - 9, message_id + 10)],
-            replies=0
+        peer = await self.resolve_peer(chat_id)
+        is_channel = isinstance(peer, raw.types.InputPeerChannel)
+        window = CHANNEL_WINDOW if is_channel else SHARED_IDS_WINDOW
+        ids = [raw.types.InputMessageID(id=i) for i in range(max(message_id - window, 1), message_id + window + 1)]
+
+        r = await self.invoke(
+            raw.functions.channels.GetMessages(channel=peer, id=ids)
+            if is_channel
+            else raw.functions.messages.GetMessages(id=ids),
+            sleep_threshold=-1
         )
 
-        # There can be maximum 10 items in a media group.
-        # If/else condition to fix the problem of getting correct `media_group_id` when `message_id` is less than 10.
-        media_group_id = messages[9].media_group_id if len(messages) == 19 else messages[message_id - 1].media_group_id
+        media_group_id = next((getattr(msg, "grouped_id", None) for msg in r.messages if msg.id == message_id), None)
 
         if media_group_id is None:
             raise ValueError("The message doesn't belong to a media group")
 
-        return types.List(msg for msg in messages if msg.media_group_id == media_group_id)
+        # Parsing can send requests, which must not depend on the other messages, maybe from other chats
+        r.messages = sorted(
+            (msg for msg in r.messages if getattr(msg, "grouped_id", None) == media_group_id),
+            key=lambda msg: msg.id
+        )
+
+        return await utils.parse_messages(self, r, replies=0, fetch_topic=False)

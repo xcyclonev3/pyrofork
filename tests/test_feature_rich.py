@@ -978,8 +978,8 @@ def test_message_rich_message():
     assert message.text is None and message.media is None
 
 
-def test_copy_rich_message_forwards_without_author():
-    message = received_rich_message()
+def answer_with_a_rich_copy(message):
+    """Make the client of the message answer with a copy and return the list of its requests."""
     sent = []
 
     async def resolve_peer(peer_id):
@@ -994,6 +994,12 @@ def test_copy_rich_message_forwards_without_author():
 
     message._client.resolve_peer = resolve_peer
     message._client.invoke = invoke
+    return sent
+
+
+def test_copy_rich_message_forwards_without_author():
+    message = received_rich_message()
+    sent = answer_with_a_rich_copy(message)
     copied = call(lambda: message.copy(7, disable_notification=True, reply_to_message_id=3))
 
     [request] = sent
@@ -1004,6 +1010,22 @@ def test_copy_rich_message_forwards_without_author():
     # Forwards keep their reply markup
     with pytest.raises(ValueError):
         call(lambda: message.copy(7, reply_markup=None))
+
+
+def test_copy_message_forwards_rich_messages():
+    message = received_rich_message()
+    sent = answer_with_a_rich_copy(message)
+
+    async def get_messages(chat_id, message_id):
+        return message
+
+    message._client.get_messages = get_messages
+
+    copied = call(lambda: message._client.copy_message(7, 7, 1))
+
+    [request] = sent
+    assert isinstance(request, raw.functions.messages.ForwardMessages) and request.drop_author
+    assert copied.id == 20
 
 
 def test_drafts_of_dialogs_and_topics():

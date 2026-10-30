@@ -18,15 +18,17 @@
 """Live photos, story music and audio listening reports (Layer 221-230)."""
 
 import asyncio
+import inspect
 import os
+import pickle
 from types import SimpleNamespace
 
 import pytest
 
-from pyrogram import enums, raw, types, utils
+from pyrogram import Client, enums, raw, types, utils
 from pyrogram.errors import FloodWait, PeerIdInvalid, UserIdInvalid
 from pyrogram.file_id import FileId, FileType, ThumbnailSource
-from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
+from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS, RAW_CHANNEL
 
 
 def document_file_id(file_type, media_id, access_hash=55, file_reference=b"ref"):
@@ -664,19 +666,31 @@ def test_copy_media_group_keeps_live_photos():
     assert static.id.id == 2002 and not static.live_photo and static.video is None
 
 
-def photo_message(client, message_id, caption, entities, above):
+def parse_message(client, message_id, media, text, entities, above):
     return types.Message._parse(
         client,
         roundtrip(raw.types.Message(
-            id=message_id, peer_id=raw.types.PeerUser(user_id=7), date=1, message=caption, entities=entities,
-            invert_media=above, media=raw.types.MessageMediaPhoto(photo=raw_photo(2000 + message_id))
+            id=message_id, peer_id=raw.types.PeerUser(user_id=7), date=1, message=text, entities=entities,
+            invert_media=above, media=media
         )),
         {7: roundtrip(RAW_USER)}, {}, replies=0
     )
 
 
-def copy_album(*album, above=(), mention_error=None, **kwargs):
-    """Copy an album of (caption, raw entities) photos and return the request that was sent."""
+def photo_message(client, message_id, caption, entities, above):
+    return parse_message(
+        client, message_id, raw.types.MessageMediaPhoto(photo=raw_photo(2000 + message_id)), caption, entities, above
+    )
+
+
+async def album_messages(client, album, above=()):
+    return [
+        await photo_message(client, i, caption, entities, i in above)
+        for i, (caption, entities) in enumerate(album, start=1)
+    ]
+
+
+def client_with_mention_error(mention_error):
     client = offline_client(PEERS, lambda q: empty_updates())
     resolve_peer = client.resolve_peer
 
@@ -685,13 +699,17 @@ def copy_album(*album, above=(), mention_error=None, **kwargs):
             raise mention_error
         return await resolve_peer(peer_id)
 
-    async def get_media_group(chat_id, message_id):
-        return [
-            await photo_message(client, i, caption, entities, i in above)
-            for i, (caption, entities) in enumerate(album, start=1)
-        ]
-
     client.resolve_peer = resolve_mentioned_peer
+    return client
+
+
+def copy_album(*album, above=(), mention_error=None, **kwargs):
+    """Copy an album of (caption, raw entities) photos and return the request that was sent."""
+    client = client_with_mention_error(mention_error)
+
+    async def get_media_group(chat_id, message_id):
+        return await album_messages(client, album, above)
+
     client.get_media_group = get_media_group
     call(lambda: client.copy_media_group(-100123, -100123, 1, **kwargs))
 
@@ -832,9 +850,10 @@ def test_copy_media_group_new_captions_follow_parse_mode(captions, parse_mode, m
 @pytest.fixture(params=["Message.copy", "Client.copy_message"])
 def copy_photo(request):
     """Copy a photo with the given original caption and return the request that was sent."""
-    def copy(original, entities=None, above=False, **kwargs):
-        client = offline_client(PEERS, lambda q: empty_updates())
+    def copy(original, entities=None, above=False, markup=None, mention_error=None, **kwargs):
+        client = client_with_mention_error(mention_error)
         message = asyncio.run(photo_message(client, 1, original, entities, above))
+        message.reply_markup = markup
 
         async def get_messages(chat_id, message_id):
             return message
@@ -882,3 +901,398 @@ def test_copy_keeps_caption_position(copy_photo):
     assert copy_photo("caption", above=True).invert_media
     assert copy_photo("caption", invert_media=True).invert_media
     assert not copy_photo("caption", above=True, invert_media=False).invert_media
+
+
+@pytest.mark.parametrize("user_id, error", [
+    (7, PeerIdInvalid),
+    (7, UserIdInvalid),
+    (8, None),  # A user who is missing from the response
+])
+def test_copy_leaves_out_mentions_it_cannot_reach(copy_photo, user_id, error):
+    bold = raw.types.MessageEntityBold(offset=0, length=4)
+    mention = raw.types.MessageEntityMentionName(offset=0, length=4, user_id=user_id)
+
+    request = copy_photo("user", [bold, mention], mention_error=error)
+
+    assert request.message == "user" and written(request.entities) == [bold.write()]
+
+
+KEYBOARD = types.InlineKeyboardMarkup([[types.InlineKeyboardButton("button", callback_data=b"data")]])
+
+
+def test_copy_message_only_sends_the_reply_markup_it_is_given():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    message = asyncio.run(photo_message(client, 1, "caption", None, False))
+    message.reply_markup = KEYBOARD
+
+    async def get_messages(chat_id, message_id):
+        return message
+
+    client.get_messages = get_messages
+
+    call(lambda: client.copy_message(-100123, -100123, 1))
+    call(lambda: client.copy_message(-100123, -100123, 1, reply_markup=KEYBOARD))
+
+    default, explicit = client.sent
+    assert not default.reply_markup and explicit.reply_markup
+
+
+def copy_media(media, text="", entities=None, above=False, markup=None, **kwargs):
+    """Copy a message with Message.copy and return the request that was sent."""
+    client = offline_client(PEERS, lambda q: empty_updates())
+
+    async def is_bot(value=None):
+        return True
+
+    client.storage.is_bot = is_bot
+    message = asyncio.run(parse_message(client, 1, media, text, entities, above))
+    message.reply_markup = markup
+
+    call(lambda: message.copy(-100123, **kwargs))
+
+    [request] = client.sent
+    return request
+
+
+def raw_poll(question, *answers, question_entities=None):
+    return raw.types.MessageMediaPoll(
+        poll=raw.types.Poll(
+            id=1, hash=0,
+            question=raw.types.TextWithEntities(text=question, entities=question_entities or []),
+            answers=[
+                raw.types.PollAnswer(text=raw.types.TextWithEntities(text=text, entities=entities or []), option=bytes([i]))
+                for i, (text, entities) in enumerate(answers)
+            ]
+        ),
+        results=raw.types.PollResults()
+    )
+
+
+def test_copy_does_not_parse_the_text_of_polls():
+    bold = raw.types.MessageEntityBold(offset=0, length=3)
+
+    poll = copy_media(raw_poll("[hidden](https://example.com) **q**", ("<b>one</b>", None), ("two", [bold]))).media.poll
+
+    assert poll.question.text == "[hidden](https://example.com) **q**" and not poll.question.entities
+    assert [answer.text.text for answer in poll.answers] == ["<b>one</b>", "two"]
+    assert not poll.answers[0].text.entities and written(poll.answers[1].text.entities) == [bold.write()]
+
+
+def test_copy_keeps_the_formatting_of_poll_questions():
+    bold = raw.types.MessageEntityBold(offset=0, length=1)
+
+    poll = copy_media(raw_poll("q", ("one", None), ("two", None), question_entities=[bold])).media.poll
+
+    assert poll.question.text == "q" and written(poll.question.entities) == [bold.write()]
+
+
+GEO_POINT = raw.types.GeoPoint(long=1.0, lat=2.0, access_hash=3)
+MEDIA_WITHOUT_CAPTION = {
+    "contact": raw.types.MessageMediaContact(phone_number="1", first_name="a", last_name="", vcard="", user_id=0),
+    "location": raw.types.MessageMediaGeo(geo=GEO_POINT),
+    "venue": raw.types.MessageMediaVenue(
+        geo=GEO_POINT, title="t", address="a", provider="foursquare", venue_id="id", venue_type="food"
+    ),
+    "poll": raw_poll("q", ("one", None), ("two", None)),
+}
+
+
+@pytest.mark.parametrize("media", MEDIA_WITHOUT_CAPTION.values(), ids=MEDIA_WITHOUT_CAPTION.keys())
+def test_copy_passes_the_options_of_media_without_caption(media):
+    request = copy_media(
+        media, protect_content=True, disable_notification=True, reply_markup=KEYBOARD, reply_to_message_id=3,
+        quote_text="<b>q</b>", parse_mode=enums.ParseMode.HTML
+    )
+
+    assert request.noforwards and request.silent and request.reply_markup
+    assert request.reply_to.reply_to_msg_id == 3 and request.reply_to.quote_text == "q"
+    assert written(request.reply_to.quote_entities) == [raw.types.MessageEntityBold(offset=0, length=1).write()]
+
+
+def test_copy_passes_the_options_of_games():
+    game = raw.types.Game(id=1, access_hash=2, short_name="game", title="t", description="d", photo=raw_photo())
+
+    request = copy_media(
+        raw.types.MessageMediaGame(game=game), protect_content=True, disable_notification=True, reply_markup=KEYBOARD,
+        reply_to_message_id=3, reply_to_chat_id=7
+    )
+
+    assert request.noforwards and request.silent and request.reply_markup and request.reply_to.reply_to_msg_id == 3
+    assert request.reply_to.reply_to_peer_id.write() == PEERS[7].write()
+
+
+def test_copy_of_a_venue_without_an_id():
+    request = copy_media(raw.types.MessageMediaVenue(
+        geo=GEO_POINT, title="t", address="a", provider="", venue_id="", venue_type=""
+    ))
+
+    assert (request.media.venue_id, request.media.venue_type) == ("", "")
+
+
+def test_copy_keeps_the_spoiler():
+    photo = raw.types.MessageMediaPhoto(photo=raw_photo())
+    covered = raw.types.MessageMediaPhoto(photo=raw_photo(), spoiler=True)
+
+    assert copy_media(covered).media.spoiler
+    assert copy_media(photo, has_spoiler=True).media.spoiler
+    assert not copy_media(covered, has_spoiler=False).media.spoiler
+    assert not copy_media(photo).media.spoiler
+
+
+def test_copy_passes_the_quote_of_media():
+    photo = raw.types.MessageMediaPhoto(photo=raw_photo())
+    bold = [raw.types.MessageEntityBold(offset=0, length=1)]
+    quote = {"reply_to_message_id": 3, "quote_text": "<b>q</b>", "parse_mode": enums.ParseMode.HTML}
+
+    # The original caption isn't parsed, but the quote is
+    request = copy_media(photo, "<b>original</b>", **quote)
+    assert request.message == "<b>original</b>" and not request.entities
+    assert request.reply_to.quote_text == "q" and written(request.reply_to.quote_entities) == written(bold)
+
+    request = copy_media(photo, "original", caption="<b>new</b>", **quote)
+    assert request.message == "new" and written(request.entities) == [raw.types.MessageEntityBold(offset=0, length=3).write()]
+    assert request.reply_to.quote_text == "q" and written(request.reply_to.quote_entities) == written(bold)
+
+
+def test_copy_of_a_text_leaves_out_mentions_it_cannot_reach():
+    bold = raw.types.MessageEntityBold(offset=0, length=4)
+    mention = raw.types.MessageEntityMentionName(offset=0, length=4, user_id=8)
+
+    request = copy_media(None, "user", [bold, mention])
+
+    assert request.message == "user" and written(request.entities) == [bold.write()]
+
+
+@pytest.mark.parametrize("media, text", [
+    (None, "text"),
+    (raw.types.MessageMediaPhoto(photo=raw_photo()), "caption"),
+    (raw.types.MessageMediaGeo(geo=raw.types.GeoPoint(long=1.0, lat=2.0, access_hash=3)), ""),
+], ids=["text", "photo", "location"])
+def test_copy_keeps_the_reply_markup_unless_told_otherwise(media, text):
+    assert copy_media(media, text, markup=KEYBOARD).reply_markup
+    assert not copy_media(media, text, markup=KEYBOARD, reply_markup=None).reply_markup
+
+
+def test_copy_of_a_link_preview_without_text():
+    webpage = raw.types.WebPage(id=1, url="https://example.com", display_url="example.com", hash=0)
+
+    request = copy_media(
+        raw.types.MessageMediaWebPage(webpage=webpage), above=True, protect_content=True, reply_to_message_id=3,
+        quote_text="<b>q</b>", parse_mode=enums.ParseMode.HTML
+    )
+
+    assert isinstance(request.media, raw.types.InputMediaWebPage) and request.media.url == "https://example.com"
+    assert request.invert_media and request.noforwards and request.reply_to.quote_text == "q"
+
+
+def test_copy_keeps_the_position_of_the_link_preview():
+    preview = raw.types.MessageMediaWebPage(webpage=raw.types.WebPageEmpty(id=1))
+    url = "https://example.com"
+
+    assert not copy_media(preview, url).invert_media
+    assert copy_media(preview, url, above=True).invert_media
+    assert copy_media(preview, url, invert_media=True).invert_media
+    assert not copy_media(preview, url, above=True, invert_media=False).invert_media
+
+
+@pytest.mark.parametrize("quote, parse_mode, text, entities", [
+    ("<b>q</b>", enums.ParseMode.HTML, "q", [raw.types.MessageEntityBold(offset=0, length=1)]),
+    ("**q**", None, "q", [raw.types.MessageEntityBold(offset=0, length=1)]),
+    ("**q**", enums.ParseMode.DISABLED, "**q**", []),
+    ("q", None, "q", []),
+])
+def test_copy_media_group_parses_the_quote_once(quote, parse_mode, text, entities):
+    reply_to = copy_album(("a", None), reply_to_message_id=3, quote_text=quote, parse_mode=parse_mode).reply_to
+
+    assert reply_to.quote_text == text and written(reply_to.quote_entities) == written(entities)
+
+
+def test_copy_media_group_replies_to_stories():
+    reply_to = copy_album(("a", None), reply_to_story_id=9).reply_to
+
+    assert isinstance(reply_to, raw.types.InputReplyToStory) and reply_to.story_id == 9
+    assert reply_to.peer.write() == PEERS[-100123].write()
+
+
+def test_add_task_to_todo_returns_the_message():
+    client = offline_client(PEERS, lambda q: empty_updates(updates=[raw.types.UpdateBotNewBusinessMessage(
+        connection_id="connection", qts=1,
+        message=raw.types.Message(id=1, peer_id=raw.types.PeerUser(user_id=7), date=1, message="")
+    )], users=[RAW_USER]))
+
+    async def get_messages(chat_id, message_id):
+        return types.Message(id=1, todo=SimpleNamespace(tasks=[]))
+
+    client.get_messages = get_messages
+
+    message = call(lambda: client.add_task_to_todo(7, 1, []))
+
+    assert isinstance(message, types.Message) and message.id == 1
+    assert message.business_connection_id == "connection"
+
+
+def pickled_album(client, *album):
+    """The messages of an album after crossing processes, which leaves them without a client."""
+    return pickle.loads(pickle.dumps(asyncio.run(album_messages(client, album))))
+
+
+def sent_photos(count, reply_to):
+    return empty_updates(updates=[raw.types.UpdateNewChannelMessage(
+        message=raw.types.Message(
+            id=50 + i, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message="sent", reply_to=reply_to,
+            media=raw.types.MessageMediaPhoto(photo=raw_photo(3000 + i))
+        ),
+        pts=1, pts_count=1
+    ) for i in range(count)], chats=[RAW_CHANNEL])
+
+
+@pytest.mark.parametrize("method", ["copy_media_group", "forward_media_group"])
+@pytest.mark.parametrize("reply_to", [
+    raw.types.MessageReplyHeader(reply_to_msg_id=7, forum_topic=True),
+    raw.types.MessageReplyHeader(reply_to_msg_id=3),
+], ids=["topic", "reply"])
+def test_media_group_results_are_parsed_without_reading(method, reply_to):
+    client = offline_client(PEERS, lambda q: sent_photos(2, reply_to))
+    album = pickled_album(client, ("a", None), ("b", None))
+
+    messages = call(lambda: getattr(client, method)(-100123, -100123, 1, media_group=album))
+
+    [request] = client.sent
+    assert isinstance(request, (raw.functions.messages.SendMultiMedia, raw.functions.messages.ForwardMessages))
+    assert [message.id for message in messages] == [50, 51]
+    assert messages[0].caption == "sent" and messages[0].link and callable(messages[0].edit_caption)
+    assert [message.id for message in pickle.loads(pickle.dumps(list(messages)))] == [50, 51]
+
+
+def test_media_group_new_parameters_come_last():
+    assert list(inspect.signature(Client.copy_media_group).parameters)[-2:] == ["media_group", "sleep_threshold"]
+    assert list(inspect.signature(Client.forward_media_group).parameters)[-1] == "media_group"
+
+
+def test_forward_media_group_uses_the_given_messages():
+    client = offline_client(PEERS, lambda q: empty_updates())
+    album = pickled_album(client, ("a", None), ("b", None))
+
+    call(lambda: client.forward_media_group(-100123, -100123, 1, media_group=album))
+
+    [request] = client.sent
+    assert isinstance(request, raw.functions.messages.ForwardMessages) and request.id == [1, 2]
+
+
+def test_copy_media_group_accepts_messages_without_a_client():
+    bold = raw.types.MessageEntityBold(offset=0, length=4)
+    mention = raw.types.MessageEntityMentionName(offset=0, length=4, user_id=7)
+    client = offline_client(PEERS, lambda q: empty_updates())
+    album = pickled_album(client, ("user", [bold, mention]))
+
+    call(lambda: client.copy_media_group(-100123, -100123, 1, media_group=album))
+
+    [request] = client.sent
+    [media] = request.multi_media
+    assert media.message == "user" and written(media.entities[:1]) == [bold.write()]
+    assert isinstance(media.entities[1], raw.types.InputMessageEntityMentionName)
+
+
+@pytest.mark.parametrize("kwargs, expected", [
+    ({}, 60),
+    ({"sleep_threshold": None}, None),
+    ({"sleep_threshold": 5}, 5),
+])
+def test_copy_media_group_sleep_threshold(kwargs, expected):
+    client = offline_client(PEERS, lambda q: empty_updates())
+    album = pickled_album(client, ("a", None))
+    invoke = client.invoke
+    thresholds = []
+
+    async def recording_invoke(query, *args, **invoke_kwargs):
+        thresholds.append(invoke_kwargs["sleep_threshold"])
+        return await invoke(query, *args, **invoke_kwargs)
+
+    client.invoke = recording_invoke
+
+    call(lambda: client.copy_media_group(-100123, -100123, 1, media_group=album, **kwargs))
+
+    assert thresholds == [expected]
+
+
+def album_reader(groups, omit_missing=True):
+    """A client whose server knows the messages of `groups`, a dict of id: media group, and answers in reverse order."""
+    def respond(query):
+        client.requested_ids = [ref.id for ref in query.id]
+        messages = []
+
+        for ref in reversed(query.id):
+            if ref.id in groups:
+                messages.append(raw.types.Message(
+                    id=ref.id, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message="",
+                    grouped_id=groups[ref.id], media=raw.types.MessageMediaPhoto(photo=raw_photo(3000 + ref.id))
+                ))
+            elif not omit_missing:
+                messages.append(raw.types.MessageEmpty(id=ref.id))
+
+        return raw.types.messages.Messages(messages=messages, topics=[], users=[], chats=[RAW_CHANNEL])
+
+    client = offline_client(PEERS, respond)
+    return client
+
+
+@pytest.mark.parametrize("omit_missing", [True, False])
+def test_get_media_group_finds_the_message_by_id_and_sorts_the_result(omit_missing):
+    client = album_reader({20: 1, 21: 1, 22: 1, 23: 2}, omit_missing)
+
+    album = call(lambda: client.get_media_group(-100123, 21))
+
+    assert [message.id for message in album] == [20, 21, 22]
+
+
+@pytest.mark.parametrize("message_id", [21, 30])
+def test_get_media_group_of_a_message_without_an_album(message_id):
+    client = album_reader({21: None, 22: 1})
+
+    with pytest.raises(ValueError):
+        call(lambda: client.get_media_group(-100123, message_id))
+
+
+@pytest.mark.parametrize("chat_id, message_id, expected", [
+    (-100123, 21, range(12, 31)),
+    (-100123, 3, range(1, 13)),
+    (7, 100, range(51, 150)),
+    (-45, 100, range(51, 150)),
+], ids=["channel", "first messages", "user", "basic group"])
+def test_get_media_group_reads_more_ids_where_they_are_shared(chat_id, message_id, expected):
+    client = album_reader({message_id: 1})
+
+    call(lambda: client.get_media_group(chat_id, message_id))
+
+    assert client.requested_ids == list(expected)
+
+
+def test_get_media_group_with_other_messages_in_between():
+    album_ids = [100, 101, 102, 103, 104, 105, 106, 107, 108, 111]
+    client = album_reader({i: 1 for i in album_ids})
+
+    album = call(lambda: client.get_media_group(7, 100))
+
+    assert [message.id for message in album] == album_ids
+
+
+def test_get_media_group_only_parses_the_media_group():
+    def respond(query):
+        return raw.types.messages.Messages(messages=[
+            # A message of another chat, which would need another request to be parsed
+            raw.types.MessageService(
+                id=20, peer_id=raw.types.PeerUser(user_id=7), date=1, action=raw.types.MessageActionPinMessage(),
+                reply_to=raw.types.MessageReplyHeader(reply_to_msg_id=5)
+            ),
+            raw.types.Message(
+                id=21, peer_id=raw.types.PeerUser(user_id=7), date=1, message="", grouped_id=1,
+                media=raw.types.MessageMediaPhoto(photo=raw_photo())
+            ),
+        ], topics=[], users=[RAW_USER], chats=[])
+
+    client = offline_client(PEERS, respond)
+
+    album = call(lambda: client.get_media_group(7, 21))
+
+    assert [message.id for message in album] == [21]
+    assert len(client.sent) == 1

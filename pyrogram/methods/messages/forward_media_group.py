@@ -35,7 +35,8 @@ class ForwardMediaGroup:
         schedule_date: datetime = None,
         hide_sender_name: bool = None,
         hide_captions: bool = None,
-        protect_content: bool = None
+        protect_content: bool = None,
+        media_group: List["types.Message"] = None
     ) -> List["types.Message"]:
         """Forward a media group by providing one of the message ids.
 
@@ -75,8 +76,13 @@ class ForwardMediaGroup:
             protect_content (``bool``, *optional*):
                 Protects the contents of the sent message from forwarding and saving.
 
+            media_group (List of :obj:`~pyrogram.types.Message`, *optional*):
+                The messages of the media group, as returned by :meth:`~pyrogram.Client.get_media_group`.
+                If specified, they aren't requested again.
+
         Returns:
             List of :obj:`~pyrogram.types.Message`: On success, a list of forwarded messages is returned.
+            They are parsed without further requests, so *reply_to_message* and *topic* aren't set.
 
         Example:
             .. code-block:: python
@@ -84,7 +90,10 @@ class ForwardMediaGroup:
                 # Forward a media group
                 await app.forward_media_group(to_chat, from_chat, 123)
         """
-        message_ids = [i.id for i in await self.get_media_group(from_chat_id, message_id)]
+        if media_group is None:
+            media_group = await self.get_media_group(from_chat_id, message_id)
+
+        message_ids = [i.id for i in media_group]
 
         r = await self.invoke(
             raw.functions.messages.ForwardMessages(
@@ -113,7 +122,9 @@ class ForwardMediaGroup:
                 forwarded_messages.append(
                     await types.Message._parse(
                         self, i.message,
-                        users, chats
+                        users, chats,
+                        replies=0,
+                        fetch_topic=False
                     )
                 )
 

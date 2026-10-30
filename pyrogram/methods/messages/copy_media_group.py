@@ -22,24 +22,6 @@ from typing import Union, List, Optional
 
 import pyrogram
 from pyrogram import types, utils, raw, enums
-from pyrogram.errors import BadRequest
-
-
-async def parse_original_caption(message: "types.Message") -> dict:
-    # The original text isn't markup: its formatting comes from the entities
-    entities = []
-
-    for entity in message.caption_entities or []:
-        # Lose the mention of a user that can't be reached, not the whole media group
-        if entity.type == enums.MessageEntityType.TEXT_MENTION and not entity.user:
-            continue
-
-        try:
-            entities.append(await entity.write())
-        except BadRequest:
-            continue
-
-    return {"message": message.caption or "", "entities": entities or None}
 
 
 class CopyMediaGroup:
@@ -65,6 +47,8 @@ class CopyMediaGroup:
         protect_content: bool = None,
         allow_paid_broadcast: bool = None,
         message_effect_id: int = None,
+        media_group: List["types.Message"] = None,
+        sleep_threshold: int = 60,
     ) -> List["types.Message"]:
         """Copy a media group by providing one of the message ids.
 
@@ -148,8 +132,18 @@ class CopyMediaGroup:
             message_effect_id (``int`` ``64-bit``, *optional*):
                 Unique identifier of the message effect to be added to the message; for private chats only.
 
+            media_group (List of :obj:`~pyrogram.types.Message`, *optional*):
+                The messages of the media group, as returned by :meth:`~pyrogram.Client.get_media_group`.
+                If specified, they aren't requested again.
+
+            sleep_threshold (``int``, *optional*):
+                Sleep threshold in seconds for the request that sends the media group: flood waits up to this value are
+                waited for, longer ones are raised. Defaults to 60.
+                Pass None to use the sleep threshold of the client.
+
         Returns:
             List of :obj:`~pyrogram.types.Message`: On success, a list of copied messages is returned.
+            They are parsed without further requests, so *reply_to_message* and *topic* aren't set.
 
         Example:
             .. code-block:: python
@@ -162,9 +156,9 @@ class CopyMediaGroup:
                 await app.copy_media_group(to_chat, from_chat, 123,
                     captions=["caption 1", None, ""])
         """
-        quote_text, quote_entities = (await utils.parse_text_entities(self, quote_text, parse_mode, quote_entities)).values()
+        if media_group is None:
+            media_group = await self.get_media_group(from_chat_id, message_id)
 
-        media_group = await self.get_media_group(from_chat_id, message_id)
         multi_media = []
 
         if invert_media is None:
@@ -207,7 +201,13 @@ class CopyMediaGroup:
             if isinstance(captions, list) and i < len(captions) and captions[i] is not None:
                 caption = await self.parser.parse(captions[i], parse_mode)
             else:
-                caption = await parse_original_caption(message)
+                # The original text isn't markup: its formatting comes from the entities
+                caption = await utils.parse_text_entities(
+                    self,
+                    message.caption or "",
+                    enums.ParseMode.DISABLED,
+                    await utils.reachable_entities(self, message.caption_entities)
+                )
 
             multi_media.append(
                 raw.types.InputSingleMedia(
@@ -219,6 +219,7 @@ class CopyMediaGroup:
 
         reply_to = await utils.get_reply_to(
             client=self,
+            chat_id=chat_id,
             reply_to_message_id=reply_to_message_id,
             message_thread_id=message_thread_id,
             reply_to_chat_id=reply_to_chat_id,
@@ -226,6 +227,7 @@ class CopyMediaGroup:
             quote_text=quote_text,
             quote_entities=quote_entities,
             quote_offset=quote_offset,
+            parse_mode=parse_mode,
         )
 
         r = await self.invoke(
@@ -241,7 +243,7 @@ class CopyMediaGroup:
                 allow_paid_floodskip=allow_paid_broadcast,
                 effect=message_effect_id,
             ),
-            sleep_threshold=60
+            sleep_threshold=sleep_threshold
         )
 
         return await utils.parse_messages(
@@ -256,5 +258,7 @@ class CopyMediaGroup:
                 topics=[],
                 users=r.users,
                 chats=r.chats
-            )
+            ),
+            replies=0,
+            fetch_topic=False
         )

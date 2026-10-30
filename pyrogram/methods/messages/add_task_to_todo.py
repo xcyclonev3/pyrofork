@@ -79,4 +79,10 @@ class AddTaskToTodo:
                               raw.types.UpdateNewChannelMessage,
                               raw.types.UpdateNewScheduledMessage,
                               raw.types.UpdateBotNewBusinessMessage)):
-                return types.Message._parse(self, update.message, update, r.users, r.chats)
+                return await types.Message._parse(
+                    self, update.message,
+                    {i.id: i for i in r.users},
+                    {i.id: i for i in r.chats},
+                    is_scheduled=isinstance(update, raw.types.UpdateNewScheduledMessage),
+                    business_connection_id=getattr(update, "connection_id", None)
+                )

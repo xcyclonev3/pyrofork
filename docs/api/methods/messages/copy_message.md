@@ -74,7 +74,8 @@ link to the original message.
   List of special entities that appear in the new caption, which can be specified instead of *parse_mode*.
 
 - **`has_spoiler`** (`bool`, *optional*)
-  Pass True if the photo needs to be covered with a spoiler animation.
+  Pass True if the photo needs to be covered with a spoiler animation, False if not.
+  If not specified, the original spoiler is kept.
 
 - **`disable_notification`** (`bool`, *optional*)
   Sends the message silently.
@@ -102,8 +103,9 @@ link to the original message.
   Pass True to allow the message to ignore regular broadcast limits for a small fee; for bots only.
 
 - **`invert_media`** (`bool`, *optional*)
-  Pass True, if the caption must be shown above the media, False if below it.
-  If not specified, the caption stays where it is in the original message.
+  Pass True, if the caption must be shown above the media or the link preview above the text,
+  False if below.
+  If not specified, they stay where they are in the original message.
 
 - **`reply_markup`** ([`InlineKeyboardMarkup`](../../types/bots_and_keyboards/InlineKeyboardMarkup.md) | [`ReplyKeyboardMarkup`](../../types/bots_and_keyboards/ReplyKeyboardMarkup.md) | [`ReplyKeyboardRemove`](../../types/bots_and_keyboards/ReplyKeyboardRemove.md) | [`ForceReply`](../../types/bots_and_keyboards/ForceReply.md), *optional*)
   Additional interface options. An object for an inline keyboard, custom reply keyboard,

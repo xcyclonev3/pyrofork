@@ -17,7 +17,8 @@ async def send_game(
     protect_content: bool = None,
     allow_paid_broadcast: bool = None,
     message_effect_id: int = None,
-    reply_markup: Union['types.InlineKeyboardMarkup', 'types.ReplyKeyboardMarkup', 'types.ReplyKeyboardRemove', 'types.ForceReply'] = None
+    reply_markup: Union['types.InlineKeyboardMarkup', 'types.ReplyKeyboardMarkup', 'types.ReplyKeyboardRemove', 'types.ForceReply'] = None,
+    reply_to_chat_id: Union[int, str] = None
 ) -> 'types.Message': ...
 ```
 
@@ -65,6 +66,10 @@ Send a game.
 - **`reply_markup`** ([`InlineKeyboardMarkup`](../../types/bots_and_keyboards/InlineKeyboardMarkup.md), *optional*)
   An object for an inline keyboard. If empty, one ‘Play game_title’ button will be shown automatically.
   If not empty, the first button must launch the game.
+
+- **`reply_to_chat_id`** (`int` | `str`, *optional*)
+  Unique identifier for the origin chat.
+  for reply to message from another chat.
 
 ### Returns
 

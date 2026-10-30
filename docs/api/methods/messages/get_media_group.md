@@ -29,7 +29,8 @@ Get the media group a message belongs to.
 
 ### Returns
 
-List of [`Message`](../../types/messages_and_media/Message.md): On success, a list of messages of the media group is returned.
+List of [`Message`](../../types/messages_and_media/Message.md): On success, a list of messages of the media group is returned,
+sorted by id.
 
 ### Raises
 

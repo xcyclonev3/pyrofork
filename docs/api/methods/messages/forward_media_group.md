@@ -16,7 +16,8 @@ async def forward_media_group(
     schedule_date: datetime = None,
     hide_sender_name: bool = None,
     hide_captions: bool = None,
-    protect_content: bool = None
+    protect_content: bool = None,
+    media_group: List['types.Message'] = None
 ) -> List['types.Message']: ...
 ```
 
@@ -61,9 +62,14 @@ Forward a media group by providing one of the message ids.
 - **`protect_content`** (`bool`, *optional*)
   Protects the contents of the sent message from forwarding and saving.
 
+- **`media_group`** (List of [`Message`](../../types/messages_and_media/Message.md), *optional*)
+  The messages of the media group, as returned by [`get_media_group`](get_media_group.md).
+  If specified, they aren't requested again.
+
 ### Returns
 
 List of [`Message`](../../types/messages_and_media/Message.md): On success, a list of forwarded messages is returned.
+They are parsed without further requests, so *reply_to_message* and *topic* aren't set.
 
 ### Example
 

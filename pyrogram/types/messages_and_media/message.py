@@ -819,7 +819,8 @@ class Message(Object, Update):
         topics: Dict[int, "raw.types.ForumTopic"] = None,
         is_scheduled: bool = False,
         business_connection_id: str = None,
-        replies: int = 1
+        replies: int = 1,
+        fetch_topic: bool = True
     ):
         if isinstance(message, raw.types.MessageEmpty):
             return Message(id=message.id, empty=True, client=client, raw=message)
@@ -1508,7 +1509,7 @@ class Message(Object, Update):
                         parsed_message.is_topic_message = True
                         if topics:
                             parsed_message.topic = types.ForumTopic._parse(topics[thread_id])
-                        else:
+                        elif fetch_topic:
                             try:
                                 msg = await client.get_messages(parsed_message.chat.id,message.id)
                                 if getattr(msg, "topic"):
@@ -5027,7 +5028,8 @@ class Message(Object, Update):
                 List of special entities that appear in the new caption, which can be specified instead of *parse_mode*.
 
             has_spoiler (``bool``, *optional*):
-                Pass True if the photo needs to be covered with a spoiler animation.
+                Pass True if the photo needs to be covered with a spoiler animation, False if not.
+                If not specified, the original spoiler is kept.
 
             disable_notification (``bool``, *optional*):
                 Sends the message silently.
@@ -5063,8 +5065,9 @@ class Message(Object, Update):
                 Pass True to allow the message to ignore regular broadcast limits for a small fee; for bots
 
             invert_media (``bool``, *optional*):
-                Pass True, if the caption must be shown above the media, False if below it.
-                If not specified, the caption stays where it is in the original message.
+                Pass True, if the caption must be shown above the media or the link preview above the text,
+                False if below.
+                If not specified, they stay where they are in the original message.
 
             reply_markup (:obj:`~pyrogram.types.InlineKeyboardMarkup` | :obj:`~pyrogram.types.ReplyKeyboardMarkup` | :obj:`~pyrogram.types.ReplyKeyboardRemove` | :obj:`~pyrogram.types.ForceReply`, *optional*):
                 Additional interface options. An object for an inline keyboard, custom reply keyboard,
@@ -5078,6 +5081,26 @@ class Message(Object, Update):
         Raises:
             RPCError: In case of a Telegram RPC error.
         """
+        if invert_media is None:
+            invert_media = self.invert_media
+
+        if reply_markup is object and not self.rich_message:
+            reply_markup = self.reply_markup
+
+        send_options = dict(
+            disable_notification=disable_notification,
+            message_thread_id=message_thread_id,
+            reply_to_message_id=reply_to_message_id,
+            reply_to_chat_id=reply_to_chat_id,
+            quote_text=quote_text,
+            quote_entities=quote_entities,
+            parse_mode=parse_mode,
+            schedule_date=schedule_date,
+            protect_content=protect_content,
+            allow_paid_broadcast=allow_paid_broadcast,
+            reply_markup=reply_markup
+        )
+
         if self.service:
             log.warning("Service messages cannot be copied. chat_id: %s, message_id: %s",
                         self.chat.id, self.id)
@@ -5090,34 +5113,18 @@ class Message(Object, Update):
             return await self._client.send_message(
                 chat_id,
                 text=self.text,
-                entities=self.entities,
-                parse_mode=enums.ParseMode.DISABLED,
+                entities=await utils.reachable_entities(self._client, self.entities),
                 disable_web_page_preview=not self.web_page_preview,
-                disable_notification=disable_notification,
-                message_thread_id=message_thread_id,
-                reply_to_message_id=reply_to_message_id,
-                reply_to_chat_id=reply_to_chat_id,
-                quote_text=quote_text,
-                quote_entities=quote_entities,
-                schedule_date=schedule_date,
-                protect_content=protect_content,
-                allow_paid_broadcast=allow_paid_broadcast,
-                reply_markup=self.reply_markup if reply_markup is object else reply_markup
+                invert_media=invert_media,
+                **dict(send_options, parse_mode=enums.ParseMode.DISABLED)
             )
         elif self.media:
             send_media = partial(
                 self._client.send_cached_media,
                 chat_id=chat_id,
-                disable_notification=disable_notification,
-                message_thread_id=message_thread_id,
-                reply_to_message_id=reply_to_message_id,
-                reply_to_chat_id=reply_to_chat_id,
-                schedule_date=schedule_date,
-                has_spoiler=has_spoiler,
-                protect_content=protect_content,
-                allow_paid_broadcast=allow_paid_broadcast,
-                invert_media=self.invert_media if invert_media is None else invert_media,
-                reply_markup=self.reply_markup if reply_markup is object else reply_markup
+                has_spoiler=self.has_media_spoiler if has_spoiler is None else has_spoiler,
+                invert_media=invert_media,
+                **send_options
             )
 
             if self.photo:
@@ -5145,20 +5152,14 @@ class Message(Object, Update):
                     first_name=self.contact.first_name,
                     last_name=self.contact.last_name,
                     vcard=self.contact.vcard,
-                    disable_notification=disable_notification,
-                    message_thread_id=message_thread_id,
-                    schedule_date=schedule_date,
-                    allow_paid_broadcast=allow_paid_broadcast,
+                    **send_options
                 )
             elif self.location:
                 return await self._client.send_location(
                     chat_id,
                     latitude=self.location.latitude,
                     longitude=self.location.longitude,
-                    disable_notification=disable_notification,
-                    message_thread_id=message_thread_id,
-                    schedule_date=schedule_date,
-                    allow_paid_broadcast=allow_paid_broadcast
+                    **send_options
                 )
             elif self.venue:
                 return await self._client.send_venue(
@@ -5169,25 +5170,22 @@ class Message(Object, Update):
                     address=self.venue.address,
                     foursquare_id=self.venue.foursquare_id,
                     foursquare_type=self.venue.foursquare_type,
-                    disable_notification=disable_notification,
-                    message_thread_id=message_thread_id,
-                    schedule_date=schedule_date,
-                    allow_paid_broadcast=allow_paid_broadcast
+                    **send_options
                 )
             elif self.poll:
                 return await self._client.send_poll(
                     chat_id,
                     question=self.poll.question,
+                    question_entities=self.poll.question_entities,
+                    question_parse_mode=enums.ParseMode.DISABLED,
                     options=[
                         types.PollOption(
                             text=opt.text,
-                            entities=opt.entities
+                            entities=opt.entities,
+                            parse_mode=enums.ParseMode.DISABLED
                         ) for opt in self.poll.options
                     ],
-                    disable_notification=disable_notification,
-                    message_thread_id=message_thread_id,
-                    schedule_date=schedule_date,
-                    allow_paid_broadcast=allow_paid_broadcast
+                    **send_options
                 )
             elif self.game:
                 return await self._client.send_game(
@@ -5195,53 +5193,39 @@ class Message(Object, Update):
                     game_short_name=self.game.short_name,
                     disable_notification=disable_notification,
                     message_thread_id=message_thread_id,
-                    allow_paid_broadcast=allow_paid_broadcast
+                    reply_to_message_id=reply_to_message_id,
+                    reply_to_chat_id=reply_to_chat_id,
+                    protect_content=protect_content,
+                    allow_paid_broadcast=allow_paid_broadcast,
+                    reply_markup=reply_markup
                 )
             elif self.web_page_preview:
                 return await self._client.send_web_page(
                     chat_id,
                     url=self.web_page_preview.webpage.url,
-                    text=self.text,
-                    entities=self.entities,
-                    parse_mode=enums.ParseMode.DISABLED,
                     large_media=self.web_page_preview.force_large_media,
-                    invert_media=self.web_page_preview.invert_media,
-                    disable_notification=disable_notification,
-                    message_thread_id=message_thread_id,
-                    reply_to_message_id=reply_to_message_id,
-                    reply_to_chat_id=reply_to_chat_id,
-                    quote_text=quote_text,
-                    quote_entities=quote_entities,
-                    schedule_date=schedule_date,
-                    protect_content=protect_content,
-                    allow_paid_broadcast=allow_paid_broadcast,
-                    reply_markup=self.reply_markup if reply_markup is object else reply_markup
+                    invert_media=invert_media,
+                    **send_options
                 )
             else:
                 raise ValueError("Unknown media type")
 
             if self.sticker or self.video_note:  # Sticker and VideoNote should have no caption
-                return await send_media(
-                    file_id=file_id,
-                    message_thread_id=message_thread_id,
-                    allow_paid_broadcast=allow_paid_broadcast
-                )
-            else:
-                if caption is None:
-                    # The original text isn't markup: its formatting comes from the entities
-                    caption = self.caption or ""
-                    caption_entities = self.caption_entities
-                    parse_mode = enums.ParseMode.DISABLED
+                return await send_media(file_id=file_id)
 
-                return await send_media(
-                    file_id=file_id,
-                    caption=caption,
-                    parse_mode=parse_mode,
-                    caption_entities=caption_entities,
-                    has_spoiler=has_spoiler,
-                    message_thread_id=message_thread_id,
-                    allow_paid_broadcast=allow_paid_broadcast
-                )
+            if caption is None:
+                # The original text isn't markup: its formatting comes from the entities. The quote still follows parse_mode
+                caption = self.caption or ""
+                caption_entities = await utils.reachable_entities(self._client, self.caption_entities)
+                send_media = partial(send_media, quote_parse_mode=parse_mode or self._client.parse_mode)
+                parse_mode = enums.ParseMode.DISABLED
+
+            return await send_media(
+                file_id=file_id,
+                caption=caption,
+                parse_mode=parse_mode,
+                caption_entities=caption_entities
+            )
         elif self.rich_message:
             # Rich messages can't be sent again from their parsed blocks: they are copied on the server, as forwards
             # without the author, which keep their reply markup

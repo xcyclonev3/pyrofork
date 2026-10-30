@@ -83,7 +83,8 @@ class SendPoll:
             "types.InputMediaAnimation",
             "types.InputMediaAudio",
             "types.InputMediaDocument"
-        ] = None
+        ] = None,
+        question_parse_mode: Optional["enums.ParseMode"] = None
     ) -> "types.Message":
         """Send a new poll.
 
@@ -234,6 +235,10 @@ class SendPoll:
             explanation_media (:obj:`~pyrogram.types.InputMediaPhoto` | :obj:`~pyrogram.types.InputMediaVideo` | :obj:`~pyrogram.types.InputMediaAnimation` | :obj:`~pyrogram.types.InputMediaAudio` | :obj:`~pyrogram.types.InputMediaDocument`, *optional*):
                 Media shown with the explanation of a quiz.
 
+            question_parse_mode (:obj:`~pyrogram.enums.ParseMode`, *optional*):
+                By default, *question* is parsed using both Markdown and HTML styles.
+                You can combine both syntaxes together.
+
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent poll message is returned.
 
@@ -274,7 +279,7 @@ class SendPoll:
         solution, solution_entities = (await utils.parse_text_entities(
             self, explanation, explanation_parse_mode, explanation_entities
         )).values()
-        q, q_entities = (await pyrogram.utils.parse_text_entities(self, question, None, question_entities)).values()
+        q, q_entities = (await pyrogram.utils.parse_text_entities(self, question, question_parse_mode, question_entities)).values()
         message, entities = (await utils.parse_text_entities(
             self, description, description_parse_mode, description_entities
         )).values()
@@ -284,7 +289,7 @@ class SendPoll:
         answers = []
 
         for i, option in enumerate(options):
-            answer = await types.PollOption(text=option.text, entities=option.entities).write(self, i)
+            answer = await option.write(self, i)
             answer.media = await utils.get_input_poll_media(self, peer, option.media)
             answers.append(answer)
 

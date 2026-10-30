@@ -35,7 +35,9 @@ async def copy_media_group(
     invert_media: bool = None,
     protect_content: bool = None,
     allow_paid_broadcast: bool = None,
-    message_effect_id: int = None
+    message_effect_id: int = None,
+    media_group: List['types.Message'] = None,
+    sleep_threshold: int = 60
 ) -> List['types.Message']: ...
 ```
 
@@ -124,9 +126,19 @@ Copy a media group by providing one of the message ids.
 - **`message_effect_id`** (`int` `64-bit`, *optional*)
   Unique identifier of the message effect to be added to the message; for private chats only.
 
+- **`media_group`** (List of [`Message`](../../types/messages_and_media/Message.md), *optional*)
+  The messages of the media group, as returned by [`get_media_group`](get_media_group.md).
+  If specified, they aren't requested again.
+
+- **`sleep_threshold`** (`int`, *optional*)
+  Sleep threshold in seconds for the request that sends the media group: flood waits up to this value are
+  waited for, longer ones are raised. Defaults to 60.
+  Pass None to use the sleep threshold of the client.
+
 ### Returns
 
 List of [`Message`](../../types/messages_and_media/Message.md): On success, a list of copied messages is returned.
+They are parsed without further requests, so *reply_to_message* and *topic* aren't set.
 
 ### Example
 

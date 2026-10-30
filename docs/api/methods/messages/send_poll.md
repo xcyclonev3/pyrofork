@@ -55,7 +55,8 @@ async def send_poll(
     members_only: bool = None,
     country_codes: List[str] = None,
     correct_option_ids: List[int] = None,
-    explanation_media: Union['types.InputMediaPhoto', 'types.InputMediaVideo', 'types.InputMediaAnimation', 'types.InputMediaAudio', 'types.InputMediaDocument'] = None
+    explanation_media: Union['types.InputMediaPhoto', 'types.InputMediaVideo', 'types.InputMediaAnimation', 'types.InputMediaAudio', 'types.InputMediaDocument'] = None,
+    question_parse_mode: Optional['enums.ParseMode'] = None
 ) -> 'types.Message': ...
 ```
 
@@ -210,6 +211,10 @@ Send a new poll.
 
 - **`explanation_media`** ([`InputMediaPhoto`](../../types/input_media/InputMediaPhoto.md) | [`InputMediaVideo`](../../types/input_media/InputMediaVideo.md) | [`InputMediaAnimation`](../../types/input_media/InputMediaAnimation.md) | [`InputMediaAudio`](../../types/input_media/InputMediaAudio.md) | [`InputMediaDocument`](../../types/input_media/InputMediaDocument.md), *optional*)
   Media shown with the explanation of a quiz.
+
+- **`question_parse_mode`** ([`ParseMode`](../../enums/ParseMode.md), *optional*)
+  By default, *question* is parsed using both Markdown and HTML styles.
+  You can combine both syntaxes together.
 
 ### Returns
 
