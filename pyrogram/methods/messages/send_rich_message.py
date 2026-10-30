@@ -20,7 +20,6 @@ from typing import List, Optional, Union
 
 import pyrogram
 from pyrogram import enums, raw, types, utils
-from pyrogram.errors import RPCError
 
 
 class SendRichMessage:
@@ -125,6 +124,9 @@ class SendRichMessage:
 
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent message is returned.
+            Its topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
+            If Telegram answers with its id only and it can't be read, for example during a long flood wait, it has
+            only *id*, *chat*, *date*, *outgoing* and *reply_markup*.
 
         Example:
             .. code-block:: python
@@ -194,10 +196,10 @@ class SendRichMessage:
         if isinstance(r, raw.types.UpdateShortSentMessage):
             # Only the id comes back: get the message for its rich message, unless it can't be fetched
             if business_connection_id is None and schedule_date is None:
-                try:
-                    return await self.get_messages(chat_id, r.id)
-                except RPCError:
-                    pass
+                message = await utils.read_related_message(self, chat_id, message_ids=r.id)
+
+                if message:
+                    return message
 
             peer = await self.resolve_peer(chat_id)
 

@@ -88,6 +88,10 @@ class SendPaidMedia:
             payload (``str``, *optional*):
                 Bot-defined paid media payload, 0-128 bytes. This will not be displayed to the user, use it for your internal processes.
 
+        Returns:
+            List of :obj:`~pyrogram.types.Message`: On success, the sent messages are returned.
+            They are parsed without further requests, so *reply_to_message* and *topic* aren't set.
+
         Example:
             .. code-block:: python
 
@@ -316,5 +320,6 @@ class SendPaidMedia:
                 topics=[],
                 users=r.users,
                 chats=r.chats
-            )
+            ),
+            replies=0
         )

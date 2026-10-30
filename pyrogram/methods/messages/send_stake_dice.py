@@ -102,6 +102,7 @@ class SendStakeDice:
 
         Returns:
             :obj:`~pyrogram.types.Message`: On success, the sent stake dice message is returned.
+            Its topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
 
         Example:
             .. code-block:: python

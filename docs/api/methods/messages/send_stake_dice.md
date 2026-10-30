@@ -99,6 +99,7 @@ The prize of the roll is available in the *dice* of the sent message.
 ### Returns
 
 [`Message`](../../types/messages_and_media/Message.md): On success, the sent stake dice message is returned.
+Its topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
 
 ### Example
 

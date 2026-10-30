@@ -275,6 +275,7 @@ class Client(Methods):
 
     MAX_CONCURRENT_TRANSMISSIONS = 1
     MAX_CACHE_SIZE = 10000
+    MAX_TOPIC_CACHE_SIZE = 1000
 
     # Parts of 1 MiB a download requests ahead while it hands out the current one
     DOWNLOAD_PARTS_IN_FLIGHT = 4
@@ -409,6 +410,8 @@ class Client(Methods):
         self.me: Optional[User] = None
 
         self.message_cache = Cache(self.max_message_cache_size)
+        self.topic_cache = Cache(self.MAX_TOPIC_CACHE_SIZE)
+        self.reads_flood_until = 0
         self.business_user_connection_cache = Cache(self.max_business_user_connection_cache_size)
 
         # Sometimes, for some reason, the server will stop sending updates and will only respond to pings.

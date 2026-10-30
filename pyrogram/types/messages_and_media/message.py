@@ -24,7 +24,7 @@ from typing import List, Match, Union, BinaryIO, Optional, Callable, Dict
 
 import pyrogram
 from pyrogram import enums, raw, types, utils
-from pyrogram.errors import BroadcastPublicVotersForbidden, ChannelPrivate, MessageIdsEmpty, PeerIdInvalid
+from pyrogram.errors import BroadcastPublicVotersForbidden, PeerIdInvalid
 from pyrogram.parser import utils as parser_utils, Parser
 from ..object import Object
 from ..update import Update
@@ -86,7 +86,11 @@ class Message(Object, Update):
 
         topic (:obj:`~pyrogram.types.ForumTopic`, *optional*):
             Topic the message belongs to.
-            only returned when using client.get_messages.
+            Set in messages read with methods whose answer from Telegram has it, like
+            :meth:`~pyrogram.Client.get_messages` and :meth:`~pyrogram.Client.get_chat_history`, and in messages from
+            updates, where it's read once for all the messages of the topic and can be a few minutes old.
+            Others don't have it, like the results of sending or editing a message, only *message_thread_id* and
+            *is_topic_message*.
 
         forward_origin (:obj:`~pyrogram.types.MessageOrigin`, *optional*):
             Information about the original message for forwarded messages.
@@ -820,7 +824,7 @@ class Message(Object, Update):
         is_scheduled: bool = False,
         business_connection_id: str = None,
         replies: int = 1,
-        fetch_topic: bool = True
+        fetch_topic: bool = False
     ):
         if isinstance(message, raw.types.MessageEmpty):
             return Message(id=message.id, empty=True, client=client, raw=message)
@@ -1154,58 +1158,53 @@ class Message(Object, Update):
                 parsed_message.reply_to_message_id = getattr(message.reply_to, "reply_to_msg_id", None)
 
             if isinstance(action, raw.types.MessageActionPinMessage):
-                try:
-                    parsed_message.pinned_message = await client.get_messages(
-                        parsed_message.chat.id,
-                        reply_to_message_ids=message.id,
-                        replies=0
-                    )
+                parsed_message.pinned_message = await utils.read_related_message(
+                    client,
+                    parsed_message.chat.id,
+                    reply_to_message_ids=message.id,
+                    replies=0
+                )
+                parsed_message.service = enums.MessageServiceType.PINNED_MESSAGE
 
-                    parsed_message.service = enums.MessageServiceType.PINNED_MESSAGE
-                except MessageIdsEmpty:
-                    pass
+                if parsed_message.pinned_message is None and message.reply_to:
+                    parsed_message.pinned_message = Message(
+                        id=message.reply_to.reply_to_msg_id, chat=parsed_message.chat, client=client
+                    )
 
             if isinstance(action, raw.types.MessageActionGameScore):
                 parsed_message.game_high_score = types.GameHighScore._parse_action(client, message, users)
 
                 if message.reply_to and replies:
-                    try:
-                        parsed_message.reply_to_message = await client.get_messages(
-                            parsed_message.chat.id,
-                            reply_to_message_ids=message.id,
-                            replies=0
-                        )
-
-                        parsed_message.service = enums.MessageServiceType.GAME_HIGH_SCORE
-                    except MessageIdsEmpty:
-                        pass
+                    parsed_message.reply_to_message = await utils.read_related_message(
+                        client,
+                        parsed_message.chat.id,
+                        reply_to_message_ids=message.id,
+                        replies=0
+                    )
+                    parsed_message.service = enums.MessageServiceType.GAME_HIGH_SCORE
             if isinstance(action, raw.types.MessageActionTodoCompletions):
                 if action.completed:
                     parsed_message.todo_tasks_completed = types.TodoTasksCompleted._parse(action)
                 if action.incompleted:
                     parsed_message.todo_tasks_incompleted = types.TodoTasksIncompleted._parse(action)
                 parsed_message.service_type = enums.MessageServiceType.TODO_TASKS_COMPLETION
-                try:
-                    parsed_message.reply_to_message = await client.get_messages(
-                        parsed_message.chat.id,
-                        reply_to_message_ids=message.id,
-                        replies=0
-                    )
-                except MessageIdsEmpty:
-                    pass
+                parsed_message.reply_to_message = await utils.read_related_message(
+                    client,
+                    parsed_message.chat.id,
+                    reply_to_message_ids=message.id,
+                    replies=0
+                )
                 parsed_message.reply_to_message_id = message.reply_to.reply_to_msg_id
 
             if isinstance(action, raw.types.MessageActionTodoAppendTasks):
                 parsed_message.todo_tasks_added = types.TodoTasksAdded._parse(client, action)
                 parsed_message.service = enums.MessageServiceType.TODO_TASKS_ADDED
-                try:
-                    parsed_message.reply_to_message = await client.get_messages(
-                        parsed_message.chat.id,
-                        reply_to_message_ids=message.id,
-                        replies=0
-                    )
-                except MessageIdsEmpty:
-                    pass
+                parsed_message.reply_to_message = await utils.read_related_message(
+                    client,
+                    parsed_message.chat.id,
+                    reply_to_message_ids=message.id,
+                    replies=0
+                )
                 parsed_message.reply_to_message_id = message.reply_to.reply_to_msg_id
 
             client.message_cache[(parsed_message.chat.id, parsed_message.id)] = parsed_message
@@ -1217,6 +1216,9 @@ class Message(Object, Update):
                     else:
                         parsed_message.message_thread_id = message.reply_to.reply_to_msg_id
                     parsed_message.is_topic_message = True
+
+                    if isinstance(action, raw.types.MessageActionTopicEdit):
+                        client.topic_cache.store.pop((parsed_message.chat.id, parsed_message.message_thread_id), None)
             elif parsed_message.chat.type == enums.ChatType.FORUM and parsed_message.message_thread_id is None:
                 parsed_message.message_thread_id = 1
                 parsed_message.is_topic_message = True
@@ -1512,12 +1514,7 @@ class Message(Object, Update):
                         if topic:
                             parsed_message.topic = types.ForumTopic._parse(topic)
                         elif fetch_topic and not topics:
-                            try:
-                                msg = await client.get_messages(parsed_message.chat.id, message.id, replies=0)
-                                if getattr(msg, "topic"):
-                                    parsed_message.topic = msg.topic
-                            except Exception:
-                                pass
+                            parsed_message.topic = await utils.read_message_topic(client, parsed_message.chat.id, message.id, thread_id)
                     else:
                         parsed_message.reply_to_message_id = message.reply_to.reply_to_msg_id
                         parsed_message.reply_to_top_message_id = message.reply_to.reply_to_top_id
@@ -1541,22 +1538,18 @@ class Message(Object, Update):
 
                 if replies:
                     if parsed_message.reply_to_message_id:
-                        try:
-                            key = (parsed_message.chat.id, parsed_message.reply_to_message_id)
-                            reply_to_message = client.message_cache[key]
+                        key = (parsed_message.chat.id, parsed_message.reply_to_message_id)
+                        reply_to_message = client.message_cache[key]
 
-                            if not reply_to_message:
-                                reply_to_message = await client.get_messages(
-                                    parsed_message.chat.id,
-                                    reply_to_message_ids=message.id,
-                                    replies=replies - 1
-                                )
-                            if reply_to_message and not reply_to_message.forum_topic_created:
-                                parsed_message.reply_to_message = reply_to_message
-                        except MessageIdsEmpty:
-                            pass
-                        except ChannelPrivate:
-                            pass
+                        if not reply_to_message:
+                            reply_to_message = await utils.read_related_message(
+                                client,
+                                parsed_message.chat.id,
+                                reply_to_message_ids=message.id,
+                                replies=replies - 1
+                            )
+                        if reply_to_message and not reply_to_message.forum_topic_created:
+                            parsed_message.reply_to_message = reply_to_message
                     elif parsed_message.reply_to_story_id:
                         try:
                             reply_to_story = await client.get_stories(
@@ -5304,8 +5297,7 @@ class Message(Object, Update):
                                        raw.types.UpdateNewScheduledMessage)):
                     return await types.Message._parse(
                         self._client, update.message, users, chats,
-                        is_scheduled=isinstance(update, raw.types.UpdateNewScheduledMessage),
-                        fetch_topic=False
+                        is_scheduled=isinstance(update, raw.types.UpdateNewScheduledMessage)
                     )
         else:
             raise ValueError("Can't copy this message")

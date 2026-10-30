@@ -240,6 +240,5 @@ class SendWebPage:
                     {i.id: i for i in r.users},
                     {i.id: i for i in r.chats},
                     is_scheduled=isinstance(i, raw.types.UpdateNewScheduledMessage),
-                    business_connection_id=business_connection_id,
-                    fetch_topic=False
+                    business_connection_id=business_connection_id
                 )

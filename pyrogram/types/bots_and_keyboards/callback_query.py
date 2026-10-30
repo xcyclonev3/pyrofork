@@ -106,7 +106,15 @@ class CallbackQuery(Object, Update):
             message = client.message_cache[(chat_id, message_id)]
 
             if not message:
-                message = await client.get_messages(chat_id, message_id)
+                message = await utils.read_related_message(client, chat_id, message_ids=message_id)
+
+            if not message:
+                # Without its content, but it's still known well enough to edit it or answer to it
+                message = types.Message(
+                    id=message_id,
+                    chat=types.Chat._parse_peer(client, callback_query.peer, users, chats or {}, fallback=True),
+                    client=client
+                )
         elif isinstance(callback_query, raw.types.UpdateInlineBotCallbackQuery):
             inline_message_id = utils.pack_inline_message_id(callback_query.msg_id)
         elif isinstance(callback_query, raw.types.UpdateBusinessBotCallbackQuery):

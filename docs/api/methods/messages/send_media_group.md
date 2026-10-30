@@ -136,6 +136,7 @@ Other Parameters:
 ### Returns
 
 List of [`Message`](../../types/messages_and_media/Message.md): On success, a list of the sent messages is returned.
+They are parsed without further requests, so *reply_to_message* and *topic* aren't set.
 
 ### Example
 

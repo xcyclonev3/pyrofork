@@ -205,6 +205,5 @@ class SendCachedMedia:
                     self, i.message,
                     {i.id: i for i in r.users},
                     {i.id: i for i in r.chats},
-                    is_scheduled=isinstance(i, raw.types.UpdateNewScheduledMessage),
-                    fetch_topic=False
+                    is_scheduled=isinstance(i, raw.types.UpdateNewScheduledMessage)
                 )

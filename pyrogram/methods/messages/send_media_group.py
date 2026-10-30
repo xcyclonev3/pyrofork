@@ -162,6 +162,7 @@ class SendMediaGroup:
 
         Returns:
             List of :obj:`~pyrogram.types.Message`: On success, a list of the sent messages is returned.
+            They are parsed without further requests, so *reply_to_message* and *topic* aren't set.
 
         Example:
             .. code-block:: python
@@ -563,5 +564,6 @@ class SendMediaGroup:
                 users=r.users,
                 chats=r.chats,
             ),
+            replies=0,
             business_connection_id=business_connection_id,
         )

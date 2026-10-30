@@ -138,8 +138,7 @@ class ForwardMessages:
                 forwarded_messages.append(
                     await types.Message._parse(
                         self, i.message,
-                        users, chats,
-                        fetch_topic=False
+                        users, chats
                     )
                 )
 

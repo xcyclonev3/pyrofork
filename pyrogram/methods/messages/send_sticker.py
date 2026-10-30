@@ -165,6 +165,7 @@ class SendSticker:
             :obj:`~pyrogram.types.Message` | ``None``: On success, the sent sticker message is returned, otherwise,
             in case the upload is deliberately stopped with :meth:`~pyrogram.Client.stop_transmission`, None is
             returned.
+            Its topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
 
         Example:
             .. code-block:: python

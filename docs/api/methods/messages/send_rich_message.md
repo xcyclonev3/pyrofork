@@ -116,6 +116,9 @@ Send a rich message: a message with headings, lists, tables, quotes, media, form
 ### Returns
 
 [`Message`](../../types/messages_and_media/Message.md): On success, the sent message is returned.
+Its topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
+If Telegram answers with its id only and it can't be read, for example during a long flood wait, it has
+only *id*, *chat*, *date*, *outgoing* and *reply_markup*.
 
 ### Example
 

@@ -81,6 +81,7 @@ Bot results can be retrieved using [`get_inline_bot_results`](get_inline_bot_res
 ### Returns
 
 [`Message`](../../types/messages_and_media/Message.md): On success, the sent message is returned or False if no message was sent.
+Its topic isn't read, so *topic* isn't set, only *message_thread_id* and *is_topic_message*.
 
 ### Example
 

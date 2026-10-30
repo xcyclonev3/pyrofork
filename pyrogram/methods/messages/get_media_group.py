@@ -82,4 +82,4 @@ class GetMediaGroup:
             key=lambda msg: msg.id
         )
 
-        return await utils.parse_messages(self, r, replies=0, fetch_topic=False)
+        return await utils.parse_messages(self, r, replies=0)

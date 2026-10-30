@@ -21,9 +21,11 @@ import asyncio
 import base64
 import functools
 import hashlib
+import logging
 import re
 import os
 import struct
+import time
 from concurrent.futures.thread import ThreadPoolExecutor
 from datetime import datetime, timezone
 from getpass import getpass
@@ -32,9 +34,17 @@ from types import SimpleNamespace
 
 import pyrogram
 from pyrogram import raw, enums, types
+from pyrogram.errors import FloodPremiumWait, FloodWait
 from pyrogram.parser import utils as parser_utils
 from pyrogram.types.messages_and_media.message import Str
 from pyrogram.file_id import FileId, FileType, PHOTO_TYPES, DOCUMENT_TYPES
+
+log = logging.getLogger(__name__)
+
+# For how long the topic of a message from an update is kept for the next messages of the topic, and for how long to
+# do without it when it can't be read
+TOPIC_CACHE_SECONDS = 300
+TOPIC_RETRY_SECONDS = 30
 
 
 PyromodConfig = SimpleNamespace(
@@ -173,7 +183,7 @@ async def parse_messages(
     replies: int = 1,
     business_connection_id: str = None,
     is_scheduled: bool = False,
-    fetch_topic: bool = True
+    sleep_threshold: int = -1
 ) -> List["types.Message"]:
     users = {i.id: i for i in messages.users}
     chats = {i.id: i for i in messages.chats}
@@ -187,7 +197,7 @@ async def parse_messages(
     parsed_messages = []
 
     for message in messages.messages:
-        parsed_messages.append(await types.Message._parse(client, message, users, chats, topics, replies=0, business_connection_id=business_connection_id, fetch_topic=fetch_topic))
+        parsed_messages.append(await types.Message._parse(client, message, users, chats, topics, replies=0, business_connection_id=business_connection_id))
 
     if replies:
         if not is_scheduled:
@@ -223,7 +233,8 @@ async def parse_messages(
                 reply_messages = await client.get_messages(
                     chat_id,
                     reply_to_message_ids=messages_with_replies.keys(),
-                    replies=replies - 1
+                    replies=replies - 1,
+                    sleep_threshold=sleep_threshold
                 )
 
                 for message in parsed_messages:
@@ -260,7 +271,8 @@ async def parse_messages(
                     message.reply_to_message = await client.get_messages(
                         message.chat.id,
                         message_ids=message.reply_to_message_id,
-                        replies=replies - 1
+                        replies=replies - 1,
+                        sleep_threshold=sleep_threshold
                     )
 
     return types.List(parsed_messages)
@@ -686,7 +698,8 @@ async def parse_text_entities(
 async def read_messages(
     client: "pyrogram.Client",
     peer: "raw.base.InputPeer",
-    ids: List["raw.base.InputMessage"]
+    ids: List["raw.base.InputMessage"],
+    sleep_threshold: int = -1
 ) -> "raw.base.messages.Messages":
     """Read messages from a chat.
 
@@ -694,9 +707,9 @@ async def read_messages(
     other chats are turned into empty ones. This can't be done for replied messages, which can be in other chats.
     """
     if isinstance(peer, raw.types.InputPeerChannel):
-        return await client.invoke(raw.functions.channels.GetMessages(channel=peer, id=ids), sleep_threshold=-1)
+        return await client.invoke(raw.functions.channels.GetMessages(channel=peer, id=ids), sleep_threshold=sleep_threshold)
 
-    r = await client.invoke(raw.functions.messages.GetMessages(id=ids), sleep_threshold=-1)
+    r = await client.invoke(raw.functions.messages.GetMessages(id=ids), sleep_threshold=sleep_threshold)
 
     if all(isinstance(i, raw.types.InputMessageID) for i in ids):
         chat_id = await client.storage.user_id() if isinstance(peer, raw.types.InputPeerSelf) else get_peer_id(peer)
@@ -708,6 +721,57 @@ async def read_messages(
         ]
 
     return r
+
+
+async def read_related_message(
+    client: "pyrogram.Client",
+    chat_id: int,
+    sleep_threshold: int = None,
+    **kwargs
+) -> Optional["types.Message"]:
+    """Read a message that completes the one being parsed, or None if it can't be read now.
+
+    What is being parsed mustn't be lost for this: it can be an update, or a message that was already sent. It mustn't
+    wait for long either: a long flood wait would keep all the workers of the dispatcher from handling any update, even
+    the ones that don't need to read anything. After one of these, nothing is read until it's over.
+    """
+    if time.monotonic() < client.reads_flood_until:
+        return None
+
+    try:
+        return await client.get_messages(chat_id, sleep_threshold=sleep_threshold, **kwargs)
+    except (FloodWait, FloodPremiumWait) as e:
+        if e.value > client.sleep_threshold:
+            client.reads_flood_until = time.monotonic() + e.value
+    except Exception as e:
+        log.debug("Can't read a message related to another one in chat %s: %s", chat_id, e)
+
+    return None
+
+
+async def read_message_topic(client: "pyrogram.Client", chat_id: int, message_id: int, thread_id: int) -> Optional["types.ForumTopic"]:
+    """The topic of a message from an update, which doesn't come with it.
+
+    Reading it for each message would limit topics to a message per round trip and worker, so it's kept for a while, or
+    until a message says that the topic changed. A message can go without its topic, so flood waits aren't waited for,
+    and the next messages of the topic don't try to read it again right away.
+    """
+    key = (chat_id, thread_id)
+    cached = client.topic_cache[key]
+
+    if cached and time.monotonic() < cached[0]:
+        return cached[1]
+
+    message = await read_related_message(client, chat_id, sleep_threshold=0, message_ids=message_id, replies=0)
+
+    # A message deleted before reading it says nothing about its topic
+    if getattr(message, "empty", False):
+        return None
+
+    topic = getattr(message, "topic", None)
+    client.topic_cache[key] = (time.monotonic() + (TOPIC_CACHE_SECONDS if topic else TOPIC_RETRY_SECONDS), topic)
+
+    return topic
 
 
 async def reachable_entities(client: "pyrogram.Client", entities: List["types.MessageEntity"]) -> List["types.MessageEntity"]:

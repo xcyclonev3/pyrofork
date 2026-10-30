@@ -69,6 +69,11 @@ Only for channels.
 - **`payload`** (`str`, *optional*)
   Bot-defined paid media payload, 0-128 bytes. This will not be displayed to the user, use it for your internal processes.
 
+### Returns
+
+List of [`Message`](../../types/messages_and_media/Message.md): On success, the sent messages are returned.
+They are parsed without further requests, so *reply_to_message* and *topic* aren't set.
+
 ### Example
 
 ```python

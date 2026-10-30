@@ -1148,6 +1148,5 @@ class topic(Filter, set):
         )
 
     async def __call__(self, _, message: Message):
-        if message.is_topic_message and not message.topic:
-            return 1 in self
-        return message.topic and message.topic.id in self
+        # Not message.topic, which can be missing: the update itself says where the message is
+        return message.is_topic_message and message.message_thread_id in self

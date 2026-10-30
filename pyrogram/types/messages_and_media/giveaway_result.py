@@ -115,7 +115,7 @@ class GiveawayResult(Object):
         if not hide_winners:
             chat_id = utils.get_channel_id(giveaway_result.channel_id)
             chat = types.Chat._parse_channel_chat(client, chats.get(giveaway_result.channel_id))
-            giveaway_message = await client.get_messages(chat_id, giveaway_result.launch_msg_id)
+            giveaway_message = await utils.read_related_message(client, chat_id, message_ids=giveaway_result.launch_msg_id)
             expired_date = utils.timestamp_to_datetime(giveaway_result.until_date)
             winners = []
             for winner in giveaway_result.winners:

@@ -1532,6 +1532,17 @@ SENT_TO_A_TOPIC = {
     "send_game": lambda client: client.send_game(-100123, "game", message_thread_id=7),
     "send_web_page": lambda client: client.send_web_page(-100123, "https://example.com", message_thread_id=7),
     "forward_messages": lambda client: client.forward_messages(-100123, 7, 1, message_thread_id=7),
+    "send_photo": lambda client: client.send_photo(-100123, photo_file_id(2001), message_thread_id=7),
+    "send_dice": lambda client: client.send_dice(-100123, message_thread_id=7),
+    **{
+        method: (lambda client, method=method, file_type=file_type: getattr(client, method)(
+            -100123, document_file_id(file_type, 1), message_thread_id=7
+        )) for method, file_type in {
+            "send_document": FileType.DOCUMENT, "send_video": FileType.VIDEO, "send_audio": FileType.AUDIO,
+            "send_animation": FileType.ANIMATION, "send_voice": FileType.VOICE, "send_video_note": FileType.VIDEO_NOTE,
+            "send_sticker": FileType.STICKER
+        }.items()
+    },
 }
 COPIED_TO_A_TOPIC = {
     "text": (None, "text"),
@@ -1553,6 +1564,20 @@ def test_sending_to_a_topic_does_not_read_the_topic(send):
     message = call(lambda: send(client))
 
     assert_sent_to_the_topic_without_reading(client, message)
+
+
+def test_editing_in_a_topic_does_not_read_the_topic():
+    def respond(query):
+        return empty_updates(updates=[raw.types.UpdateEditChannelMessage(
+            message=raw.types.Message(id=1, peer_id=raw.types.PeerChannel(channel_id=123), date=1, message="e", reply_to=IN_TOPIC),
+            pts=1, pts_count=1
+        )], chats=[RAW_FORUM])
+
+    client = offline_client(PARSED_CHANNEL_PEERS, respond)
+
+    message = call(lambda: client.edit_message_text(-100123, 1, "e"))
+
+    assert reads(client) == 0 and message.message_thread_id == 7 and message.topic is None
 
 
 @pytest.mark.parametrize("media, text", COPIED_TO_A_TOPIC.values(), ids=COPIED_TO_A_TOPIC.keys())
@@ -1615,13 +1640,22 @@ def test_a_message_of_a_topic_from_an_update_still_reads_the_topic():
     assert reads(client) == 1 and message.message_thread_id == 7 and message.topic.id == 7
 
 
-def test_send_media_group_to_a_topic_reads_once_per_message_to_set_the_topic():
+def test_send_media_group_to_a_topic_does_not_read():
     client = forum_client()
     photo = types.InputMediaPhoto(photo_file_id(2001))
 
-    messages = call(lambda: client.send_media_group(-100123, [photo, photo], message_thread_id=7))
+    messages = call(lambda: client.send_media_group(-100123, [photo, photo], message_thread_id=7, reply_to_message_id=9))
 
-    assert reads(client) == 2 and [message.topic.id for message in messages] == [7, 7]
+    assert len(client.sent) == 1 and isinstance(client.sent[0], raw.functions.messages.SendMultiMedia)
+    assert [(message.message_thread_id, message.topic) for message in messages] == [(7, None), (7, None)]
+
+
+def test_send_paid_media_does_not_read():
+    client = forum_client()
+
+    messages = call(lambda: client.send_paid_media(-100123, 1, [types.InputMediaPhoto(photo_file_id(2001))]))
+
+    assert len(client.sent) == 1 and messages[0].message_thread_id == 7 and messages[0].topic is None
 
 
 def test_copy_message_does_not_read_the_replied_message():

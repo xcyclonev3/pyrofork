@@ -259,6 +259,5 @@ class CopyMediaGroup:
                 users=r.users,
                 chats=r.chats
             ),
-            replies=0,
-            fetch_topic=False
+            replies=0
         )

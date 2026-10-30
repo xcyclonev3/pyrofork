@@ -123,8 +123,7 @@ class ForwardMediaGroup:
                     await types.Message._parse(
                         self, i.message,
                         users, chats,
-                        replies=0,
-                        fetch_topic=False
+                        replies=0
                     )
                 )
 

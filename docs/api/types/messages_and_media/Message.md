@@ -176,7 +176,11 @@ A message.
 
 - **`topic`** ([`ForumTopic`](../user_and_chats/ForumTopic.md), *optional*)
   Topic the message belongs to.
-  only returned when using client.get_messages.
+  Set in messages read with methods whose answer from Telegram has it, like
+  [`get_messages`](../../methods/messages/get_messages.md) and [`get_chat_history`](../../methods/messages/get_chat_history.md), and in messages from
+  updates, where it's read once for all the messages of the topic and can be a few minutes old.
+  Others don't have it, like the results of sending or editing a message, only *message_thread_id* and
+  *is_topic_message*.
 
 - **`forward_origin`** ([`MessageOrigin`](MessageOrigin.md), *optional*)
   Information about the original message for forwarded messages.

@@ -11,7 +11,8 @@ async def get_messages(
     chat_id: Union[int, str],
     message_ids: Union[int, Iterable[int]] = None,
     reply_to_message_ids: Union[int, Iterable[int]] = None,
-    replies: int = 1
+    replies: int = 1,
+    sleep_threshold: int = -1
 ) -> Union['types.Message', List['types.Message']]: ...
 ```
 
@@ -45,6 +46,11 @@ You can retrieve up to 200 messages at once.
   The number of subsequent replies to get for each message.
   Pass 0 for no reply at all or -1 for unlimited replies.
   Defaults to 1.
+
+- **`sleep_threshold`** (`int`, *optional*)
+  Sleep threshold in seconds for reading the messages and their replies: flood waits up to this value are
+  waited for, longer ones are raised. Pass None to use the sleep threshold of the client.
+  Defaults to -1: all flood waits are waited for, however long they are.
 
 ### Returns
 

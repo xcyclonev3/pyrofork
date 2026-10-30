@@ -74,13 +74,14 @@ class GetDiscussionReplies:
 
             users = {u.id: u for u in r.users}
             chats = {c.id: c for c in r.chats}
+            topics = {t.id: t for t in r.topics}
             messages = r.messages
 
             if not messages:
                 return
 
             for message in messages:
-                yield await types.Message._parse(self, message, users, chats, replies=0)
+                yield await types.Message._parse(self, message, users, chats, topics, replies=0)
 
                 current += 1
 

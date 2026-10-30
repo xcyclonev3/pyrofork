@@ -37,7 +37,8 @@ class GetMessages:
         chat_id: Union[int, str],
         message_ids: Union[int, Iterable[int]] = None,
         reply_to_message_ids: Union[int, Iterable[int]] = None,
-        replies: int = 1
+        replies: int = 1,
+        sleep_threshold: int = -1
     ) -> Union["types.Message", List["types.Message"]]:
         """Get one or more messages from a chat by using message identifiers.
 
@@ -66,6 +67,11 @@ class GetMessages:
                 The number of subsequent replies to get for each message.
                 Pass 0 for no reply at all or -1 for unlimited replies.
                 Defaults to 1.
+
+            sleep_threshold (``int``, *optional*):
+                Sleep threshold in seconds for reading the messages and their replies: flood waits up to this value are
+                waited for, longer ones are raised. Pass None to use the sleep threshold of the client.
+                Defaults to -1: all flood waits are waited for, however long they are.
 
         Returns:
             :obj:`~pyrogram.types.Message` | List of :obj:`~pyrogram.types.Message`: In case *message_ids* was not
@@ -111,9 +117,8 @@ class GetMessages:
         if replies < 0:
             replies = (1 << 31) - 1
 
-        r = await utils.read_messages(self, peer, ids)
+        r = await utils.read_messages(self, peer, ids, sleep_threshold)
 
-        # Reading the same messages again, to find their topics, wouldn't bring anything new
-        messages = await utils.parse_messages(self, r, replies=replies, fetch_topic=False)
+        messages = await utils.parse_messages(self, r, replies=replies, sleep_threshold=sleep_threshold)
 
         return messages if is_iterable else messages[0] if messages else None

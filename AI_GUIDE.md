@@ -142,7 +142,7 @@ Note: `app.run(coroutine)` only runs `coroutine` on the client's loop; it does n
 | `hide_password` | bool | `True` | Pass True to hide the password when typing it during the login. |
 | `max_concurrent_transmissions` | int | `1` | Set the maximum amount of concurrent transmissions (uploads & downloads). |
 | `client_platform` | enums.ClientPlatform | `pyrogram.enums.ClientPlatform.OTHER` | The platform where this client is running. |
-| `max_message_cache_size` | int | `10000` | Set the maximum size of the message cache. |
+| `max_message_cache_size` | int | `10000` | Set the maximum size of the message cache. Each message takes about 9 KB, more with big texts or media, so about 90 MB at most by default. |
 | `max_business_user_connection_cache_size` | int | `10000` | Maximum size of the business connection cache. |
 
 Notes:
@@ -568,6 +568,8 @@ Behaviours checked in the code of this version that surprise users. Treat them a
 | 7 | `Client` binds to the event loop current at construction (`self.loop = asyncio.get_event_loop()`); creating it outside the loop that runs it leaves its tasks on another loop (hangs) | `pyrogram/client.py`, `pyrogram/dispatcher.py` | create the Client inside the coroutine passed to `asyncio.run`, or use `app.run()` |
 | 8 | Connecting through a proxy blocks the event loop during the proxy handshake on every (re)connect | `pyrogram/connection/transport/tcp/tcp.py` `_connect_via_proxy` | expect short stalls on reconnects when using proxies |
 | 9 | In plugin form, passing the filter twice (`@Client.on_message(f, filters=g)`) registers nothing | `pyrogram/methods/decorators/` | pass it once |
+| 10 | `message.topic` is only set in messages read from Telegram and in messages from updates, where it can be a few minutes old. Results of sending or editing only have `message_thread_id` and `is_topic_message` | `pyrogram/utils.py` `read_message_topic` | read the topic with `get_messages` or `get_forum_topics_by_id` when it's needed |
+| 11 | While parsing a message, as an update or as the result of a request, what it relates to isn't waited for during a flood wait longer than `sleep_threshold`: `reply_to_message` and `topic` can be `None` although the message has them, and `pinned_message` or the `message` of a callback query can have only `id` and `chat` | `pyrogram/utils.py` `read_related_message` | check `reply_to_message_id` before taking a message for no reply, and read what's missing with `get_messages` if needed |
 
 ## Appendix A: Client methods by category
 
@@ -824,7 +826,7 @@ Total public Client methods: 407.
 - `get_full_rich_message(chat_id, message_id)` — Get the full version of a rich message received partially (see `types.RichMessage` `is_full`). *(users)*
 - `get_media_group(chat_id, message_id)` — Get the media group a message belongs to. *(users, bots)*
 - `get_message_read_participants(chat_id, message_id)` — Get the list of users who have read a message. *(users)*
-- `get_messages(chat_id; optional: message_ids, reply_to_message_ids, replies)` — Get one or more messages from a chat by using message identifiers. *(users, bots)*
+- `get_messages(chat_id; optional: message_ids, reply_to_message_ids, replies, sleep_threshold)` — Get one or more messages from a chat by using message identifiers. *(users, bots)*
 - `get_personal_chat_history(user_id; optional: limit)` — Get the last messages of the personal chat of a user. *(bots)*
 - `get_poll_vote_statistics(chat_id, message_id; optional: is_dark)` — Get statistics about the votes of a poll. *(users)*
 - `get_scheduled_messages(chat_id, message_ids)` — Get one or more scheduled messages from a chat by using message identifiers. *(users, bots)*

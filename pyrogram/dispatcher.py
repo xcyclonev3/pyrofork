@@ -159,7 +159,8 @@ class Dispatcher:
         async def message_parser(update, users, chats):
             return (
                 await pyrogram.types.Message._parse(self.client, update.message, users, chats,
-                                                    is_scheduled=isinstance(update, UpdateNewScheduledMessage)),
+                                                    is_scheduled=isinstance(update, UpdateNewScheduledMessage),
+                                                    fetch_topic=True),
                 MessageHandler
             )
 
@@ -170,7 +171,8 @@ class Dispatcher:
                     update.message,
                     users,
                     chats,
-                    business_connection_id=update.connection_id
+                    business_connection_id=update.connection_id,
+                    fetch_topic=True
                 ),
                 BotBusinessMessageHandler
             )
