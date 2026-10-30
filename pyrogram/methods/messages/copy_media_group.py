@@ -22,6 +22,24 @@ from typing import Union, List, Optional
 
 import pyrogram
 from pyrogram import types, utils, raw, enums
+from pyrogram.errors import BadRequest
+
+
+async def parse_original_caption(message: "types.Message") -> dict:
+    # The original text isn't markup: its formatting comes from the entities
+    entities = []
+
+    for entity in message.caption_entities or []:
+        # Lose the mention of a user that can't be reached, not the whole media group
+        if entity.type == enums.MessageEntityType.TEXT_MENTION and not entity.user:
+            continue
+
+        try:
+            entities.append(await entity.write())
+        except BadRequest:
+            continue
+
+    return {"message": message.caption or "", "entities": entities or None}
 
 
 class CopyMediaGroup:
@@ -70,7 +88,7 @@ class CopyMediaGroup:
 
             captions (``str`` | List of ``str`` , *optional*):
                 New caption for media, 0-1024 characters after entities parsing for each media.
-                If not specified, the original caption is kept.
+                If not specified, the original caption is kept with its formatting.
                 Pass "" (empty string) to remove the caption.
 
                 If a ``string`` is passed, it becomes a caption only for the first media.
@@ -118,7 +136,8 @@ class CopyMediaGroup:
                 Date when the message will be automatically sent.
 
             invert_media (``bool``, *optional*):
-                Pass True, if the caption must be shown above the message media.
+                Pass True, if the caption must be shown above the message media, False if below it.
+                If not specified, the caption stays where it is in the original media group.
 
             protect_content (``bool``, *optional*):
                 Protects the contents of the sent message from forwarding and saving
@@ -147,6 +166,9 @@ class CopyMediaGroup:
 
         media_group = await self.get_media_group(from_chat_id, message_id)
         multi_media = []
+
+        if invert_media is None:
+            invert_media = any(message.invert_media for message in media_group)
 
         for i, message in enumerate(media_group):
             if message.photo:
@@ -179,19 +201,18 @@ class CopyMediaGroup:
                     self, await self.resolve_peer(chat_id), media, message.photo.live_video.file_id
                 )
 
+            if isinstance(captions, list) and i < len(captions) and captions[i] is not None:
+                caption = await self.parser.parse(captions[i])
+            elif isinstance(captions, str):
+                caption = await self.parser.parse(captions if i == 0 else "")
+            else:
+                caption = await parse_original_caption(message)
+
             multi_media.append(
                 raw.types.InputSingleMedia(
                     media=media,
                     random_id=self.rnd_id(),
-                    **await self.parser.parse(
-                        captions[i] if isinstance(captions, list) and i < len(captions) and captions[i] else
-                        captions if isinstance(captions, str) and i == 0 else
-                        message.caption if (
-                            message.caption
-                            and message.caption != "None"
-                            and not isinstance(captions, str)
-                            ) else ""
-                        )
+                    **caption
                 )
             )
 

@@ -64,7 +64,7 @@ Copy a media group by providing one of the message ids.
 
 - **`captions`** (`str` | List of `str` , *optional*)
   New caption for media, 0-1024 characters after entities parsing for each media.
-  If not specified, the original caption is kept.
+  If not specified, the original caption is kept with its formatting.
   Pass "" (empty string) to remove the caption.
 
   If a `string` is passed, it becomes a caption only for the first media.
@@ -112,7 +112,8 @@ Copy a media group by providing one of the message ids.
   Date when the message will be automatically sent.
 
 - **`invert_media`** (`bool`, *optional*)
-  Pass True, if the caption must be shown above the message media.
+  Pass True, if the caption must be shown above the message media, False if below it.
+  If not specified, the caption stays where it is in the original media group.
 
 - **`protect_content`** (`bool`, *optional*)
   Protects the contents of the sent message from forwarding and saving

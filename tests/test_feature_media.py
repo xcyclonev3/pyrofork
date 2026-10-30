@@ -24,6 +24,7 @@ from types import SimpleNamespace
 import pytest
 
 from pyrogram import enums, raw, types, utils
+from pyrogram.errors import FloodWait, PeerIdInvalid, UserIdInvalid
 from pyrogram.file_id import FileId, FileType, ThumbnailSource
 from tests.test_layer_roundtrip import offline_client, call, roundtrip, empty_updates, PEERS
 
@@ -661,3 +662,143 @@ def test_copy_media_group_keeps_live_photos():
     assert_live_photo_media(live, raw.types.InputMediaPhoto)
     assert live.id.id == 2001
     assert static.id.id == 2002 and not static.live_photo and static.video is None
+
+
+def copy_album(*album, above=(), mention_error=None, **kwargs):
+    """Copy an album of (caption, raw entities) photos and return the request that was sent."""
+    client = offline_client(PEERS, lambda q: empty_updates())
+    resolve_peer = client.resolve_peer
+
+    async def resolve_mentioned_peer(peer_id):
+        if mention_error and peer_id == 7:
+            raise mention_error
+        return await resolve_peer(peer_id)
+
+    async def get_media_group(chat_id, message_id):
+        return [
+            await types.Message._parse(
+                client,
+                roundtrip(raw.types.Message(
+                    id=i, peer_id=raw.types.PeerUser(user_id=7), date=1, message=caption, entities=entities,
+                    invert_media=i in above, media=raw.types.MessageMediaPhoto(photo=raw_photo(2000 + i))
+                )),
+                {7: roundtrip(RAW_USER)}, {}, replies=0
+            )
+            for i, (caption, entities) in enumerate(album, start=1)
+        ]
+
+    client.resolve_peer = resolve_mentioned_peer
+    client.get_media_group = get_media_group
+    call(lambda: client.copy_media_group(-100123, -100123, 1, **kwargs))
+
+    [request] = client.sent
+    return request
+
+
+def written(entities):
+    return [entity.write() for entity in entities]
+
+
+ENTITY_FIELDS = {
+    enums.MessageEntityType.PRE: {"language": "python"},
+    enums.MessageEntityType.BLOCKQUOTE: {"collapsed": True},
+    enums.MessageEntityType.TEXT_LINK: {"url": "https://example.com"},
+    enums.MessageEntityType.CUSTOM_EMOJI: {"document_id": 42},
+    enums.MessageEntityType.FORMATTED_DATE: {"date": 1, "relative": True},
+    enums.MessageEntityType.DIFF_REPLACE: {"old_text": "old"},
+}
+
+
+@pytest.mark.parametrize(
+    "entity_type", [t for t in enums.MessageEntityType if t is not enums.MessageEntityType.TEXT_MENTION]
+)
+def test_copy_media_group_keeps_every_kind_of_formatting(entity_type):
+    entity = entity_type.value(offset=0, length=7, **ENTITY_FIELDS.get(entity_type, {}))
+
+    [media] = copy_album(("caption", [entity])).multi_media
+
+    assert written(media.entities) == [entity.write()]
+
+
+def test_copy_media_group_keeps_entity_offsets():
+    caption = "😀 bold link"
+    # The emoji is two UTF-16 code units, so these offsets are not the string indices
+    entities = [
+        raw.types.MessageEntityBold(offset=3, length=4),
+        raw.types.MessageEntityTextUrl(offset=8, length=4, url="https://example.com"),
+    ]
+
+    [media] = copy_album((caption, entities)).multi_media
+
+    assert media.message == caption
+    assert written(media.entities) == written(entities)
+
+
+def test_copy_media_group_keeps_text_mentions():
+    [media] = copy_album(("user", [raw.types.MessageEntityMentionName(offset=0, length=4, user_id=7)])).multi_media
+
+    [mention] = media.entities
+    assert isinstance(mention, raw.types.InputMessageEntityMentionName)
+    assert (mention.offset, mention.length) == (0, 4)
+    assert mention.user_id.write() == PEERS[7].write()
+
+
+@pytest.mark.parametrize("user_id, error", [
+    (7, PeerIdInvalid),
+    (7, UserIdInvalid),
+    (8, None),  # A user who is missing from the response
+])
+def test_copy_media_group_leaves_out_mentions_it_cannot_reach(user_id, error):
+    bold = raw.types.MessageEntityBold(offset=0, length=4)
+    mention = raw.types.MessageEntityMentionName(offset=0, length=4, user_id=user_id)
+
+    [media] = copy_album(("user", [bold, mention]), mention_error=error).multi_media
+
+    assert media.message == "user" and written(media.entities) == [bold.write()]
+
+
+def test_copy_media_group_does_not_hide_other_errors_of_a_mention():
+    mention = raw.types.MessageEntityMentionName(offset=0, length=4, user_id=7)
+
+    with pytest.raises(FloodWait):
+        copy_album(("user", [mention]), mention_error=FloodWait)
+
+
+@pytest.mark.parametrize("caption", [
+    "",
+    "None",
+    "**not bold** <b>not html</b>",
+    "[hidden link](https://example.com)",
+    '<a href="https://example.com">hidden link</a>',
+    '<a href="tg://user?id=999">mention</a>',
+    '<emoji id="42">😀</emoji>',
+])
+def test_copy_media_group_does_not_parse_original_captions(caption):
+    [media] = copy_album((caption, None)).multi_media
+
+    assert media.message == caption and not media.entities
+
+
+@pytest.mark.parametrize("captions, expected", [
+    (["**new**", None, ""], ["new", "original", ""]),
+    (["**new**"], ["new", "original", "original"]),
+    ("**new**", ["new", "", ""]),
+    ("", ["", "", ""]),
+])
+def test_copy_media_group_new_captions_replace_the_original_ones(captions, expected):
+    italic = [raw.types.MessageEntityItalic(offset=0, length=8)]
+    bold = [raw.types.MessageEntityBold(offset=0, length=3)]
+    formatting = {"new": written(bold), "original": written(italic), "": []}
+
+    multi_media = copy_album(*[("original", italic)] * 3, captions=captions).multi_media
+
+    assert [(m.message, written(m.entities)) for m in multi_media] == [(e, formatting[e]) for e in expected]
+
+
+def test_copy_media_group_keeps_caption_position():
+    album = [("first", None), ("second", None)]
+
+    assert not copy_album(*album).invert_media
+    assert copy_album(*album, above=[2]).invert_media
+    assert copy_album(*album, invert_media=True).invert_media
+    assert not copy_album(*album, above=[1, 2], invert_media=False).invert_media
