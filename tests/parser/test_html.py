@@ -269,3 +269,195 @@ def test_unparse_of_a_mention_without_its_user_keeps_the_text():
 
     assert HTML.unparse(text="user bold", entities=list(entities)) == "user <b>bold</b>"
     assert Markdown.unparse(text="user bold", entities=list(entities)) == "user **bold**"
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("<emoji>x</emoji>", "x"),
+    ("<emoji id>x</emoji>", "x"),
+    ('<emoji id="x">y</emoji>', "y"),
+    ('<emoji id="">y</emoji>', "y"),
+    (f'<emoji id="{2 ** 63}">y</emoji>', "y"),
+    (f'<emoji id="{-2 ** 63 - 1}">y</emoji>', "y"),
+    ('<emoji id="0">y</emoji>', "y"),
+    ('<emoji id="1_000">y</emoji>', "y"),
+    ('<emoji id=" 7 ">y</emoji>', "y"),
+    ('<emoji id="٣">y</emoji>', "y"),
+    ("<a>x</a>", "x"),
+    ("<a href>x</a>", "x"),
+    ('<a href="">x</a>', "x"),
+])
+def test_html_parse_takes_tags_without_a_valid_value_for_plain_text(text, expected):
+    assert parse(text) == {"message": expected, "entities": None}
+
+
+@pytest.mark.parametrize("text, offset, length", [
+    ('<a href="https://x.y">foo<a>bar</a>baz</a>', 0, 9),
+    ('<a href="https://x.y">foo<a href>bar</a>baz</a>', 0, 9),
+    ('<emoji id="1">foo<emoji>bar</emoji>baz</emoji>', 0, 9),
+    ('x<a>y<a href="https://x.y">z</a></a>', 2, 1),
+])
+def test_html_parse_keeps_the_tag_around_one_without_a_valid_value(text, offset, length):
+    [entity] = parse(text)["entities"]
+
+    assert (entity.offset, entity.length) == (offset, length)
+
+
+@pytest.mark.parametrize("value", [2 ** 63 - 1, -2 ** 63, 42])
+def test_html_parse_keeps_valid_custom_emojis(value):
+    [emoji] = parse(f'<emoji id="{value}">x</emoji>')["entities"]
+
+    assert emoji.document_id == value
+    emoji.write()
+
+
+def test_html_parse_gives_a_language_that_can_be_sent():
+    [pre] = parse("<pre language>x</pre>")["entities"]
+
+    assert pre.language == ""
+    pre.write()
+
+
+@pytest.mark.parametrize("digits", [20, 5000])
+def test_html_parse_takes_a_mention_of_an_impossible_user_for_a_link(digits):
+    url = "tg://user?id=" + "9" * digits
+
+    [link] = parse(f'<a href="{url}">x</a>')["entities"]
+
+    assert link.url == url
+
+
+@pytest.mark.parametrize("text", ["a<![foo[b", "a<![foo[b]]>c", "<![a](b)", "a<![", "a<!"])
+def test_html_parse_does_not_fail_on_marked_sections(text):
+    assert parse(text)["message"].startswith(text.split("<")[0])
+
+
+def test_older_pythons_do_not_fail_on_unknown_marked_sections(monkeypatch):
+    from _markupbase import ParserBase
+
+    def older_python(self, i, report=1):
+        raise AssertionError("unknown status keyword")
+
+    monkeypatch.setattr(ParserBase, "parse_marked_section", older_python)
+    parser = Parser(None)
+    parser.rawdata = "<![foo[b]>c"
+
+    assert parser.parse_marked_section(0) == len("<![foo[b]>")
+
+
+class MentionsClient:
+    """Knows the users in *known*, and Telegram knows the ones in *telegram* or answers with *error*."""
+
+    def __init__(self, known=(), telegram=(), error=None):
+        self.known = set(known)
+        self.telegram = set(telegram)
+        self.error = error
+        self.requests = []
+        self.storage = self
+        self.is_connected = True
+
+    async def get_peer_by_id(self, peer_id):
+        if peer_id not in self.known:
+            raise KeyError(peer_id)
+
+        return pyrogram.raw.types.InputPeerUser(user_id=peer_id, access_hash=1)
+
+    resolve_peer = get_peer_by_id
+
+    async def invoke(self, query):
+        self.requests.append(sorted(i.user_id for i in query.id))
+
+        if self.error:
+            raise self.error
+
+        return [pyrogram.raw.types.User(id=i.user_id, access_hash=1) for i in query.id if i.user_id in self.telegram]
+
+    async def fetch_peers(self, users):
+        self.known |= {user.id for user in users}
+
+
+def mentions(*user_ids):
+    return "".join(f'<a href="tg://user?id={user_id}">m</a>' for user_id in user_ids)
+
+
+def parse_with(client, text):
+    return asyncio.run(HTML(client).parse(text))
+
+
+def test_html_parse_asks_for_unknown_users_once():
+    client = MentionsClient(known=[1], telegram=[2])
+
+    parsed = parse_with(client, mentions(1, 1, 2, 2, 3, 3))
+
+    assert client.requests == [[2, 3]]
+    assert [e.user_id.user_id for e in parsed["entities"]] == [1, 1, 2, 2]
+    assert parsed["message"] == "m" * 6
+    [e.write() for e in parsed["entities"]]
+
+
+def test_html_parse_does_not_ask_for_known_users():
+    client = MentionsClient(known=[1])
+
+    assert len(parse_with(client, mentions(1))["entities"]) == 1 and client.requests == []
+
+
+@pytest.mark.parametrize("error", [pyrogram.errors.PeerIdInvalid, pyrogram.errors.UserIdInvalid])
+def test_html_parse_leaves_out_the_mentions_telegram_refuses(error):
+    client = MentionsClient(known=[1], error=error())
+
+    parsed = parse_with(client, mentions(1, 2))
+
+    assert parsed["message"] == "mm" and [e.user_id.user_id for e in parsed["entities"]] == [1]
+    assert client.requests == [[2]]
+
+
+class RefusesOneUser(MentionsClient):
+    """Telegram refuses whole requests with the user 2, and knows all the others."""
+
+    async def invoke(self, query):
+        ids = sorted(i.user_id for i in query.id)
+        self.requests.append(ids)
+
+        if 2 in ids:
+            raise pyrogram.errors.UserIdInvalid
+
+        return [pyrogram.raw.types.User(id=i, access_hash=1) for i in ids]
+
+
+def test_html_parse_asks_for_a_few_users_one_by_one_when_telegram_refuses_them():
+    client = RefusesOneUser()
+
+    parsed = parse_with(client, mentions(1, 2, 3))
+
+    assert [e.user_id.user_id for e in parsed["entities"]] == [1, 3]
+    assert client.requests[0] == [1, 2, 3] and sorted(client.requests[1:]) == [[1], [2], [3]]
+
+
+def test_html_parse_does_not_ask_for_many_users_one_by_one():
+    client = RefusesOneUser()
+
+    parsed = parse_with(client, mentions(*range(1, 8)))
+
+    assert parsed["entities"] is None and client.requests == [list(range(1, 8))]
+
+
+def test_html_parse_does_not_hide_other_errors_of_a_mention():
+    with pytest.raises(pyrogram.errors.FloodWait):
+        parse_with(MentionsClient(error=pyrogram.errors.FloodWait(value=5)), mentions(2))
+
+
+def test_html_parse_needs_a_connection_only_for_mentions():
+    client = MentionsClient()
+    client.is_connected = False
+
+    assert parse_with(client, "<b>x</b>")["message"] == "x"
+
+    with pytest.raises(ConnectionError):
+        parse_with(client, mentions(1))
+
+
+@pytest.mark.parametrize("user_id", [0, 2 ** 63, 10 ** 19 - 1])
+def test_html_parse_does_not_ask_for_impossible_users(user_id):
+    client = MentionsClient()
+
+    assert parse_with(client, mentions(user_id)) == {"message": "m", "entities": None}
+    assert client.requests == []

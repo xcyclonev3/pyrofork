@@ -26,14 +26,13 @@ from typing import Optional
 import pyrogram
 from pyrogram import raw
 from pyrogram.enums import MessageEntityType
-from pyrogram.errors import PeerIdInvalid
 from . import utils
 
 log = logging.getLogger(__name__)
 
 
 class Parser(HTMLParser):
-    MENTION_RE = re.compile(r"tg://user\?id=(\d+)")
+    MENTION_RE = re.compile(r"tg://user\?id=(\d{1,19})(?!\d)")
 
     def __init__(self, client: "pyrogram.Client"):
         super().__init__()
@@ -64,11 +63,11 @@ class Parser(HTMLParser):
             entity = raw.types.MessageEntityCode
         elif tag == "pre":
             entity = raw.types.MessageEntityPre
-            extra["language"] = attrs.get("language", "")
+            extra["language"] = attrs.get("language") or ""
         elif tag == "spoiler":
             entity = raw.types.MessageEntitySpoiler
         elif tag == "a":
-            url = attrs.get("href", "")
+            url = attrs.get("href") or ""
 
             mention = Parser.MENTION_RE.match(url)
 
@@ -80,8 +79,7 @@ class Parser(HTMLParser):
                 extra["url"] = url
         elif tag == "emoji":
             entity = raw.types.MessageEntityCustomEmoji
-            custom_emoji_id = int(attrs.get("id"))
-            extra["document_id"] = custom_emoji_id
+            extra["document_id"] = utils.get_custom_emoji_id(attrs.get("id")) or 0
         elif tag == "tg-time":
             entity = raw.types.MessageEntityFormattedDate
             extra.update(utils.get_formatted_date(attrs.get("unix"), attrs.get("format")))
@@ -96,6 +94,14 @@ class Parser(HTMLParser):
     def set_cdata_mode(self, elem, **kwargs):
         # Elements like <script> and <style> are unknown tags like any other: their text is handled in the same way
         pass
+
+    def parse_marked_section(self, i, report=1):
+        # Older versions of Python raise AssertionError on an unknown keyword, like in "<![x[", instead of taking it
+        # for a comment as newer ones do
+        try:
+            return super().parse_marked_section(i, report)
+        except AssertionError:
+            return self.parse_bogus_comment(i, report)
 
     def handle_data(self, data):
         # Entities are counted in UTF-16 code units
@@ -145,22 +151,33 @@ class HTML:
 
             log.info("Unclosed tags: %s", ", ".join(unclosed_tags))
 
+        mentions = {
+            entity.user_id for entity in parser.entities
+            if isinstance(entity, raw.types.InputMessageEntityMentionName)
+        }
+        reachable = mentions if self.client is None else await utils.get_reachable_users(self.client, mentions)
+
         entities = []
 
         for entity in parser.entities:
             if isinstance(entity, raw.types.InputMessageEntityMentionName):
-                try:
-                    if self.client is not None:
-                        entity.user_id = await self.client.resolve_peer(entity.user_id)
-                except PeerIdInvalid:
+                if entity.user_id not in reachable:
                     continue
+
+                if self.client is not None:
+                    entity.user_id = await self.client.resolve_peer(entity.user_id)
 
             entities.append(entity)
 
-        # Remove zero-length entities, and formatted dates without a valid Unix time like TDLib does
+        # Remove zero-length entities, links without a URL, custom emojis without a valid id, and formatted dates without
+        # a valid Unix time like TDLib does
         entities = [
             entity for entity in entities
-            if entity.length > 0 and not (isinstance(entity, raw.types.MessageEntityFormattedDate) and entity.date <= 0)
+            if entity.length > 0 and not (
+                isinstance(entity, raw.types.MessageEntityFormattedDate) and entity.date <= 0
+                or isinstance(entity, raw.types.MessageEntityTextUrl) and not entity.url
+                or isinstance(entity, raw.types.MessageEntityCustomEmoji) and not entity.document_id
+            )
         ]
 
         return {

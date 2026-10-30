@@ -219,7 +219,9 @@ def offline_client(peers, respond):
         return roundtrip(result) if isinstance(result, TLObject) else result  # Bool results are plain bools
 
     client.resolve_peer = resolve_peer
+    client.storage.get_peer_by_id = resolve_peer
     client.invoke = invoke
+    client.is_connected = True
     return client
 
 

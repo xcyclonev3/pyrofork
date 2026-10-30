@@ -19,7 +19,7 @@
 
 import html
 import re
-from typing import Optional
+from typing import Iterator, Optional, Tuple
 
 import pyrogram
 from pyrogram.enums import MessageEntityType
@@ -51,7 +51,6 @@ MARKDOWN_RE = re.compile(r"({d})".format(
             ]
         ]]
     )))
-URL_RE = re.compile(r"(!?)\[(.+?)\]\((.+?)\)")
 
 OPENING_TAG = "<{}>"
 CLOSING_TAG = "</{}>"
@@ -59,8 +58,43 @@ URL_MARKUP = '<a href="{}">{}</a>'
 EMOJI_MARKUP = '<emoji id={}>{}</emoji>'
 DATE_MARKUP = '<tg-time unix="{}" format="{}">{}</tg-time>'
 DATE_URL_RE = re.compile(r"tg://time\?(.*)")
+EMOJI_URL = "tg://emoji?id="
 FIXED_WIDTH_DELIMS = [CODE_DELIM, PRE_DELIM]
 CODE_TAG_RE = re.compile(r"<code>.*?</code>")
+
+
+def find_links(text: str) -> Iterator[Tuple[int, str, str, str, str]]:
+    """Find the links of a text, with their start, "!" if there is one, label, URL and whole markup.
+
+    It finds what the pattern ``(!?)\\[(.+?)\\]\\((.+?)\\)`` matches, but in linear time. With the pattern, each "[" tries
+    each "](" after it and each of these looks for a ")" up to the end of the line, so "[](" repeated in a message of
+    4096 characters blocks the event loop for seconds. Only the first "](" after a "[" and the first ")" after that one
+    can match. If they aren't there, they aren't there for the next "[" of the line either.
+    """
+    start = 0
+    line_end = -1
+
+    while True:
+        opening = text.find("[", start)
+
+        if opening < 0:
+            return
+
+        if opening > line_end:
+            line_end = text.find("\n", opening)
+            line_end = len(text) if line_end < 0 else line_end
+
+        closing = text.find("](", opening + 2, line_end)
+        end = text.find(")", closing + 3, line_end) if closing >= 0 else -1
+
+        if end < 0:
+            start = line_end + 1
+            continue
+
+        is_emoji = "!" if opening > start and text[opening - 1] == "!" else ""
+        first = opening - len(is_emoji)
+        yield first, is_emoji, text[opening + 1:closing], text[closing + 2:end], text[first:end + 1]
+        start = end + 1
 
 
 class Markdown:
@@ -161,11 +195,7 @@ class Markdown:
 
             text = utils.replace_once(text, delim, tag, start)
 
-        for i, match in enumerate(re.finditer(URL_RE, text)):
-            start, _ = match.span()
-            is_emoji, text_url, url = match.groups()
-            full = match.group(0)
-
+        for start, is_emoji, text_url, url, full in find_links(text):
             if not is_emoji and text_url:
                 text = utils.replace_once(text, full, URL_MARKUP.format(url, text_url), start)
                 continue
@@ -187,7 +217,12 @@ class Markdown:
                     continue
 
                 emoji = text_url
-                emoji_id = url.lstrip("tg://emoji?id=")
+                emoji_id = utils.get_custom_emoji_id(url[len(EMOJI_URL):]) if url.startswith(EMOJI_URL) else None
+
+                # Anything else isn't a custom emoji, like an image in Markdown: it stays as it was written
+                if emoji_id is None:
+                    continue
+
                 text = utils.replace_once(text, full, EMOJI_MARKUP.format(emoji_id, emoji), start)
                 continue
 

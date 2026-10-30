@@ -32,7 +32,7 @@ from types import SimpleNamespace
 
 import pyrogram
 from pyrogram import raw, enums, types
-from pyrogram.errors import BadRequest
+from pyrogram.parser import utils as parser_utils
 from pyrogram.types.messages_and_media.message import Str
 from pyrogram.file_id import FileId, FileType, PHOTO_TYPES, DOCUMENT_TYPES
 
@@ -712,21 +712,15 @@ async def read_messages(
 
 async def reachable_entities(client: "pyrogram.Client", entities: List["types.MessageEntity"]) -> List["types.MessageEntity"]:
     """Leave out the mentions of users that can't be reached, which must not prevent a message from being copied."""
-    reachable = []
+    entities = entities or []
+    reachable = await parser_utils.get_reachable_users(client, {
+        entity.user.id for entity in entities if entity.type == enums.MessageEntityType.TEXT_MENTION and entity.user
+    })
 
-    for entity in entities or []:
-        if entity.type == enums.MessageEntityType.TEXT_MENTION:
-            if not entity.user:
-                continue
-
-            try:
-                await client.resolve_peer(entity.user.id)
-            except BadRequest:
-                continue
-
-        reachable.append(entity)
-
-    return reachable
+    return [
+        entity for entity in entities
+        if entity.type != enums.MessageEntityType.TEXT_MENTION or (entity.user and entity.user.id in reachable)
+    ]
 
 
 def zero_datetime() -> datetime:

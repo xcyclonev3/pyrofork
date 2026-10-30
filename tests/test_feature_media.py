@@ -692,16 +692,13 @@ async def album_messages(client, album, above=()):
 
 
 def client_with_mention_error(mention_error):
-    client = offline_client(PEERS, lambda q: empty_updates())
-    resolve_peer = client.resolve_peer
-
-    async def resolve_mentioned_peer(peer_id):
-        if mention_error and peer_id == 7:
+    """A client that doesn't know user 7 if asking Telegram about them gives this error."""
+    def respond(query):
+        if isinstance(query, raw.functions.users.GetUsers):
             raise mention_error
-        return await resolve_peer(peer_id)
+        return empty_updates()
 
-    client.resolve_peer = resolve_mentioned_peer
-    return client
+    return offline_client({k: v for k, v in PEERS.items() if k != 7} if mention_error else PEERS, respond)
 
 
 def copy_album(*album, above=(), mention_error=None, **kwargs):
@@ -714,8 +711,7 @@ def copy_album(*album, above=(), mention_error=None, **kwargs):
     client.get_media_group = get_media_group
     call(lambda: client.copy_media_group(-100123, -100123, 1, **kwargs))
 
-    [request] = client.sent
-    return request
+    return sent(client, raw.functions.messages.SendMultiMedia)
 
 
 def written(entities):
@@ -779,6 +775,45 @@ def test_copy_media_group_leaves_out_mentions_it_cannot_reach(user_id, error):
     [media] = copy_album(("user", [bold, mention]), mention_error=error).multi_media
 
     assert media.message == "user" and written(media.entities) == [bold.write()]
+
+
+@pytest.mark.parametrize("user_ids", [[1000] * 100, list(range(1000, 1100))], ids=["one user", "different users"])
+def test_many_mentions_of_unknown_users_are_asked_for_in_one_request(user_ids):
+    """Telegram only knows the even ones."""
+    def respond(query):
+        if isinstance(query, raw.functions.users.GetUsers):
+            return [raw.types.User(id=i.user_id, access_hash=1, first_name="m") if i.user_id % 2 == 0
+                    else raw.types.UserEmpty(id=i.user_id) for i in query.id]
+        return empty_updates()
+
+    client = offline_client(PEERS, respond)
+
+    async def fetch_peers(found):
+        client.resolve_peer = client.storage.get_peer_by_id = known_after_fetching(client, found)
+
+    client.fetch_peers = fetch_peers
+    entities = [raw.types.MessageEntityMentionName(offset=i, length=1, user_id=user_id) for i, user_id in enumerate(user_ids)]
+    users = {user_id: roundtrip(raw.types.User(id=user_id, access_hash=1, first_name="m", min=True)) for user_id in user_ids}
+    message = asyncio.run(types.Message._parse(client, roundtrip(raw.types.Message(
+        id=1, peer_id=raw.types.PeerUser(user_id=7), date=1, message="x" * len(user_ids), media=raw.types.MessageMediaPhoto(photo=raw_photo()),
+        entities=entities
+    )), {**users, 7: roundtrip(RAW_USER)}, {}, replies=0))
+
+    call(lambda: message.copy(-100123))
+
+    get_users = [q for q in client.sent if isinstance(q, raw.functions.users.GetUsers)]
+    send_media = sent(client, raw.functions.messages.SendMedia)
+    assert len(get_users) == 1 and sorted(i.user_id for i in get_users[0].id) == sorted(set(user_ids))
+    assert [e.offset for e in send_media.entities or []] == [i for i, user_id in enumerate(user_ids) if user_id % 2 == 0]
+
+
+def known_after_fetching(client, found):
+    known = {user.id: raw.types.InputPeerUser(user_id=user.id, access_hash=1) for user in found if isinstance(user, raw.types.User)}
+
+    async def get_peer_by_id(peer_id):
+        return {**PEERS, **known}[peer_id]
+
+    return get_peer_by_id
 
 
 def test_copy_media_group_does_not_hide_other_errors_of_a_mention():
