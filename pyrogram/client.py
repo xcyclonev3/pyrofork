@@ -32,6 +32,7 @@ from datetime import datetime, timedelta
 from hashlib import sha256
 from importlib import import_module
 from io import StringIO, BytesIO
+from itertools import islice
 from mimetypes import MimeTypes
 from pathlib import Path
 from typing import Union, List, Optional, Callable, AsyncGenerator, Tuple
@@ -242,8 +243,8 @@ class Client(Methods):
             Defaults to 1.
 
         max_message_cache_size (``int``, *optional*):
-            Set the maximum size of the message cache.
-            Defaults to 10000.
+            Set the maximum size of the message cache. Each message takes about 9 KB, more with big texts or media.
+            Defaults to 10000, about 90 MB at most.
 
         max_business_user_connection_cache_size (``int``, *optional*):
             Set the maximum size of the message cache.
@@ -1468,5 +1469,5 @@ class Cache:
         self.store[key] = value
 
         if len(self.store) > self.capacity:
-            for _ in range(self.capacity // 2 + 1):
-                del self.store[next(iter(self.store))]
+            for oldest in list(islice(self.store, self.capacity // 2 + 1)):
+                del self.store[oldest]

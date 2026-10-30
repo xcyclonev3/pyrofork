@@ -5085,6 +5085,15 @@ class Message(Object, Update):
         Raises:
             RPCError: In case of a Telegram RPC error.
         """
+        if self.service:
+            log.warning("Service messages cannot be copied. chat_id: %s, message_id: %s",
+                        self.chat.id, self.id)
+            return
+
+        if self.empty:
+            log.warning("Empty messages cannot be copied.")
+            return
+
         if invert_media is None:
             invert_media = self.invert_media
 
@@ -5108,14 +5117,9 @@ class Message(Object, Update):
             reply_markup=reply_markup
         )
 
-        if self.service:
-            log.warning("Service messages cannot be copied. chat_id: %s, message_id: %s",
-                        self.chat.id, self.id)
-        elif self.game and not await self._client.storage.is_bot():
+        if self.game and not await self._client.storage.is_bot():
             log.warning("Users cannot send messages with Game media type. chat_id: %s, message_id: %s",
                         self.chat.id, self.id)
-        elif self.empty:
-            log.warning("Empty messages cannot be copied.")
         elif self.text:
             return await self._client.send_message(
                 chat_id,

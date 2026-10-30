@@ -515,4 +515,4 @@ class Session:
 
                 await asyncio.sleep(0.5)
 
-                return await self.invoke(query, retries - 1, timeout)
+                return await self.invoke(query, retries - 1, timeout, sleep_threshold)

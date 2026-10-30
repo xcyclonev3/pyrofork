@@ -194,8 +194,8 @@ Pyrogram Client, the main means for interacting with Telegram.
   Defaults to 1.
 
 - **`max_message_cache_size`** (`int`, *optional*)
-  Set the maximum size of the message cache.
-  Defaults to 10000.
+  Set the maximum size of the message cache. Each message takes about 9 KB, more with big texts or media.
+  Defaults to 10000, about 90 MB at most.
 
 - **`max_business_user_connection_cache_size`** (`int`, *optional*)
   Set the maximum size of the message cache.

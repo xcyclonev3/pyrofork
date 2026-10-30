@@ -1375,6 +1375,14 @@ def test_copy_of_a_quiz_leaves_out_the_mentions_it_cannot_reach(user_id, kept):
     assert request.media.solution == "s" and bool(request.media.solution_entities) == kept
 
 
+@pytest.mark.parametrize("kwargs", [{"service": enums.MessageServiceType.NEW_CHAT_TITLE}, {"empty": True}], ids=["service", "empty"])
+def test_copy_of_what_cant_be_copied_needs_no_client(kwargs):
+    chat = types.Chat(id=1, type=enums.ChatType.PRIVATE)
+    message = pickle.loads(pickle.dumps(types.Message(id=1, chat=chat, **kwargs)))
+
+    assert call(lambda: message.copy(1)) is None
+
+
 def test_copy_of_a_text_passes_the_quote_through_parse_mode():
     request = copy_media(None, "<b>original</b>", reply_to_message_id=3, quote_text="<b>q</b>", parse_mode=enums.ParseMode.HTML)
 
