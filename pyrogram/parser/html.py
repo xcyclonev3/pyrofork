@@ -105,7 +105,7 @@ class Parser(HTMLParser):
 
     def handle_data(self, data):
         # Entities are counted in UTF-16 code units
-        length = len(utils.add_surrogates(data))
+        length = utils.utf16_length(data)
 
         for entities in self.tag_entities.values():
             for entity in entities:
@@ -135,9 +135,13 @@ class HTML:
         self.client = client
 
     async def parse(self, text: str):
+        # Most texts have no markup at all: without any tag nor character reference they stay as they are
+        if "<" not in text and "&" not in text:
+            return {"message": utils.remove_surrogates(text), "entities": None}
+
         # Strip whitespaces from the beginning and the end, but preserve closing tags
         text = re.sub(r"^\s*(<[\w<>=\s\"]*>)\s*", r"\1", text)
-        text = re.sub(r"\s*(</[\w</>]*>)\s*$", r"\1", text)
+        text = utils.strip_closing_tags(text)
 
         parser = Parser(self.client)
         parser.feed(text)

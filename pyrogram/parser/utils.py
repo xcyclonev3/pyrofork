@@ -18,7 +18,6 @@
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
-from struct import unpack
 from typing import Iterable, Optional, Set
 
 from pyrogram import raw
@@ -30,20 +29,55 @@ USERS_ASKED_ONE_BY_ONE = 5
 # SMP = Supplementary Multilingual Plane: https://en.wikipedia.org/wiki/Plane_(Unicode)#Overview
 SMP_RE = re.compile(r"[\U00010000-\U0010FFFF]")
 CUSTOM_EMOJI_ID_RE = re.compile(r"-?[0-9]{1,19}")
+NOT_IN_CLOSING_TAGS_RE = re.compile(r"[^\w</>]")
+
+
+def surrogate_pair(match):
+    # Split SMP in two surrogates
+    code = ord(match.group()) - 0x10000
+
+    return chr(0xD800 + (code >> 10)) + chr(0xDC00 + (code & 0x3FF))
 
 
 def add_surrogates(text):
     # Replace each SMP code point with a surrogate pair
-    return SMP_RE.sub(
-        lambda match:  # Split SMP in two surrogates
-        "".join(chr(i) for i in unpack("<HH", match.group().encode("utf-16le"))),
-        text
-    )
+    if isinstance(text, str) and text.isascii():
+        return str.__str__(text)
+
+    return SMP_RE.sub(surrogate_pair, text)
 
 
 def remove_surrogates(text):
     # Replace each surrogate pair with a SMP code point
+    if isinstance(text, str) and text.isascii():
+        return str.__str__(text)
+
     return text.encode("utf-16", "surrogatepass").decode("utf-16")
+
+
+def utf16_length(text: str) -> int:
+    """How many UTF-16 code units a text takes, which is what the offsets and lengths of entities count."""
+    return len(text) if text.isascii() else len(text.encode("utf-16-le", "surrogatepass")) // 2
+
+
+def strip_closing_tags(text: str) -> str:
+    """Remove the whitespace around the closing tags at the end of a text, if there are any.
+
+    It does what ``re.sub(r"\\s*(</[\\w</>]*>)\\s*$", r"\\1", text)`` does, but in linear time. With the pattern, each
+    whitespace tries all the ones after it, which takes dozens of milliseconds with the spaces of a single message.
+    """
+    end = text.rstrip()
+
+    if not end.endswith(">"):
+        return text
+
+    outside = NOT_IN_CLOSING_TAGS_RE.search(end[::-1])
+    start = end.find("</", len(end) - outside.start() if outside else 0)
+
+    if start < 0:
+        return text
+
+    return end[:start].rstrip() + end[start:]
 
 
 def replace_once(source: str, old: str, new: str, start: int):

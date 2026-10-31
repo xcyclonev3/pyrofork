@@ -862,7 +862,7 @@ async def get_reply_to(
 
 def get_first_url(text):
     text = re.sub(r"^\s*(<[\w<>=\s\"]*>)\s*", r"\1", text)
-    text = re.sub(r"\s*(</[\w</>]*>)\s*$", r"\1", text)
+    text = parser_utils.strip_closing_tags(text)
 
     matches = re.findall(r"(https?):\/\/([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])", text)
 

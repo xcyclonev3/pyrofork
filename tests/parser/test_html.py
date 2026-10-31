@@ -461,3 +461,22 @@ def test_html_parse_does_not_ask_for_impossible_users(user_id):
 
     assert parse_with(client, mentions(user_id)) == {"message": "m", "entities": None}
     assert client.requests == []
+
+
+@pytest.mark.parametrize("text", ["", "a", "a > b", "a\n b ", " a ", "😀", "\ufeff", "a\x00b", "\ud83d\ude00", "]]>", "--x--", "**x**"])
+def test_html_parse_of_text_without_tags_gives_what_the_parser_gives(text):
+    parser = Parser(None)
+    parser.feed(text)
+    parser.close()
+
+    assert parse(text) == {"message": pyrogram.parser.utils.remove_surrogates(parser.text), "entities": None}
+
+
+def test_html_parse_still_reads_character_references_without_tags():
+    assert parse("a &amp; b") == {"message": "a & b", "entities": None}
+
+
+def test_html_parse_strips_around_tags_as_before():
+    assert parse("  <b>a</b>  ")["message"] == "a"
+    assert parse("<b>a</b>\n\n</i>")["message"] == "a"
+    assert parse(" x </b> ")["message"] == " x"

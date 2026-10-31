@@ -25,7 +25,7 @@ import time
 import pytest
 
 from pyrogram import raw
-from pyrogram.parser.markdown import Markdown, find_links
+from pyrogram.parser.markdown import Markdown, find_links, has_markup
 
 LINK_RE = re.compile(r"(!?)\[(.+?)\]\((.+?)\)")
 
@@ -126,3 +126,53 @@ def test_links_keep_working_with_what_looks_like_an_image_beside_them():
     [link] = parsed["entities"]
     assert parsed["message"] == "![i](https://a.b/c.png) t"
     assert link.url == "https://a.b/"
+
+
+def outcome(coroutine):
+    try:
+        return asyncio.run(coroutine)
+    except Exception as e:
+        return type(e)
+
+
+@pytest.mark.parametrize("strict", [False, True], ids=["default", "markdown"])
+def test_text_without_markup_gives_what_parsing_it_gives(strict):
+    rng = random.Random(1234)
+    parser = Markdown(None)
+    alphabet = ["a", "word", " ", "\n", ">", "-", "_", "*", "~", "|", '"', "'", "!", "(", ")", "]", "/", "=", "#", ";", "é", "😀",
+                "\ufeff", "\x00", "\r\n", "\t", "\xa0", "\ud83d", "\ude00", "\ud83d\ude00"]
+    shortcuts = 0
+
+    for _ in range(5000):
+        text = "".join(rng.choice(alphabet) for _ in range(rng.randrange(12)))
+        shortcuts += not has_markup(text)
+        assert outcome(parser.parse(text, strict)) == outcome(parser._parse_markup(text, strict)), repr(text)
+
+    assert shortcuts > 1000
+
+
+@pytest.mark.parametrize("text", [
+    "<", "&", "[", "`", "**", "__", "--", "~~", "||", ">", ">x", "x\n>", "**>", "<b>x</b>", "&amp;", "[a](b)", "`c`", "```c```",
+])
+def test_markup_is_not_taken_for_plain_text(text):
+    assert has_markup(text)
+    assert has_markup("word " + text if text[0] != ">" else "word\n" + text)
+
+
+@pytest.mark.parametrize("text", ["", "a", "a > b", "a - b", "a_b", "a*b", "a~b", "a|b", "a) b] c( !", "x\n x", 'a"b\'c', "😀"])
+def test_plain_text_is_not_taken_for_markup(text):
+    assert not has_markup(text)
+
+
+def test_a_mistaken_shortcut_would_show_in_a_text_with_each_kind_of_markup():
+    parser = Markdown(None)
+
+    assert parser_entities(parser, "**a**") and parser_entities(parser, "__a__") and parser_entities(parser, "--a--")
+    assert parser_entities(parser, "~~a~~") and parser_entities(parser, "||a||") and parser_entities(parser, "`a`")
+    assert parser_entities(parser, "```\na\n```") and parser_entities(parser, "[a](b)") and parser_entities(parser, "<b>a</b>")
+    assert parser_entities(parser, ">a") and parser_entities(parser, "x\n>a")
+    assert asyncio.run(parser.parse("&amp;"))["message"] == "&"
+
+
+def parser_entities(parser, text):
+    return asyncio.run(parser.parse(text))["entities"]

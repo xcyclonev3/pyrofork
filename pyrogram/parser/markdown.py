@@ -36,19 +36,13 @@ PRE_DELIM = "```"
 BLOCKQUOTE_DELIM = ">"
 BLOCKQUOTE_EXPANDABLE_DELIM = "**>"
 
+DELIMS = [PRE_DELIM, CODE_DELIM, STRIKE_DELIM, UNDERLINE_DELIM, ITALIC_DELIM, BOLD_DELIM, SPOILER_DELIM]
+
 MARKDOWN_RE = re.compile(r"({d})".format(
     d="|".join(
         ["".join(i) for i in [
             [rf"\{j}" for j in i]
-            for i in [
-                PRE_DELIM,
-                CODE_DELIM,
-                STRIKE_DELIM,
-                UNDERLINE_DELIM,
-                ITALIC_DELIM,
-                BOLD_DELIM,
-                SPOILER_DELIM
-            ]
+            for i in DELIMS
         ]]
     )))
 
@@ -61,6 +55,22 @@ DATE_URL_RE = re.compile(r"tg://time\?(.*)")
 EMOJI_URL = "tg://emoji?id="
 FIXED_WIDTH_DELIMS = [CODE_DELIM, PRE_DELIM]
 CODE_TAG_RE = re.compile(r"<code>.*?</code>")
+
+
+def has_markup(text: str) -> bool:
+    """Whether a text has something the parsers can do anything with. Without it, a text stays as it is."""
+    if "<" in text or "&" in text or "[" in text:
+        return True
+
+    if BLOCKQUOTE_DELIM in text and (text.startswith(BLOCKQUOTE_DELIM) or "\n" + BLOCKQUOTE_DELIM in text):
+        return True
+
+    # Looking for a single character is many times faster than for two, which most texts don't even have one of
+    for delim in DELIMS:
+        if delim[0] in text and delim in text:
+            return True
+
+    return False
 
 
 def find_links(text: str) -> Iterator[Tuple[int, str, str, str, str]]:
@@ -102,6 +112,9 @@ class Markdown:
         self.html = HTML(client)
 
     def blockquote_parser(self, text):
+        if ">" not in text and "&gt;" not in text:
+            return text
+
         text = re.sub(r'\n&gt;', '\n>', re.sub(r'^&gt;', '>', text))
         lines = text.split('\n')
         result = []
@@ -139,6 +152,12 @@ class Markdown:
         return '\n'.join(result)
 
     async def parse(self, text: str, strict: bool = False):
+        if not has_markup(text):
+            return {"message": utils.remove_surrogates(text), "entities": None}
+
+        return await self._parse_markup(text, strict)
+
+    async def _parse_markup(self, text: str, strict: bool):
         if strict:
             text = html.escape(text)
         text = self.blockquote_parser(text)
