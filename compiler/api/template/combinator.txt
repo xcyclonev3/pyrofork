@@ -25,7 +25,8 @@ class {name}(TLObject):  # type: ignore
     @staticmethod
     def read(b: BytesIO, *args: Any) -> "{name}":
         {read_types}
-        return {name}({return_arguments})
+        self = {name}.__new__({name}){set_slots}
+        return self
 
     def write(self, *args) -> bytes:
         b = BytesIO()

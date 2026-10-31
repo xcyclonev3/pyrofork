@@ -19,9 +19,11 @@
 
 from io import BytesIO
 from json import dumps
-from typing import cast, List, Any, Union, Dict
+from typing import List, Any, Union, Dict
 
 from ..all import objects
+
+from_bytes = int.from_bytes
 
 
 class TLObject:
@@ -31,7 +33,11 @@ class TLObject:
 
     @classmethod
     def read(cls, b: BytesIO, *args: Any) -> Any:
-        return cast(TLObject, objects[int.from_bytes(b.read(4), "little")]).read(b, *args)
+        if args:
+            return objects[from_bytes(b.read(4), "little")].read(b, *args)
+
+        # Every object read comes here, and hardly any with arguments: 4% of the time of reading them
+        return objects[from_bytes(b.read(4), "little")].read(b)
 
     def write(self, *args: Any) -> bytes:
         pass

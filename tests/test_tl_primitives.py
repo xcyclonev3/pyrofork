@@ -17,6 +17,7 @@
 
 """Vectors are read exactly as (and as far as) before, without copying the data that follows them."""
 
+import pickle
 import random
 from io import BytesIO
 
@@ -25,7 +26,7 @@ import pytest
 from pyrogram import raw
 from pyrogram.raw.core import TLObject
 from pyrogram.raw.core.list import List
-from pyrogram.raw.core.primitives import Int, Long, Vector
+from pyrogram.raw.core.primitives import Bytes, Int, Long, String, Vector
 
 
 def old_vector_read(data, t=None):
@@ -77,3 +78,62 @@ def test_big_answers_read_the_same():
     data = answer.write()
     assert TLObject.read(BytesIO(data)).write() == data
     assert String.read(BytesIO(String("héllo"))) == "héllo"
+
+
+@pytest.mark.parametrize("read, data, expected", [
+    (Int.read, b"", 0),
+    (Int.read, b"\x01", 1),
+    (Int.read, b"\xff\xff\xff\xff", -1),
+    (Long.read, b"\xff" * 8, -1),
+    (Long.read, b"\x01", 1),
+    (Bytes.read, b"", b""),
+    (Bytes.read, b"\x02ab\x00", b"ab"),
+    (Bytes.read, b"\x02a", b"a"),
+    (Bytes.read, b"\xfe\x01\x00\x00a\x00\x00\x00", b"a"),
+    (String.read, b"", ""),
+    (String.read, b"\x02\xff\xfe\x00", "\ufffd\ufffd"),
+    (Vector.read, b"", []),
+    (Vector.read, b"\x00\x00\x00\x00", []),
+], ids=repr)
+def test_short_or_empty_data_is_read_as_before(read, data, expected):
+    """A packet cut short ends in a constructor 0, which tells the session that the connection went wrong."""
+    assert read(BytesIO(data)) == expected
+
+
+def test_a_packet_cut_short_ends_in_constructor_0():
+    with pytest.raises(KeyError) as error:
+        TLObject.read(BytesIO(b""))
+
+    assert error.value.args[0] == 0
+
+
+def test_int_read_keeps_its_arguments():
+    assert Int.read(BytesIO(b"\xff\xff\xff\xff"), False) == 2 ** 32 - 1
+    assert Int.read(BytesIO(b"\xff\xff\xff\xff"), signed=False) == 2 ** 32 - 1
+    assert Long.read(BytesIO(b"\xff" * 8), False) == 2 ** 64 - 1
+
+
+@pytest.mark.parametrize("t", [None, Int, Long], ids=["bare", "int", "long"])
+def test_an_empty_vector_stops_right_after_its_count(t):
+    data = BytesIO(b"\x00\x00\x00\x00rest")
+
+    assert Vector.read(data, t) == [] and type(Vector.read(BytesIO(b"\x00" * 4), t)) is List
+    assert data.read() == b"rest"
+
+
+def test_objects_read_have_all_their_fields():
+    written = raw.types.UserProfilePhoto(photo_id=1, dc_id=2, personal=True, stripped_thumb=b"t").write()
+
+    photo = TLObject.read(BytesIO(written))
+
+    assert type(photo) is raw.types.UserProfilePhoto
+    assert (photo.photo_id, photo.dc_id, photo.personal, photo.has_video, photo.stripped_thumb) == (1, 2, True, False, b"t")
+    assert photo == raw.types.UserProfilePhoto(photo_id=1, dc_id=2, personal=True, has_video=False, stripped_thumb=b"t")
+    assert photo.write() == written
+    assert pickle.loads(pickle.dumps(photo)) == photo
+
+
+def test_objects_without_fields_can_be_read():
+    empty = TLObject.read(BytesIO(raw.types.InputPeerEmpty().write()))
+
+    assert type(empty) is raw.types.InputPeerEmpty

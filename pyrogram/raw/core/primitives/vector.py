@@ -60,17 +60,25 @@ class Vector(bytes, TLObject):
     def read(cls, data: BytesIO, t: Any = None, *args: Any) -> List:
         count = Int.read(data)
 
+        if not count:
+            return List()
+
         if t:
-            return List(t.read(data) for _ in range(count))
+            return List([t.read(data) for _ in range(count)])
 
         # The size of the rest of the data, to tell bare ints and longs apart, without reading (copying) it: every
         # vector of a big answer used to copy what follows it
         position = data.tell()
         left = data.seek(0, 2) - position
         data.seek(position)
-        size = (left / count) if count else 0
+        size = left / count
 
-        return List(Vector.read_bare(data, size) for _ in range(count))
+        if size == 4 or size == 8:
+            return List([Vector.read_bare(data, size) for _ in range(count)])
+
+        read = TLObject.read
+
+        return List([read(data) for _ in range(count)])
 
     def __new__(cls, value: list, t: Any = None) -> bytes:  # type: ignore
         return b"".join(

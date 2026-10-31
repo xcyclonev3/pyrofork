@@ -543,7 +543,8 @@ def start(format: bool = False):
                     read_types += f"{arg_name} = TLObject.read(b)\n        "
 
         slots = ", ".join([f'"{i[0]}"' for i in sorted_args])
-        return_arguments = ", ".join([f"{i[0]}={i[0]}" for i in sorted_args])
+        # What read() ends with, like __init__() but without the cost of its keyword arguments, for the many objects read
+        set_slots = "".join([f"\n        self.{i[0]} = {i[0]}" for i in sorted_args])
 
         # A bare vector of primitive values can't be read without knowing their type (e.g. Vector<string>):
         # functions returning one declare it, so that their result is read with it (see Session.send)
@@ -567,7 +568,7 @@ def start(format: bool = False):
             fields=fields,
             read_types=read_types,
             write_types=write_types,
-            return_arguments=return_arguments,
+            set_slots=set_slots,
             result_vector=result_vector
         )
 

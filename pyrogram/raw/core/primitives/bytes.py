@@ -26,7 +26,8 @@ from ..tl_object import TLObject
 class Bytes(bytes, TLObject):
     @classmethod
     def read(cls, data: BytesIO, *args: Any) -> bytes:
-        length = int.from_bytes(data.read(1), "little")
+        first = data.read(1)
+        length = first[0] if first else 0
 
         if length <= 253:
             x = data.read(length)

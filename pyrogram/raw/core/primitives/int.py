@@ -22,13 +22,15 @@ from typing import Any
 
 from ..tl_object import TLObject
 
+from_bytes = int.from_bytes
+
 
 class Int(bytes, TLObject):
     SIZE = 4
 
     @classmethod
     def read(cls, data: BytesIO, signed: bool = True, *args: Any) -> int:
-        return int.from_bytes(data.read(cls.SIZE), "little", signed=signed)
+        return from_bytes(data.read(cls.SIZE), "little", signed=signed)
 
     def __new__(cls, value: int, signed: bool = True) -> bytes:  # type: ignore
         return value.to_bytes(cls.SIZE, "little", signed=signed)
