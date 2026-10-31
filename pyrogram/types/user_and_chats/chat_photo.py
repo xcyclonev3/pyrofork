@@ -17,12 +17,34 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Union
+from functools import lru_cache
+from typing import Tuple, Union
 
 import pyrogram
 from pyrogram import raw, types
 from pyrogram.file_id import FileId, FileType, FileUniqueId, FileUniqueType, ThumbnailSource
 from ..object import Object
+
+
+@lru_cache(maxsize=4096)
+def chat_photo_file_ids(dc_id: int, photo_id: int, peer_id: int, peer_access_hash: int) -> Tuple[str, str, str]:
+    """The file ids of a chat photo and its unique id: the same strings for every message of a user or chat."""
+    small_file_id, big_file_id = (
+        FileId(
+            file_type=FileType.CHAT_PHOTO,
+            dc_id=dc_id,
+            media_id=photo_id,
+            access_hash=0,
+            volume_id=0,
+            thumbnail_source=thumbnail_source,
+            local_id=0,
+            chat_id=peer_id,
+            chat_access_hash=peer_access_hash
+        ).encode()
+        for thumbnail_source in (ThumbnailSource.CHAT_PHOTO_SMALL, ThumbnailSource.CHAT_PHOTO_BIG)
+    )
+
+    return small_file_id, big_file_id, FileUniqueId(file_unique_type=FileUniqueType.DOCUMENT, media_id=photo_id).encode()
 
 
 class ChatPhoto(Object):
@@ -88,37 +110,15 @@ class ChatPhoto(Object):
         if not isinstance(chat_photo, (raw.types.UserProfilePhoto, raw.types.ChatPhoto)):
             return None
 
+        small_file_id, big_file_id, photo_unique_id = chat_photo_file_ids(
+            chat_photo.dc_id, chat_photo.photo_id, peer_id, peer_access_hash
+        )
+
         return ChatPhoto(
-            small_file_id=FileId(
-                file_type=FileType.CHAT_PHOTO,
-                dc_id=chat_photo.dc_id,
-                media_id=chat_photo.photo_id,
-                access_hash=0,
-                volume_id=0,
-                thumbnail_source=ThumbnailSource.CHAT_PHOTO_SMALL,
-                local_id=0,
-                chat_id=peer_id,
-                chat_access_hash=peer_access_hash
-            ).encode(),
-            small_photo_unique_id=FileUniqueId(
-                file_unique_type=FileUniqueType.DOCUMENT,
-                media_id=chat_photo.photo_id
-            ).encode(),
-            big_file_id=FileId(
-                file_type=FileType.CHAT_PHOTO,
-                dc_id=chat_photo.dc_id,
-                media_id=chat_photo.photo_id,
-                access_hash=0,
-                volume_id=0,
-                thumbnail_source=ThumbnailSource.CHAT_PHOTO_BIG,
-                local_id=0,
-                chat_id=peer_id,
-                chat_access_hash=peer_access_hash
-            ).encode(),
-            big_photo_unique_id=FileUniqueId(
-                file_unique_type=FileUniqueType.DOCUMENT,
-                media_id=chat_photo.photo_id
-            ).encode(),
+            small_file_id=small_file_id,
+            small_photo_unique_id=photo_unique_id,
+            big_file_id=big_file_id,
+            big_photo_unique_id=photo_unique_id,
             has_animation=chat_photo.has_video,
             is_personal=getattr(chat_photo, "personal", False),
             minithumbnail=types.StrippedThumbnail(

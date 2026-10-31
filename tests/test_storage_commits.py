@@ -145,3 +145,36 @@ def test_commit_planned_in_a_closed_loop(tmp_path):
     asyncio.run(second())
     assert committed(storage.database, "SELECT count(*) FROM peers") == [(2,)]
     asyncio.run(storage.close())
+
+
+def test_nothing_is_written_for_no_peers(tmp_path):
+    async def main():
+        storage = FileStorage("empty", tmp_path)
+        await storage.open()
+
+        await storage.update_peers([])
+        await storage.update_usernames([])
+        planned = storage.commit_handle
+
+        await storage.close()
+        return planned
+
+    assert asyncio.run(main()) is None
+
+
+def test_no_usernames_still_make_the_table_of_old_sessions(tmp_path):
+    """Looking for a username reads that table, which older session files don't have until the first update."""
+    async def main():
+        storage = FileStorage("old", tmp_path)
+        await storage.open()
+        storage.conn.execute("DROP TABLE usernames")
+        storage.has_usernames_table = False
+
+        await storage.update_usernames([])
+
+        with pytest.raises(KeyError):
+            await storage.get_peer_by_username("nobody")
+
+        await storage.close()
+
+    asyncio.run(main())

@@ -24,6 +24,8 @@ from pyrogram import raw, enums
 from pyrogram import types
 from ..object import Object
 
+RAW_ENTITY_TYPES = {entity_type.value: entity_type for entity_type in enums.MessageEntityType}
+
 
 class MessageEntity(Object):
     """One special entity in a text message.
@@ -134,10 +136,8 @@ class MessageEntity(Object):
             entity_type = enums.MessageEntityType.TEXT_MENTION
             user_id = entity.user_id.user_id
         else:
-            try:
-                entity_type = enums.MessageEntityType(entity.__class__)
-            except ValueError:  # An entity type introduced by a newer layer
-                entity_type = enums.MessageEntityType.UNKNOWN
+            # UNKNOWN for an entity type introduced by a newer layer
+            entity_type = RAW_ENTITY_TYPES.get(entity.__class__, enums.MessageEntityType.UNKNOWN)
             user_id = getattr(entity, "user_id", None)
 
         return MessageEntity(
@@ -145,7 +145,7 @@ class MessageEntity(Object):
             offset=entity.offset,
             length=entity.length,
             url=getattr(entity, "url", None),
-            user=types.User._parse(client, (users or {}).get(user_id, None)),
+            user=types.User._parse(client, (users or {}).get(user_id, None)) if user_id is not None else None,
             language=getattr(entity, "language", None),
             custom_emoji_id=getattr(entity, "document_id", None),
             collapsed=getattr(entity, "collapsed", None),

@@ -191,6 +191,9 @@ class SQLiteStorage(Storage):
         raise NotImplementedError
 
     async def update_peers(self, peers: List[Tuple[int, int, str, str, str]]):
+        if not peers:
+            return
+
         self.conn.executemany(
             "REPLACE INTO peers (id, access_hash, type, username, phone_number)"
             "VALUES (?, ?, ?, ?, ?)",
@@ -203,6 +206,9 @@ class SQLiteStorage(Storage):
             # Sessions made before the table existed get it once (executescript commits)
             self.conn.executescript(UNAME_SCHEMA)
             self.has_usernames_table = True
+
+        if not usernames:
+            return
 
         for user in usernames:
             self.conn.execute(

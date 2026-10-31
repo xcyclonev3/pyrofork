@@ -18,7 +18,8 @@
 
 import pytest
 
-from pyrogram.file_id import FileId, FileUniqueId, FileType, FileUniqueType
+from pyrogram import raw, types
+from pyrogram.file_id import FileId, FileUniqueId, FileType, FileUniqueType, ThumbnailSource
 
 
 def check(file_id: str, expected_file_type: FileType):
@@ -192,3 +193,34 @@ def test_stringify_file_unique_id():
     string = "{'file_unique_type': <FileUniqueType.DOCUMENT: 2>, 'media_id': 5312458109417947140}"
 
     assert str(FileUniqueId.decode(file_unique_id)) == string
+
+
+def chat_photo(photo_id=5, dc_id=2, peer_id=7, access_hash=9, **kwargs):
+    photo = raw.types.UserProfilePhoto(photo_id=photo_id, dc_id=dc_id, **kwargs)
+    return types.ChatPhoto._parse(None, photo, peer_id, access_hash)
+
+
+def test_chat_photo_ids_say_what_they_should():
+    photo = chat_photo()
+
+    for file_id, source in ((photo.small_file_id, ThumbnailSource.CHAT_PHOTO_SMALL), (photo.big_file_id, ThumbnailSource.CHAT_PHOTO_BIG)):
+        decoded = FileId.decode(file_id)
+        assert decoded.file_type == FileType.CHAT_PHOTO and decoded.thumbnail_source == source
+        assert (decoded.dc_id, decoded.media_id, decoded.chat_id, decoded.chat_access_hash) == (2, 5, 7, 9)
+
+    assert photo.small_photo_unique_id == photo.big_photo_unique_id
+    assert photo.small_photo_unique_id == FileUniqueId(file_unique_type=FileUniqueType.DOCUMENT, media_id=5).encode()
+
+
+@pytest.mark.parametrize("other", [{"photo_id": 6}, {"dc_id": 3}, {"peer_id": 8}, {"access_hash": 10}], ids=lambda o: next(iter(o)))
+def test_chat_photo_ids_change_with_what_they_encode(other):
+    assert chat_photo().small_file_id != chat_photo(**other).small_file_id
+
+
+def test_each_chat_photo_keeps_what_isnt_in_its_ids():
+    assert chat_photo(has_video=True).has_animation is True
+    assert chat_photo(has_video=False).has_animation is False
+    assert chat_photo(personal=True).is_personal is True
+    assert chat_photo(stripped_thumb=b"a").minithumbnail.data == b"a"
+    assert chat_photo(stripped_thumb=b"b").minithumbnail.data == b"b"
+    assert chat_photo() is not chat_photo()
